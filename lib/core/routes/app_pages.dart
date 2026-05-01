@@ -66,6 +66,7 @@ import '../../features/customer/presentation/pages/invoice_viewer_page.dart';
 import '../../features/representative/presentation/pages/rep_payments_page.dart';
 import '../../features/representative/presentation/pages/rep_warehouse_page.dart';
 import '../../features/representative/presentation/pages/rep_create_invoice_page.dart';
+import '../../features/representative/presentation/pages/rep_debts_page.dart';
 
 // Representative extra (notifications)
 import '../../features/representative/presentation/pages/representative_notifications_page.dart';
@@ -156,6 +157,7 @@ class AppPages {
     GetPage(name: AppRoutes.repPayments, page: () => const RepPaymentsPage()),
     GetPage(name: AppRoutes.repWarehouse, page: () => const RepWarehousePage()),
     GetPage(name: AppRoutes.repCreateInvoice, page: () => const RepCreateInvoicePage()),
+    GetPage(name: AppRoutes.repDebts, page: () => const RepDebtsPage()),
 
     // Admin
     GetPage(name: AppRoutes.representativeNotifications, page: () => const RepresentativeNotificationsPage()),

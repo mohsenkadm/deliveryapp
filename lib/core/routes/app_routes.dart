@@ -62,6 +62,7 @@ abstract class AppRoutes {
   static const repPayments = '/representative/payments';
   static const repWarehouse = '/representative/warehouse';
   static const repCreateInvoice = '/representative/create-invoice';
+  static const repDebts = '/representative/debts';
 
   // Admin
   static const admin = '/admin';

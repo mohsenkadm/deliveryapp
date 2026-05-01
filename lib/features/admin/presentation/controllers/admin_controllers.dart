@@ -140,6 +140,26 @@ class AdminProductsController extends GetxController {
     isSubmitting.value = false;
   }
 
+  Future<void> updateProduct(String id) async {
+    if (!formKey.currentState!.validate()) return;
+    isSubmitting.value = true;
+    try {
+      await _ds.updateProduct(id, {
+        'name': nameController.text.trim(),
+        'price': double.parse(priceController.text),
+        'description': descriptionController.text.trim(),
+        'categoryId': selectedCategoryId.value,
+      });
+      SnackbarHelper.showSuccess('تم تحديث المنتج');
+      clearForm();
+      Get.back();
+      loadData();
+    } catch (_) {
+      SnackbarHelper.showError('فشل تحديث المنتج');
+    }
+    isSubmitting.value = false;
+  }
+
   Future<void> deleteProduct(String id) async {
     try {
       await _ds.deleteProduct(id);
