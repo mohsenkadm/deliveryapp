@@ -1,0 +1,93 @@
+// مسارات التطبيق — أسماء جميع الصفحات
+abstract class AppRoutes {
+  static const splash = '/splash';
+  static const onboarding = '/onboarding';
+  static const roleSelection = '/role-selection';
+
+  // Auth
+  static const customerLogin = '/customer-login';
+  static const driverLogin = '/driver-login';
+  static const representativeLogin = '/representative-login';
+  static const adminLogin = '/admin-login';
+  static const customerRegister = '/customer-register';
+  static const registrationPending = '/registration-pending';
+
+  // Customer
+  static const customer = '/customer';
+  static const customerHome = '/customer/home';
+  static const products = '/customer/products';
+  static const productDetails = '/customer/product-details';
+  static const categories = '/customer/categories';
+  static const cart = '/customer/cart';
+  static const checkout = '/customer/checkout';
+  static const myOrders = '/customer/my-orders';
+  static const orderDetails = '/customer/order-details';
+  static const myDebts = '/customer/my-debts';
+  static const customerNotifications = '/customer/notifications';
+
+  // Driver
+  static const driver = '/driver';
+  static const driverHome = '/driver/home';
+  static const assignedOrders = '/driver/assigned-orders';
+  static const orderTracking = '/driver/order-tracking';
+  static const completedDeliveries = '/driver/completed-deliveries';
+  static const driverNotifications = '/driver/notifications';
+
+  // Representative
+  static const representative = '/representative';
+  static const representativeHome = '/representative/home';
+  static const myCustomers = '/representative/my-customers';
+  static const registerCustomer = '/representative/register-customer';
+  static const customerInvoices = '/representative/customer-invoices';
+  static const collectPayment = '/representative/collect-payment';
+  static const representativeNotifications = '/representative/notifications';
+
+  // Supervisor
+  static const supervisor = '/supervisor';
+  static const supervisorRepDetail = '/supervisor/rep-detail';
+
+  // Sales Manager
+  static const salesManager = '/sales-manager';
+  static const salesManagerRepDetail = '/sales-manager/rep-detail';
+
+  // Driver extra screens
+  static const driverSummary = '/driver/summary';
+  static const driverCollectPayment = '/driver/collect-payment';
+  static const driverSubmitPayment = '/driver/submit-payment';
+
+  // Customer extra screens
+  static const invoiceViewer = '/customer/invoice-viewer';
+
+  // Representative extra screens
+  static const repPayments = '/representative/payments';
+  static const repWarehouse = '/representative/warehouse';
+  static const repCreateInvoice = '/representative/create-invoice';
+
+  // Admin
+  static const admin = '/admin';
+  static const adminDashboard = '/admin/dashboard';
+  static const manageCustomers = '/admin/manage-customers';
+  static const pendingApprovals = '/admin/pending-approvals';
+  static const manageRepresentatives = '/admin/manage-representatives';
+  static const manageDrivers = '/admin/manage-drivers';
+  static const manageProducts = '/admin/manage-products';
+  static const manageCategories = '/admin/manage-categories';
+  static const manageWarehouses = '/admin/manage-warehouses';
+  static const manageInventory = '/admin/manage-inventory';
+  static const manageInvoices = '/admin/manage-invoices';
+  static const customerStatement = '/admin/customer-statement';
+  static const analytics = '/admin/analytics';
+  static const debtsSettlement = '/admin/debts-settlement';
+  static const activityLogs = '/admin/activity-logs';
+  static const adminNotifications = '/admin/notifications';
+
+  // Settings (shared)
+  static const settings = '/settings';
+  static const profile = '/settings/profile';
+  static const editProfile = '/settings/edit-profile';
+  static const themeSettings = '/settings/theme';
+  static const aboutApp = '/settings/about';
+  static const privacyPolicy = '/settings/privacy';
+  static const technicalSupport = '/settings/support';
+  static const changePassword = '/settings/change-password';
+}
