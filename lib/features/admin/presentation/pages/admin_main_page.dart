@@ -5,6 +5,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/services/auth_service.dart';
+import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../../core/services/notification_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
@@ -306,7 +307,7 @@ class _AdminDrawer extends StatelessWidget {
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.red),
             title: Text('تسجيل الخروج', style: GoogleFonts.cairo(color: Colors.red)),
-            onTap: () { Get.back(); Get.find<AuthService>().logout(); },
+            onTap: () { Get.back(); Get.find<AuthController>().logout(); },
           ),
         ],
       ),
@@ -469,7 +470,7 @@ class _AdminSettingsTab extends StatelessWidget {
             leading: const Icon(Icons.logout, color: Colors.red),
             title: Text('تسجيل الخروج', style: GoogleFonts.cairo(color: Colors.red)),
             trailing: const Icon(Icons.chevron_left, color: Colors.red),
-            onTap: () => Get.find<AuthService>().logout(),
+            onTap: () => Get.find<AuthController>().logout(),
           ),
         ],
       ),

@@ -1,13 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
-import '../../../../core/network/dio_client.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
-import '../../../../core/utils/snackbar_helper.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_text_field.dart';
-import '../../data/datasources/customer_remote_datasource.dart';
-import '../../data/repositories/customer_repository.dart';
 import '../controllers/customer_controllers.dart';
 
 class CheckoutPage extends StatelessWidget {
@@ -17,7 +14,7 @@ class CheckoutPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final cartController = Get.find<CartController>();
     final notesController = TextEditingController();
-    final isLoading = false.obs;
+    final addressController = TextEditingController();
 
     return Scaffold(
       appBar: AppBar(title: const Text('إتمام الطلب')),
@@ -26,49 +23,100 @@ class CheckoutPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('ملخص الطلب', style: GoogleFonts.cairo(fontSize: 18, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 16),
-            ...cartController.cartItems.map((item) => Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Expanded(child: Text('${item.product.name} × ${item.quantity}', style: GoogleFonts.cairo(fontSize: 14))),
-                      Text(Formatters.currency(item.total), style: GoogleFonts.cairo(fontSize: 14, fontWeight: FontWeight.w600)),
-                    ],
+            // ── ملخص المنتجات ──
+            Text('المنتجات', style: GoogleFonts.cairo(fontSize: 16, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 12),
+            Container(
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardTheme.color,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                children: [
+                  ...cartController.cartItems.asMap().entries.map((entry) {
+                    final i = entry.key;
+                    final item = entry.value;
+                    return Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                          child: Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  '${item.product.name} × ${item.quantity}',
+                                  style: GoogleFonts.cairo(fontSize: 14),
+                                ),
+                              ),
+                              Text(
+                                Formatters.currency(item.total),
+                                style: GoogleFonts.cairo(fontSize: 14, fontWeight: FontWeight.w600),
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (i < cartController.cartItems.length - 1)
+                          const Divider(height: 1, indent: 16, endIndent: 16),
+                      ],
+                    );
+                  }),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // ── الإجماليات ──
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardTheme.color,
+                borderRadius: BorderRadius.circular(16),
+              ),
+              child: Column(
+                children: [
+                  _row('المجموع الفرعي', Formatters.currency(cartController.subtotal)),
+                  const SizedBox(height: 8),
+                  _row('رسوم التوصيل', Formatters.currency(cartController.deliveryFee)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 8),
+                    child: Divider(color: AppColors.dividerLight),
                   ),
-                )),
-            const Divider(),
-            _row('المجموع الفرعي', Formatters.currency(cartController.subtotal)),
-            _row('رسوم التوصيل', Formatters.currency(cartController.deliveryFee)),
-            const Divider(),
-            _row('الإجمالي', Formatters.currency(cartController.total), isBold: true),
-            const SizedBox(height: 24),
-            CustomTextField(label: 'ملاحظات (اختياري)', hint: 'أضف ملاحظات للطلب...', controller: notesController, maxLines: 3),
+                  _row('الإجمالي', Formatters.currency(cartController.total), isBold: true),
+                ],
+              ),
+            ),
+            const SizedBox(height: 20),
+
+            // ── العنوان (اختياري) ──
+            CustomTextField(
+              label: 'عنوان التوصيل (اختياري)',
+              hint: 'أدخل عنوان التوصيل',
+              controller: addressController,
+              prefixIcon: Icons.location_on_outlined,
+              textInputAction: TextInputAction.next,
+            ),
+            const SizedBox(height: 16),
+
+            // ── ملاحظات ──
+            CustomTextField(
+              label: 'ملاحظات (اختياري)',
+              hint: 'أضف ملاحظات للطلب...',
+              controller: notesController,
+              maxLines: 3,
+            ),
             const SizedBox(height: 32),
+
+            // ── زر التأكيد ──
             Obx(() => CustomButton(
                   text: 'تأكيد الطلب',
-                  isLoading: isLoading.value,
-                  onPressed: () async {
-                    isLoading.value = true;
-                    final ds = CustomerRemoteDataSource(Get.find<DioClient>());
-                    final repo = CustomerRepository(ds);
-                    final items = cartController.cartItems
-                        .map((e) => {'productId': e.product.id, 'quantity': e.quantity})
-                        .toList();
-                    final result = await repo.createOrder(items: items, notes: notesController.text.trim().isEmpty ? null : notesController.text.trim());
-                    isLoading.value = false;
-                    result.fold(
-                      (f) => SnackbarHelper.showError(f.message),
-                      (_) {
-                        cartController.clearCart();
-                        SnackbarHelper.showSuccess('تم تأكيد الطلب بنجاح');
-                        Get.back();
-                        Get.back();
-                      },
-                    );
-                  },
+                  icon: Icons.check_circle_outline,
+                  isLoading: cartController.isSubmitting.value,
+                  onPressed: () => cartController.checkout(
+                    notes: notesController.text.trim().isEmpty ? null : notesController.text.trim(),
+                    address: addressController.text.trim().isEmpty ? null : addressController.text.trim(),
+                  ),
                 )),
+            const SizedBox(height: 20),
           ],
         ),
       ),
@@ -76,15 +124,19 @@ class CheckoutPage extends StatelessWidget {
   }
 
   Widget _row(String label, String value, {bool isBold = false}) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(label, style: GoogleFonts.cairo(fontSize: isBold ? 16 : 14, fontWeight: isBold ? FontWeight.w700 : FontWeight.w400)),
-          Text(value, style: GoogleFonts.cairo(fontSize: isBold ? 16 : 14, fontWeight: isBold ? FontWeight.w700 : FontWeight.w600)),
-        ],
-      ),
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(label,
+            style: GoogleFonts.cairo(
+                fontSize: isBold ? 16 : 14,
+                fontWeight: isBold ? FontWeight.w700 : FontWeight.w400)),
+        Text(value,
+            style: GoogleFonts.cairo(
+                fontSize: isBold ? 16 : 14,
+                fontWeight: isBold ? FontWeight.w700 : FontWeight.w600,
+                color: isBold ? AppColors.primary : null)),
+      ],
     );
   }
 }

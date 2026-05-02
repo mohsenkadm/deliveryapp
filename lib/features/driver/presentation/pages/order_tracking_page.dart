@@ -1,6 +1,11 @@
+// صفحة تفاصيل الطلب — السائق
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_launcher/url_launcher.dart';
+import '../../../../core/routes/app_routes.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/utils/helpers.dart';
 import '../../../../core/widgets/custom_button.dart';
@@ -14,91 +19,563 @@ class OrderTrackingPage extends StatelessWidget {
   Widget build(BuildContext context) {
     final order = Get.arguments['order'] as DeliveryOrder;
     final controller = Get.find<DriverHomeController>();
+    final statusColor = InvoiceStatusHelper.color(order.status);
 
     return Scaffold(
-      appBar: AppBar(title: Text('تتبع الطلب #${order.orderNumber}')),
+      backgroundColor: Theme.of(context).scaffoldBackgroundColor,
+      appBar: AppBar(
+        title: Text('طلب #${order.orderNumber}'),
+        actions: [
+          Container(
+            margin: const EdgeInsets.only(left: 16, right: 8),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+            decoration: BoxDecoration(
+              color: statusColor.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Text(
+              InvoiceStatusHelper.label(order.status),
+              style: GoogleFonts.cairo(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: statusColor),
+            ),
+          ),
+        ],
+      ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: Theme.of(context).cardTheme.color,
-                borderRadius: BorderRadius.circular(16),
-              ),
+            // ── بطاقة معلومات العميل ──
+            _SectionCard(
+              title: 'معلومات العميل',
+              icon: Icons.person_outlined,
               child: Column(
                 children: [
-                  Text('حالة الطلب', style: GoogleFonts.cairo(fontSize: 14, color: Colors.grey)),
-                  const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: Helpers.getStatusColor(order.status).withValues(alpha: 0.1),
-                      borderRadius: BorderRadius.circular(20),
-                    ),
-                    child: Text(Helpers.getStatusText(order.status), style: GoogleFonts.cairo(fontSize: 16, fontWeight: FontWeight.w700, color: Helpers.getStatusColor(order.status))),
+                  _InfoRow(
+                    icon: Icons.storefront_outlined,
+                    label: 'المتجر / العميل',
+                    value: order.storeName ?? order.customerName,
                   ),
+                  _InfoRow(
+                    icon: Icons.person_outline,
+                    label: 'اسم التواصل',
+                    value: order.customerName,
+                  ),
+                  _InfoRow(
+                    icon: Icons.phone_outlined,
+                    label: 'الهاتف',
+                    value: order.customerPhone,
+                    isPhone: true,
+                  ),
+                  _InfoRow(
+                    icon: Icons.location_on_outlined,
+                    label: 'العنوان',
+                    value: order.customerAddress,
+                  ),
+                  if (order.customerRegion != null)
+                    _InfoRow(
+                      icon: Icons.map_outlined,
+                      label: 'المنطقة',
+                      value: order.customerRegion!,
+                    ),
+                  // زر Google Maps
+                  if (order.googleMapsUrl != null ||
+                      (order.latitude != null && order.longitude != null))
+                    Padding(
+                      padding: const EdgeInsets.only(top: 12),
+                      child: OutlinedButton.icon(
+                        onPressed: () => _openMaps(order),
+                        icon: const Icon(Icons.directions_rounded, size: 18),
+                        label: Text('افتح في خرائط جوجل',
+                            style: GoogleFonts.cairo(fontSize: 13)),
+                        style: OutlinedButton.styleFrom(
+                          foregroundColor: Colors.teal,
+                          side: const BorderSide(color: Colors.teal),
+                          minimumSize: const Size.fromHeight(40),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                        ),
+                      ),
+                    ),
                 ],
               ),
-            ),
-            const SizedBox(height: 20),
-            _sectionTitle('معلومات العميل'),
-            _infoTile(Icons.person, 'الاسم', order.customerName, context),
-            _infoTile(Icons.phone, 'الهاتف', order.customerPhone, context),
-            _infoTile(Icons.location_on, 'العنوان', order.customerAddress, context),
-            const SizedBox(height: 20),
-            _sectionTitle('تفاصيل الطلب'),
-            _infoTile(Icons.receipt, 'رقم الطلب', order.orderNumber, context),
-            _infoTile(Icons.attach_money, 'المبلغ', Formatters.currency(order.totalAmount), context),
-            _infoTile(Icons.calendar_today, 'التاريخ', Formatters.dateTime(order.createdAt), context),
-            if (order.notes != null) _infoTile(Icons.note, 'ملاحظات', order.notes!, context),
+            ).animate().fadeIn(delay: 50.ms).slideY(begin: 0.05),
+
+            const SizedBox(height: 14),
+
+            // ── تفاصيل الطلب ──
+            _SectionCard(
+              title: 'تفاصيل الطلب',
+              icon: Icons.receipt_long_outlined,
+              child: Column(
+                children: [
+                  _InfoRow(
+                    icon: Icons.tag_rounded,
+                    label: 'رقم الطلب',
+                    value: '#${order.orderNumber}',
+                  ),
+                  _InfoRow(
+                    icon: Icons.calendar_today_outlined,
+                    label: 'التاريخ',
+                    value: Formatters.dateTime(order.createdAt),
+                  ),
+                  _InfoRow(
+                    icon: Icons.payments_outlined,
+                    label: 'إجمالي الطلب',
+                    value: Formatters.currency(order.totalAmount),
+                    isBold: true,
+                    valueColor: AppColors.primary,
+                  ),
+                  if (order.notes != null && order.notes!.isNotEmpty)
+                    _InfoRow(
+                      icon: Icons.note_outlined,
+                      label: 'ملاحظات',
+                      value: order.notes!,
+                    ),
+                ],
+              ),
+            ).animate().fadeIn(delay: 100.ms).slideY(begin: 0.05),
+
+            // ── قائمة المنتجات ──
+            if (order.items.isNotEmpty) ...[
+              const SizedBox(height: 14),
+              _SectionCard(
+                title: 'المنتجات (${order.items.length})',
+                icon: Icons.inventory_2_outlined,
+                child: Column(
+                  children: order.items.asMap().entries.map((entry) {
+                    final i = entry.key;
+                    final item = entry.value;
+                    return Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.symmetric(vertical: 8),
+                          child: Row(
+                            children: [
+                              Container(
+                                width: 32,
+                                height: 32,
+                                decoration: BoxDecoration(
+                                  color: AppColors.primary
+                                      .withValues(alpha: 0.08),
+                                  borderRadius: BorderRadius.circular(8),
+                                ),
+                                child: Center(
+                                  child: Text('${i + 1}',
+                                      style: GoogleFonts.cairo(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700,
+                                          color: AppColors.primary)),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(item.productName,
+                                    style: GoogleFonts.cairo(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w500)),
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Text('× ${item.quantity}',
+                                      style: GoogleFonts.cairo(
+                                          fontSize: 13,
+                                          color: AppColors.textSecondary)),
+                                  Text(
+                                      Formatters.currency(
+                                          item.price * item.quantity),
+                                      style: GoogleFonts.cairo(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w600,
+                                          color: AppColors.primary)),
+                                ],
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (i < order.items.length - 1)
+                          Divider(
+                              height: 1,
+                              color:
+                                  AppColors.dividerLight),
+                      ],
+                    );
+                  }).toList(),
+                ),
+              ).animate().fadeIn(delay: 150.ms).slideY(begin: 0.05),
+            ],
+
+            const SizedBox(height: 24),
+
+            // ── أزرار الإجراءات ──
+            _ActionSection(order: order, ctrl: controller)
+                .animate()
+                .fadeIn(delay: 200.ms),
+
             const SizedBox(height: 32),
-            if (order.status == 'Approved')
-              CustomButton(
-                text: 'بدء التوصيل',
-                icon: Icons.local_shipping,
-                backgroundColor: const Color(0xFF2563EB),
-                onPressed: () => controller.updateStatus(order.id, 'Shipped'),
-              ),
-            if (order.status == 'Shipped')
-              CustomButton(
-                text: 'تأكيد التوصيل',
-                icon: Icons.check_circle,
-                backgroundColor: const Color(0xFF059669),
-                onPressed: () => controller.updateStatus(order.id, 'Delivered'),
-              ),
           ],
         ),
       ),
     );
   }
 
-  Widget _sectionTitle(String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Text(text, style: GoogleFonts.cairo(fontSize: 16, fontWeight: FontWeight.w700)),
+  Future<void> _openMaps(DeliveryOrder order) async {
+    final url = order.googleMapsUrl ??
+        'https://maps.google.com/?q=${order.latitude},${order.longitude}';
+    final uri = Uri.parse(url);
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri, mode: LaunchMode.externalApplication);
+    }
+  }
+}
+
+// ─────────────────────────────────────────────
+// قسم الأزرار
+// ─────────────────────────────────────────────
+class _ActionSection extends StatelessWidget {
+  final DeliveryOrder order;
+  final DriverHomeController ctrl;
+
+  const _ActionSection({required this.order, required this.ctrl});
+
+  @override
+  Widget build(BuildContext context) {
+    final status = order.status;
+
+    return Column(
+      children: [
+        // تأكيد التسليم
+        if (status == 'AwaitingDelivery')
+          Obx(() => CustomButton(
+                text: 'تأكيد التسليم',
+                icon: Icons.check_circle_outline_rounded,
+                isLoading: ctrl.isActing.value,
+                backgroundColor: AppColors.success,
+                onPressed: () => _confirmDelivery(context),
+              )),
+
+        if (status == 'AwaitingDelivery') const SizedBox(height: 12),
+
+        // تحصيل دفعة — bottom sheet
+        if (status == 'AwaitingDelivery' || status == 'Delivered')
+          OutlinedButton.icon(
+            onPressed: () => CollectPaymentSheet.show(context, order.id, ctrl),
+            icon: const Icon(Icons.payments_rounded, size: 18),
+            label: Text('تحصيل دفعة',
+                style: GoogleFonts.cairo(fontWeight: FontWeight.w600)),
+            style: OutlinedButton.styleFrom(
+              foregroundColor: Colors.orange,
+              side: const BorderSide(color: Colors.orange),
+              minimumSize: const Size.fromHeight(44),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(10)),
+            ),
+          ),
+
+        if (status == 'AwaitingDelivery' || status == 'Delivered')
+          const SizedBox(height: 12),
+
+        // تسليم نقدية للشركة
+        OutlinedButton.icon(
+          onPressed: () => Get.toNamed(AppRoutes.driverSubmitPayment),
+          icon: const Icon(Icons.account_balance_wallet_outlined, size: 18),
+          label: Text('تسليم نقدية للشركة',
+              style: GoogleFonts.cairo(fontWeight: FontWeight.w600)),
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(44),
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10)),
+          ),
+        ),
+      ],
     );
   }
 
-  Widget _infoTile(IconData icon, String label, String value, BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Row(
+  Future<void> _confirmDelivery(BuildContext ctx) async {
+    final ok = await showDialog<bool>(
+      context: ctx,
+      builder: (_) => AlertDialog(
+        title: Text('تأكيد التسليم',
+            style: GoogleFonts.cairo(fontWeight: FontWeight.w700)),
+        content: Text(
+            'هل تم تسليم طلب #${order.orderNumber} للعميل فعلاً؟',
+            style: GoogleFonts.cairo()),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text('إلغاء', style: GoogleFonts.cairo())),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text('تأكيد', style: GoogleFonts.cairo())),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await ctrl.confirmDelivery(order.id);
+      Get.back();
+    }
+  }
+}
+
+// ─────────────────────────────────────────────
+// Bottom Sheet: تحصيل دفعة
+// ─────────────────────────────────────────────
+class CollectPaymentSheet extends StatefulWidget {
+  final String orderId;
+  final DriverHomeController ctrl;
+
+  const CollectPaymentSheet(
+      {super.key, required this.orderId, required this.ctrl});
+
+  static void show(
+      BuildContext context, String orderId, DriverHomeController ctrl) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (_) =>
+          CollectPaymentSheet(orderId: orderId, ctrl: ctrl),
+    );
+  }
+
+  @override
+  State<CollectPaymentSheet> createState() => _CollectPaymentSheetState();
+}
+
+class _CollectPaymentSheetState extends State<CollectPaymentSheet> {
+  final _formKey = GlobalKey<FormState>();
+  final _amountCtrl = TextEditingController();
+  final _notesCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _amountCtrl.dispose();
+    _notesCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final bottom = MediaQuery.of(context).viewInsets.bottom;
+
+    return Container(
+      padding: EdgeInsets.fromLTRB(20, 12, 20, 20 + bottom),
+      decoration: BoxDecoration(
+        color: Theme.of(context).scaffoldBackgroundColor,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      child: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Handle bar
+            Center(
+              child: Container(
+                width: 40,
+                height: 4,
+                margin: const EdgeInsets.only(bottom: 20),
+                decoration: BoxDecoration(
+                  color: AppColors.dividerLight,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+            ),
+            Text('تحصيل دفعة من العميل',
+                style: GoogleFonts.cairo(
+                    fontSize: 18, fontWeight: FontWeight.w700)),
+            const SizedBox(height: 4),
+            Text('رقم الطلب: ${widget.orderId}',
+                style: GoogleFonts.cairo(
+                    fontSize: 13, color: AppColors.textSecondary)),
+            const SizedBox(height: 20),
+            // حقل المبلغ
+            TextFormField(
+              controller: _amountCtrl,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              textDirection: TextDirection.ltr,
+              decoration: InputDecoration(
+                labelText: 'المبلغ المحصّل',
+                labelStyle: GoogleFonts.cairo(),
+                hintText: '0.00',
+                prefixIcon:
+                    const Icon(Icons.payments_outlined),
+                suffixText: 'د.ع',
+                filled: true,
+                fillColor: Theme.of(context).cardTheme.color,
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none),
+              ),
+              validator: (v) {
+                if (v == null || v.isEmpty) return 'أدخل المبلغ';
+                if (double.tryParse(v) == null || double.parse(v) <= 0) {
+                  return 'مبلغ غير صحيح';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 14),
+            // حقل الملاحظات
+            TextFormField(
+              controller: _notesCtrl,
+              maxLines: 2,
+              decoration: InputDecoration(
+                labelText: 'ملاحظات (اختياري)',
+                labelStyle: GoogleFonts.cairo(),
+                prefixIcon: const Icon(Icons.note_outlined),
+                filled: true,
+                fillColor: Theme.of(context).cardTheme.color,
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none),
+              ),
+            ),
+            const SizedBox(height: 24),
+            Obx(() => ElevatedButton(
+                  onPressed: widget.ctrl.isActing.value ? null : _submit,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.orange,
+                    foregroundColor: Colors.white,
+                    minimumSize: const Size.fromHeight(48),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  child: widget.ctrl.isActing.value
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, color: Colors.white))
+                      : Text('تأكيد التحصيل',
+                          style: GoogleFonts.cairo(
+                              fontSize: 15, fontWeight: FontWeight.w700)),
+                )),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _submit() async {
+    if (!_formKey.currentState!.validate()) return;
+    await widget.ctrl.collectPayment(
+      widget.orderId,
+      double.parse(_amountCtrl.text),
+      _notesCtrl.text.isEmpty ? null : _notesCtrl.text,
+    );
+    if (!widget.ctrl.isActing.value) {
+      Get.back(); // close sheet
+    }
+  }
+}
+
+// ─────────────────────────────────────────────
+// مساعدات UI
+// ─────────────────────────────────────────────
+class _SectionCard extends StatelessWidget {
+  final String title;
+  final IconData icon;
+  final Widget child;
+
+  const _SectionCard(
+      {required this.title, required this.icon, required this.child});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Theme.of(context).cardTheme.color,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.dividerLight),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
-          const SizedBox(width: 12),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(label, style: GoogleFonts.cairo(fontSize: 12, color: Colors.grey)),
-              Text(value, style: GoogleFonts.cairo(fontSize: 14, fontWeight: FontWeight.w500)),
-            ],
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 14, 16, 8),
+            child: Row(
+              children: [
+                Icon(icon, size: 18, color: AppColors.primary),
+                const SizedBox(width: 8),
+                Text(title,
+                    style: GoogleFonts.cairo(
+                        fontSize: 15, fontWeight: FontWeight.w700)),
+              ],
+            ),
+          ),
+          Divider(height: 1, color: AppColors.dividerLight),
+          Padding(padding: const EdgeInsets.all(16), child: child),
+        ],
+      ),
+    );
+  }
+}
+
+class _InfoRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final bool isPhone;
+  final bool isBold;
+  final Color? valueColor;
+
+  const _InfoRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.isPhone = false,
+    this.isBold = false,
+    this.valueColor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 10),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(icon, size: 16, color: AppColors.textSecondary),
+          const SizedBox(width: 10),
+          SizedBox(
+            width: 90,
+            child: Text(label,
+                style: GoogleFonts.cairo(
+                    fontSize: 13, color: AppColors.textSecondary)),
+          ),
+          Expanded(
+            child: GestureDetector(
+              onTap: isPhone
+                  ? () async {
+                      final uri = Uri(scheme: 'tel', path: value);
+                      if (await canLaunchUrl(uri)) launchUrl(uri);
+                    }
+                  : null,
+              child: Text(
+                value,
+                style: GoogleFonts.cairo(
+                  fontSize: 13,
+                  fontWeight:
+                      isBold ? FontWeight.w700 : FontWeight.w500,
+                  color: isPhone
+                      ? AppColors.primary
+                      : (valueColor ?? AppColors.textPrimary),
+                  decoration:
+                      isPhone ? TextDecoration.underline : null,
+                ),
+              ),
+            ),
           ),
         ],
       ),
     );
   }
 }
+

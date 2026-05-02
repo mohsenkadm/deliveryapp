@@ -31,7 +31,9 @@ class SupervisorController extends GetxController {
     isLoading.value = true;
     try {
       reps.value = await _ds.getReps();
-    } catch (_) {}
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشل تحميل المندوبين');
+    }
     isLoading.value = false;
   }
 
@@ -40,7 +42,9 @@ class SupervisorController extends GetxController {
     try {
       selectedRepInvoices.value =
           await _ds.getRepInvoices(repId, status: status);
-    } catch (_) {}
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشل تحميل فواتير المندوب');
+    }
     isLoading.value = false;
   }
 
@@ -48,7 +52,9 @@ class SupervisorController extends GetxController {
     isLoading.value = true;
     try {
       selectedRepPayments.value = await _ds.getRepPayments(repId);
-    } catch (_) {}
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشل تحميل مدفوعات المندوب');
+    }
     isLoading.value = false;
   }
 
@@ -56,14 +62,18 @@ class SupervisorController extends GetxController {
     isLoading.value = true;
     try {
       selectedRepCustomers.value = await _ds.getRepCustomers(repId);
-    } catch (_) {}
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشل تحميل عملاء المندوب');
+    }
     isLoading.value = false;
   }
 
   Future<void> loadPendingCustomers() async {
     try {
       pendingCustomers.value = await _ds.getPendingCustomers();
-    } catch (_) {}
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشل تحميل الموافقات المعلقة');
+    }
   }
 
   Future<void> approveCustomer(String id) async {
@@ -72,8 +82,8 @@ class SupervisorController extends GetxController {
       await _ds.approveCustomer(id);
       SnackbarHelper.showSuccess('تمت الموافقة على العميل');
       await loadPendingCustomers();
-    } catch (_) {
-      SnackbarHelper.showError('فشلت عملية الموافقة');
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشلت عملية الموافقة');
     }
     isActing.value = false;
   }
@@ -84,8 +94,8 @@ class SupervisorController extends GetxController {
       await _ds.rejectCustomer(id);
       SnackbarHelper.showSuccess('تم رفض العميل');
       await loadPendingCustomers();
-    } catch (_) {
-      SnackbarHelper.showError('فشلت عملية الرفض');
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشلت عملية الرفض');
     }
     isActing.value = false;
   }
@@ -94,7 +104,9 @@ class SupervisorController extends GetxController {
     isLoading.value = true;
     try {
       salesReport.value = await _ds.getSalesReport(from: from, to: to);
-    } catch (_) {}
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشل تحميل تقرير المبيعات');
+    }
     isLoading.value = false;
   }
 }

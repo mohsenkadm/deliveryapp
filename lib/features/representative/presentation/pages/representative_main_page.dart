@@ -4,7 +4,9 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/services/auth_service.dart';
+import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/loading_indicator.dart';
 import '../controllers/representative_controllers.dart';
 import 'customer_invoices_page.dart';
@@ -149,44 +151,102 @@ class _RepHomeTab extends GetView<RepresentativeHomeController> {
 }
 
 // ── My Customers Tab ──
-class _MyCustomersTab extends GetView<RepresentativeHomeController> {
+class _MyCustomersTab extends StatefulWidget {
   const _MyCustomersTab();
 
   @override
+  State<_MyCustomersTab> createState() => _MyCustomersTabState();
+}
+
+class _MyCustomersTabState extends State<_MyCustomersTab> {
+  bool _showPending = false;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback(
+        (_) => Get.find<RepresentativeHomeController>().loadCustomers());
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final ctrl = Get.find<RepresentativeHomeController>();
+
     return Scaffold(
       appBar: AppBar(
-        title: Text('عملائي', style: GoogleFonts.cairo(fontWeight: FontWeight.w700)),
+        title: Text('عملائي',
+            style: GoogleFonts.cairo(fontWeight: FontWeight.w700)),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(52),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+            child: Row(
+              children: [
+                FilterChip(
+                  label: Text('الكل',
+                      style: GoogleFonts.cairo(fontSize: 12)),
+                  selected: !_showPending,
+                  onSelected: (_) {
+                    setState(() => _showPending = false);
+                    ctrl.loadCustomers();
+                  },
+                ),
+                const SizedBox(width: 8),
+                FilterChip(
+                  label: Text('انتظار الموافقة',
+                      style: GoogleFonts.cairo(fontSize: 12)),
+                  selected: _showPending,
+                  onSelected: (_) {
+                    setState(() => _showPending = true);
+                    ctrl.loadCustomers(pendingApproval: true);
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () => Get.toNamed(AppRoutes.registerCustomer),
         icon: const Icon(Icons.person_add_rounded),
-        label: Text('إضافة عميل', style: GoogleFonts.cairo(fontWeight: FontWeight.w600)),
+        label: Text('إضافة عميل',
+            style: GoogleFonts.cairo(fontWeight: FontWeight.w600)),
         backgroundColor: AppColors.primaryLight,
         foregroundColor: Colors.white,
       ),
       body: Obx(() {
-        if (controller.isLoadingCustomers.value) return const LoadingIndicator();
+        if (ctrl.isLoadingCustomers.value) return const LoadingIndicator();
 
-        if (controller.customers.isEmpty) {
+        final list =
+            _showPending ? ctrl.pendingCustomers : ctrl.customers;
+
+        if (list.isEmpty) {
           return Center(
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Icon(Icons.people_outline, size: 64, color: AppColors.textSecondary.withValues(alpha: 0.3)),
+                Icon(Icons.people_outline,
+                    size: 64,
+                    color: AppColors.textSecondary.withValues(alpha: 0.3)),
                 const SizedBox(height: 12),
-                Text('لا يوجد عملاء حالياً', style: GoogleFonts.cairo(color: AppColors.textSecondary)),
+                Text(
+                  _showPending
+                      ? 'لا يوجد عملاء في انتظار الموافقة'
+                      : 'لا يوجد عملاء حالياً',
+                  style: GoogleFonts.cairo(color: AppColors.textSecondary),
+                ),
               ],
             ),
           );
         }
 
         return RefreshIndicator(
-          onRefresh: controller.loadCustomers,
+          onRefresh: () => ctrl.loadCustomers(
+              pendingApproval: _showPending ? true : null),
           child: ListView.builder(
-            padding: const EdgeInsets.all(16),
-            itemCount: controller.customers.length,
-            itemBuilder: (_, i) => _CustomerListItem(customer: controller.customers[i]),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 90),
+            itemCount: list.length,
+            itemBuilder: (_, i) => _CustomerListItem(customer: list[i]),
           ),
         );
       }),
@@ -216,7 +276,7 @@ class _RepSettingsTab extends StatelessWidget {
             leading: const Icon(Icons.logout, color: Colors.red),
             title: Text('تسجيل الخروج', style: GoogleFonts.cairo(color: Colors.red)),
             trailing: const Icon(Icons.chevron_left, color: Colors.red),
-            onTap: () => Get.find<AuthService>().logout(),
+            onTap: () => Get.find<AuthController>().logout(),
           ),
         ],
       ),
@@ -304,6 +364,12 @@ class _CustomerListItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final balance = (customer['balance'] as num?)?.toDouble() ??
+        (customer['totalDebt'] as num?)?.toDouble() ??
+        0.0;
+    final isPending = customer['isApproved'] == false ||
+        customer['status']?.toString() == 'PendingApproval';
+
     return Container(
       margin: const EdgeInsets.only(bottom: 8),
       child: ListTile(
@@ -314,13 +380,60 @@ class _CustomerListItem extends StatelessWidget {
           backgroundColor: AppColors.primaryLight.withValues(alpha: 0.1),
           child: Text(
             '${customer['fullName']?[0] ?? '?'}',
-            style: GoogleFonts.cairo(fontWeight: FontWeight.w700, color: AppColors.primaryLight),
+            style: GoogleFonts.cairo(
+                fontWeight: FontWeight.w700, color: AppColors.primaryLight),
           ),
         ),
-        title: Text(customer['fullName'] ?? '', style: GoogleFonts.cairo(fontWeight: FontWeight.w600)),
-        subtitle: Text(customer['phone'] ?? '', style: GoogleFonts.cairo(fontSize: 12, color: AppColors.textSecondary)),
-        trailing: const Icon(Icons.chevron_left, size: 20),
-        onTap: () => Get.toNamed(AppRoutes.customerInvoices, arguments: customer),
+        title: Text(customer['fullName'] ?? '',
+            style: GoogleFonts.cairo(fontWeight: FontWeight.w600)),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if ((customer['storeName'] as String?)?.isNotEmpty == true)
+              Text(customer['storeName']!,
+                  style: GoogleFonts.cairo(
+                      fontSize: 11, color: AppColors.textSecondary)),
+            Text(customer['phone'] ?? '',
+                style: GoogleFonts.cairo(
+                    fontSize: 12, color: AppColors.textSecondary)),
+          ],
+        ),
+        trailing: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          crossAxisAlignment: CrossAxisAlignment.end,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (balance != 0)
+              Text(
+                Formatters.currency(balance.abs()),
+                style: GoogleFonts.cairo(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: balance > 0 ? AppColors.error : AppColors.success,
+                ),
+              ),
+            if (isPending)
+              Container(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.warningLight.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(5),
+                ),
+                child: Text(
+                  'انتظار',
+                  style: GoogleFonts.cairo(
+                      fontSize: 9,
+                      color: AppColors.warningLight,
+                      fontWeight: FontWeight.w600),
+                ),
+              )
+            else
+              const Icon(Icons.chevron_left, size: 16),
+          ],
+        ),
+        onTap: () =>
+            Get.toNamed(AppRoutes.customerInvoices, arguments: customer),
       ),
     );
   }

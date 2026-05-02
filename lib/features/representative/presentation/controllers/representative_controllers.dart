@@ -70,12 +70,12 @@ class RepresentativeHomeController extends GetxController {
       final data = await _ds.getCustomers(pendingApproval: pendingApproval);
       if (pendingApproval == true) {
         pendingCustomers.value = data;
-      } else if (pendingApproval == false) {
-        customers.value = data;
       } else {
         customers.value = data;
       }
-    } catch (_) {}
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشل تحميل العملاء');
+    }
     isLoadingCustomers.value = false;
   }
 
@@ -99,8 +99,8 @@ class RepresentativeHomeController extends GetxController {
       regionController.clear();
       Get.back();
       loadCustomers();
-    } catch (_) {
-      SnackbarHelper.showError('فشل إضافة العميل');
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشل إضافة العميل');
     }
     isActing.value = false;
   }
@@ -110,14 +110,30 @@ class RepresentativeHomeController extends GetxController {
   // فواتير عميل محدد
   final customerInvoices = <Map<String, dynamic>>[].obs;
 
+  // تفاصيل فاتورة
+  final invoiceDetail = Rxn<Map<String, dynamic>>();
+  final isLoadingDetail = false.obs;
+
   Future<void> loadCustomerInvoices(String customerId) async {
     isLoadingInvoices.value = true;
     try {
       final data = await _ds.getInvoices(customerId: customerId);
-      customerInvoices.value = data;    } catch (_) {
+      customerInvoices.value = data;
+    } catch (e) {
       customerInvoices.clear();
+      SnackbarHelper.handleApiError(e, 'فشل تحميل فواتير العميل');
     }
     isLoadingInvoices.value = false;
+  }
+
+  Future<void> loadInvoiceDetail(String id) async {
+    isLoadingDetail.value = true;
+    try {
+      invoiceDetail.value = await _ds.getInvoiceDetail(id);
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشل تحميل تفاصيل الفاتورة');
+    }
+    isLoadingDetail.value = false;
   }
 
   Future<void> loadInvoices({String? status}) async {
@@ -128,7 +144,9 @@ class RepresentativeHomeController extends GetxController {
     try {
       invoices.value =
           await _ds.getInvoices(status: selectedInvoiceStatus.value);
-    } catch (_) {}
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشل تحميل الفواتير');
+    }
     isLoadingInvoices.value = false;
   }
 
@@ -138,8 +156,8 @@ class RepresentativeHomeController extends GetxController {
       await _ds.createInvoice(data);
       SnackbarHelper.showSuccess('تم إنشاء الفاتورة بنجاح');
       loadInvoices();
-    } catch (_) {
-      SnackbarHelper.showError('فشل إنشاء الفاتورة');
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشل إنشاء الفاتورة');
     }
     isActing.value = false;
   }
@@ -150,7 +168,9 @@ class RepresentativeHomeController extends GetxController {
     isLoadingPayments.value = true;
     try {
       payments.value = await _ds.getPayments();
-    } catch (_) {}
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشل تحميل المدفوعات');
+    }
     isLoadingPayments.value = false;
   }
 
@@ -170,8 +190,8 @@ class RepresentativeHomeController extends GetxController {
       );
       SnackbarHelper.showSuccess('تم تحصيل الدفعة بنجاح');
       loadPayments();
-    } catch (_) {
-      SnackbarHelper.showError('فشل تحصيل الدفعة');
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشل تحصيل الدفعة');
     }
     isActing.value = false;
   }
@@ -186,8 +206,8 @@ class RepresentativeHomeController extends GetxController {
       await _ds.submitPayment(
           invoiceId: invoiceId, amount: amount, notes: notes);
       SnackbarHelper.showSuccess('تم تسليم المبلغ للمحاسب بنجاح');
-    } catch (_) {
-      SnackbarHelper.showError('فشل تسليم المبلغ');
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشل تسليم المبلغ');
     }
     isActing.value = false;
   }
@@ -198,7 +218,9 @@ class RepresentativeHomeController extends GetxController {
     isLoadingDebts.value = true;
     try {
       debts.value = await _ds.getDebts();
-    } catch (_) {}
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشل تحميل الديون');
+    }
     isLoadingDebts.value = false;
   }
 
@@ -208,7 +230,9 @@ class RepresentativeHomeController extends GetxController {
     isLoadingWarehouse.value = true;
     try {
       warehouseItems.value = await _ds.getWarehouseInventory();
-    } catch (_) {}
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشل تحميل بيانات المستودع');
+    }
     isLoadingWarehouse.value = false;
   }
 
@@ -219,7 +243,9 @@ class RepresentativeHomeController extends GetxController {
     try {
       transferOrders.value =
           await _ds.getTransferOrders(status: status);
-    } catch (_) {}
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشل تحميل أوامر النقل');
+    }
     isLoadingTransfers.value = false;
   }
 
@@ -229,8 +255,8 @@ class RepresentativeHomeController extends GetxController {
       await _ds.requestTransfer(data);
       SnackbarHelper.showSuccess('تم إرسال طلب النقل بنجاح');
       loadTransferOrders();
-    } catch (_) {
-      SnackbarHelper.showError('فشل إرسال طلب النقل');
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشل إرسال طلب النقل');
     }
     isActing.value = false;
   }
@@ -241,8 +267,8 @@ class RepresentativeHomeController extends GetxController {
       await _ds.returnTransfer(data);
       SnackbarHelper.showSuccess('تم إرسال طلب الإرجاع بنجاح');
       loadTransferOrders();
-    } catch (_) {
-      SnackbarHelper.showError('فشل إرسال طلب الإرجاع');
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشل إرسال طلب الإرجاع');
     }
     isActing.value = false;
   }

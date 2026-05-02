@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../../../core/routes/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/utils/helpers.dart';
@@ -10,6 +9,7 @@ import '../../../../core/widgets/empty_state.dart';
 import '../../../../core/widgets/loading_indicator.dart';
 import '../../domain/entities/driver_entities.dart';
 import '../controllers/driver_controllers.dart';
+import 'order_tracking_page.dart';
 
 class AssignedOrdersPage extends GetView<DriverHomeController> {
   const AssignedOrdersPage({super.key});
@@ -204,7 +204,7 @@ class _ActionButtons extends StatelessWidget {
             label: 'تحصيل دفعة',
             icon: Icons.payments_rounded,
             color: Colors.orange,
-            onTap: () => Get.toNamed(AppRoutes.driverCollectPayment, arguments: order.id),
+            onTap: () => CollectPaymentSheet.show(context, order.id, ctrl),
           ),
         ],
       ],

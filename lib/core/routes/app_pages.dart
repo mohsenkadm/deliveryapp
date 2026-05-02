@@ -8,6 +8,7 @@ import '../../features/onboarding/presentation/pages/onboarding_page.dart';
 
 // Auth
 import '../../features/auth/presentation/pages/role_selection_page.dart';
+import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/customer_login_page.dart';
 import '../../features/auth/presentation/pages/driver_login_page.dart';
 import '../../features/auth/presentation/pages/representative_login_page.dart';
@@ -67,6 +68,7 @@ import '../../features/representative/presentation/pages/rep_payments_page.dart'
 import '../../features/representative/presentation/pages/rep_warehouse_page.dart';
 import '../../features/representative/presentation/pages/rep_create_invoice_page.dart';
 import '../../features/representative/presentation/pages/rep_debts_page.dart';
+import '../../features/representative/presentation/pages/rep_invoice_detail_page.dart';
 
 // Representative extra (notifications)
 import '../../features/representative/presentation/pages/representative_notifications_page.dart';
@@ -105,6 +107,7 @@ class AppPages {
 
     // Auth
     GetPage(name: AppRoutes.roleSelection, page: () => const RoleSelectionPage(), binding: AuthBinding()),
+    GetPage(name: AppRoutes.login, page: () => const LoginPage(), binding: AuthBinding()),
     GetPage(name: AppRoutes.customerLogin, page: () => const CustomerLoginPage(), binding: AuthBinding()),
     GetPage(name: AppRoutes.driverLogin, page: () => const DriverLoginPage(), binding: AuthBinding()),
     GetPage(name: AppRoutes.representativeLogin, page: () => const RepresentativeLoginPage(), binding: AuthBinding()),
@@ -122,7 +125,7 @@ class AppPages {
     GetPage(name: AppRoutes.myOrders, page: () => const MyOrdersPage()),
     GetPage(name: AppRoutes.orderDetails, page: () => const OrderDetailsPage()),
     GetPage(name: AppRoutes.myDebts, page: () => const MyDebtsPage()),
-    GetPage(name: AppRoutes.customerNotifications, page: () => const CustomerNotificationsPage()),
+    GetPage(name: AppRoutes.customerNotifications, page: () => const CustomerNotificationsPage(), binding: CustomerBinding()),
 
     // Driver
     GetPage(name: AppRoutes.driver, page: () => const DriverMainPage(), binding: DriverBinding()),
@@ -158,6 +161,7 @@ class AppPages {
     GetPage(name: AppRoutes.repWarehouse, page: () => const RepWarehousePage()),
     GetPage(name: AppRoutes.repCreateInvoice, page: () => const RepCreateInvoicePage()),
     GetPage(name: AppRoutes.repDebts, page: () => const RepDebtsPage()),
+    GetPage(name: AppRoutes.repInvoiceDetail, page: () => const RepInvoiceDetailPage()),
 
     // Admin
     GetPage(name: AppRoutes.representativeNotifications, page: () => const RepresentativeNotificationsPage()),
@@ -193,5 +197,10 @@ class AppPages {
     GetPage(name: AppRoutes.aboutApp, page: () => const AboutAppPage()),
     GetPage(name: AppRoutes.privacyPolicy, page: () => const PrivacyPolicyPage()),
     GetPage(name: AppRoutes.technicalSupport, page: () => const TechnicalSupportPage()),
+
+    // Deep-link aliases — used by OneSignal push notification handler
+    GetPage(name: AppRoutes.orderDetailsAlias, page: () => const OrderDetailsPage()),
+    GetPage(name: AppRoutes.invoiceDetailsAlias, page: () => const RepInvoiceDetailPage()),
+    GetPage(name: AppRoutes.notificationsAlias, page: () => const CustomerNotificationsPage(), binding: CustomerBinding()),
   ];
 }

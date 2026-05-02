@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/routes/app_routes.dart';
+import '../../../auth/presentation/controllers/auth_controller.dart';
 import 'driver_home_page.dart';
 import 'assigned_orders_page.dart';
 import 'completed_deliveries_page.dart';
@@ -60,7 +61,7 @@ class _DriverSettingsTab extends StatelessWidget {
             leading: const Icon(Icons.logout, color: Colors.red),
             title: Text('تسجيل الخروج', style: GoogleFonts.cairo(color: Colors.red)),
             trailing: const Icon(Icons.chevron_left, color: Colors.red),
-            onTap: () => Get.find<dynamic>().logout(),
+            onTap: () => Get.find<AuthController>().logout(),
           ),
         ],
       ),

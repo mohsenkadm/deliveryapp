@@ -67,7 +67,7 @@ class _RepPaymentsPageState extends State<RepPaymentsPage> {
             return Card(
               child: ListTile(
                 leading: CircleAvatar(
-                  backgroundColor: AppColors.success.withOpacity(0.15),
+                  backgroundColor: AppColors.success.withValues(alpha: 0.15),
                   child: Icon(Icons.payments, color: AppColors.success),
                 ),
                 title: Text(

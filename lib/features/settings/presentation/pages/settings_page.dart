@@ -4,6 +4,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/services/auth_service.dart';
+import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../../core/theme/app_colors.dart';
 
 class SettingsPage extends StatelessWidget {
@@ -109,8 +110,7 @@ class SettingsPage extends StatelessWidget {
           ElevatedButton(
             onPressed: () {
               Get.back();
-              authService.logout();
-              Get.offAllNamed(AppRoutes.roleSelection);
+              Get.find<AuthController>().logout();
             },
             style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
             child: Text('خروج', style: GoogleFonts.cairo(color: Colors.white)),

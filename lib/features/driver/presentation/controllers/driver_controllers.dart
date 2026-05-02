@@ -45,7 +45,9 @@ class DriverHomeController extends GetxController {
     try {
       final orders = await _ds.getOrders(status: status);
       assignedOrders.value = orders;
-    } catch (_) {}
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشل تحميل الطلبات');
+    }
   }
 
   Future<void> loadOrdersByStatus(String? status) async {
@@ -54,7 +56,9 @@ class DriverHomeController extends GetxController {
     try {
       final orders = await _ds.getOrders(status: selectedStatus.value);
       assignedOrders.value = orders;
-    } catch (_) {}
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشل تحميل الطلبات');
+    }
     isLoading.value = false;
   }
 
@@ -63,7 +67,9 @@ class DriverHomeController extends GetxController {
     try {
       final orders = await _ds.getOrders(status: 'Completed');
       completedOrders.value = orders;
-    } catch (_) {}
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشل تحميل التوصيلات المكتملة');
+    }
     isLoading.value = false;
   }
 
@@ -71,7 +77,9 @@ class DriverHomeController extends GetxController {
     try {
       final s = await _ds.getSummary();
       summary.value = s;
-    } catch (_) {}
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشل تحميل ملخص الأداء');
+    }
   }
 
   Future<void> refreshSummary() async {
@@ -86,7 +94,7 @@ class DriverHomeController extends GetxController {
       SnackbarHelper.showSuccess('تم تأكيد التوصيل بنجاح');
       await loadData();
     } catch (e) {
-      SnackbarHelper.showError('فشل تأكيد التوصيل');
+      SnackbarHelper.handleApiError(e, 'فشل تأكيد التوصيل');
     }
     isActing.value = false;
   }
@@ -100,7 +108,7 @@ class DriverHomeController extends GetxController {
       SnackbarHelper.showSuccess('تم تسجيل الدفعة بنجاح');
       await loadData();
     } catch (e) {
-      SnackbarHelper.showError('فشل تسجيل الدفعة');
+      SnackbarHelper.handleApiError(e, 'فشل تسجيل الدفعة');
     }
     isActing.value = false;
   }
@@ -114,7 +122,7 @@ class DriverHomeController extends GetxController {
           invoiceId: invoiceId, amount: amount, notes: notes);
       SnackbarHelper.showSuccess('تم تسليم النقدية بنجاح');
     } catch (e) {
-      SnackbarHelper.showError('فشل تسليم النقدية');
+      SnackbarHelper.handleApiError(e, 'فشل تسليم النقدية');
     }
     isActing.value = false;
   }
@@ -127,7 +135,7 @@ class DriverHomeController extends GetxController {
       SnackbarHelper.showSuccess('تم تحديث حالة الطلب');
       await loadData();
     } catch (e) {
-      SnackbarHelper.showError('فشل تحديث الحالة');
+      SnackbarHelper.handleApiError(e, 'فشل تحديث الحالة');
     }
     isActing.value = false;
     isUpdating.value = false;

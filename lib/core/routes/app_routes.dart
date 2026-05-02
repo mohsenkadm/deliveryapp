@@ -5,6 +5,7 @@ abstract class AppRoutes {
   static const roleSelection = '/role-selection';
 
   // Auth
+  static const login = '/login';
   static const customerLogin = '/customer-login';
   static const driverLogin = '/driver-login';
   static const representativeLogin = '/representative-login';
@@ -63,6 +64,7 @@ abstract class AppRoutes {
   static const repWarehouse = '/representative/warehouse';
   static const repCreateInvoice = '/representative/create-invoice';
   static const repDebts = '/representative/debts';
+  static const repInvoiceDetail = '/representative/invoice-detail';
 
   // Admin
   static const admin = '/admin';
@@ -91,4 +93,9 @@ abstract class AppRoutes {
   static const privacyPolicy = '/settings/privacy';
   static const technicalSupport = '/settings/support';
   static const changePassword = '/settings/change-password';
+
+  // Deep-link aliases (used by OneSignal push notification handler)
+  static const orderDetailsAlias = '/order-details';
+  static const invoiceDetailsAlias = '/invoice-details';
+  static const notificationsAlias = '/notifications';
 }

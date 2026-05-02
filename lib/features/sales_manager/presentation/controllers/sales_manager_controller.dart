@@ -27,6 +27,7 @@ class SalesManagerController extends GetxController {
 
   void _loadInitialData() {
     loadReps();
+    loadSalesSummary();
     loadPendingCustomers();
     loadPendingInvoices();
   }
@@ -35,7 +36,9 @@ class SalesManagerController extends GetxController {
     isLoading.value = true;
     try {
       reps.value = await _ds.getReps();
-    } catch (_) {}
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشل تحميل المندوبين');
+    }
     isLoading.value = false;
   }
 
@@ -44,14 +47,18 @@ class SalesManagerController extends GetxController {
     try {
       selectedRepInvoices.value =
           await _ds.getRepInvoices(repId, status: status);
-    } catch (_) {}
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشل تحميل فواتير المندوب');
+    }
     isLoading.value = false;
   }
 
   Future<void> loadPendingCustomers() async {
     try {
       pendingCustomers.value = await _ds.getPendingCustomers();
-    } catch (_) {}
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشل تحميل الموافقات المعلقة');
+    }
   }
 
   Future<void> approveCustomer(String id) async {
@@ -60,8 +67,8 @@ class SalesManagerController extends GetxController {
       await _ds.approveCustomer(id);
       SnackbarHelper.showSuccess('تمت الموافقة على العميل');
       await loadPendingCustomers();
-    } catch (_) {
-      SnackbarHelper.showError('فشلت عملية الموافقة');
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشلت عملية الموافقة');
     }
     isActing.value = false;
   }
@@ -72,8 +79,8 @@ class SalesManagerController extends GetxController {
       await _ds.rejectCustomer(id);
       SnackbarHelper.showSuccess('تم رفض العميل');
       await loadPendingCustomers();
-    } catch (_) {
-      SnackbarHelper.showError('فشلت عملية الرفض');
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشلت عملية الرفض');
     }
     isActing.value = false;
   }
@@ -81,7 +88,9 @@ class SalesManagerController extends GetxController {
   Future<void> loadPendingInvoices() async {
     try {
       pendingInvoices.value = await _ds.getPendingInvoices();
-    } catch (_) {}
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشل تحميل الفواتير المعلقة');
+    }
   }
 
   Future<void> approveInvoice(String id) async {
@@ -90,8 +99,8 @@ class SalesManagerController extends GetxController {
       await _ds.approveInvoice(id);
       SnackbarHelper.showSuccess('تمت الموافقة على الفاتورة');
       await loadPendingInvoices();
-    } catch (_) {
-      SnackbarHelper.showError('فشلت عملية الموافقة');
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشلت عملية الموافقة على الفاتورة');
     }
     isActing.value = false;
   }
@@ -102,8 +111,8 @@ class SalesManagerController extends GetxController {
       await _ds.rejectInvoice(id, reason: reason);
       SnackbarHelper.showSuccess('تم رفض الفاتورة');
       await loadPendingInvoices();
-    } catch (_) {
-      SnackbarHelper.showError('فشلت عملية الرفض');
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشلت عملية رفض الفاتورة');
     }
     isActing.value = false;
   }
@@ -113,7 +122,9 @@ class SalesManagerController extends GetxController {
     try {
       salesSummary.value =
           await _ds.getSalesSummary(from: from, to: to);
-    } catch (_) {}
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشل تحميل ملخص المبيعات');
+    }
     isLoading.value = false;
   }
 
@@ -121,7 +132,9 @@ class SalesManagerController extends GetxController {
     isLoading.value = true;
     try {
       debtsReport.value = await _ds.getDebtsReport();
-    } catch (_) {}
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشل تحميل تقرير الديون');
+    }
     isLoading.value = false;
   }
 
@@ -130,7 +143,9 @@ class SalesManagerController extends GetxController {
     try {
       paymentsReport.value =
           await _ds.getPaymentsReport(verified: verified);
-    } catch (_) {}
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشل تحميل تقرير المدفوعات');
+    }
     isLoading.value = false;
   }
 }

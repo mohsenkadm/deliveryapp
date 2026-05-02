@@ -14,7 +14,7 @@ class AuthRemoteDataSource {
   Future<AuthResponse> loginCustomer(LoginRequest request) async {
     final response = await _dioClient.post(
       ApiConstants.loginCustomer,
-      data: request.toJson(),
+      data: {'phone': request.phone, 'password': request.password},
     );
     return AuthResponse.fromJson(response.data['data'] ?? response.data);
   }
@@ -24,7 +24,7 @@ class AuthRemoteDataSource {
   Future<AuthResponse> loginEmployee(LoginRequest request) async {
     final response = await _dioClient.post(
       ApiConstants.loginEmployee,
-      data: request.toJson(),
+      data: {'username': request.username, 'password': request.password},
     );
     return AuthResponse.fromJson(response.data['data'] ?? response.data);
   }

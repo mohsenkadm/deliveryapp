@@ -1,6 +1,8 @@
-// صفحة التقارير — مدير المبيعات (ملخص + ديون + مدفوعات)
+// تقارير الديون والمدفوعات — مدير المبيعات
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
+import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/empty_state.dart';
@@ -18,15 +20,14 @@ class SalesManagerReportsPage extends StatefulWidget {
 class _SalesManagerReportsPageState extends State<SalesManagerReportsPage>
     with SingleTickerProviderStateMixin {
   late final TabController _tabs;
-  DateTime? _from, _to;
+  bool? _verifiedFilter;
 
   @override
   void initState() {
     super.initState();
-    _tabs = TabController(length: 3, vsync: this);
+    _tabs = TabController(length: 2, vsync: this);
     final ctrl = Get.find<SalesManagerController>();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      ctrl.loadSalesSummary();
       ctrl.loadDebtsReport();
       ctrl.loadPaymentsReport();
     });
@@ -44,57 +45,20 @@ class _SalesManagerReportsPageState extends State<SalesManagerReportsPage>
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('التقارير'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.date_range),
-            onPressed: () => _pickRange(context, ctrl),
-          ),
-        ],
+        title: Text('التقارير',
+            style: GoogleFonts.cairo(fontWeight: FontWeight.w700)),
         bottom: TabBar(
           controller: _tabs,
           tabs: const [
-            Tab(text: 'ملخص المبيعات'),
-            Tab(text: 'الديون'),
-            Tab(text: 'المدفوعات'),
+            Tab(icon: Icon(Icons.account_balance_wallet_outlined), text: 'الديون'),
+            Tab(icon: Icon(Icons.payments_outlined), text: 'المدفوعات'),
           ],
         ),
       ),
       body: TabBarView(
         controller: _tabs,
         children: [
-          // ملخص المبيعات
-          Obx(() {
-            if (ctrl.isLoading.value && ctrl.salesSummary.value == null) {
-              return const LoadingIndicator();
-            }
-            final s = ctrl.salesSummary.value;
-            if (s == null) {
-              return const EmptyState(
-                  icon: Icons.bar_chart_outlined, title: 'لا توجد بيانات');
-            }
-            return ListView(
-              padding: const EdgeInsets.all(16),
-              children: [
-                _SummaryItem('إجمالي الفواتير',
-                    '${s['totalInvoices'] ?? 0}'),
-                _SummaryItem('إجمالي المبيعات',
-                    Formatters.formatCurrency(
-                        ((s['totalSales'] as num?) ?? 0).toDouble())),
-                _SummaryItem('إجمالي التحصيل',
-                    Formatters.formatCurrency(
-                        ((s['totalCollected'] as num?) ?? 0).toDouble())),
-                _SummaryItem('إجمالي الديون',
-                    Formatters.formatCurrency(
-                        ((s['totalDebts'] as num?) ?? 0).toDouble()),
-                    valueColor: AppColors.error),
-                _SummaryItem('عدد العملاء', '${s['totalCustomers'] ?? 0}'),
-                _SummaryItem('عدد المندوبين', '${s['totalReps'] ?? 0}'),
-              ],
-            );
-          }),
-
-          // الديون
+          // ── تبويب الديون ──
           Obx(() {
             if (ctrl.isLoading.value && ctrl.debtsReport.isEmpty) {
               return const LoadingIndicator();
@@ -104,47 +68,114 @@ class _SalesManagerReportsPageState extends State<SalesManagerReportsPage>
                   icon: Icons.account_balance_wallet_outlined,
                   title: 'لا توجد ديون');
             }
-            final total = ctrl.debtsReport.fold<double>(
+            final sorted = [...ctrl.debtsReport]
+              ..sort((a, b) =>
+                  ((b['totalDebt'] as num?) ?? 0)
+                      .compareTo((a['totalDebt'] as num?) ?? 0));
+            final total = sorted.fold<double>(
                 0,
                 (s, d) =>
                     s + ((d['totalDebt'] as num?) ?? 0).toDouble());
             return Column(
               children: [
                 Container(
-                  padding: const EdgeInsets.all(16),
-                  color: AppColors.error.withOpacity(0.1),
+                  margin: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(14),
+                  decoration: BoxDecoration(
+                    color: AppColors.errorLight.withValues(alpha: 0.07),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                        color: AppColors.errorLight.withValues(alpha: 0.2)),
+                  ),
                   child: Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      const Text('إجمالي الديون',
-                          style: TextStyle(fontWeight: FontWeight.bold)),
-                      Text(Formatters.formatCurrency(total),
-                          style: TextStyle(
-                              color: AppColors.error,
-                              fontWeight: FontWeight.bold)),
+                      Icon(Icons.account_balance_wallet_rounded,
+                          color: AppColors.errorLight, size: 22),
+                      const SizedBox(width: 8),
+                      Text('إجمالي الديون: ',
+                          style: GoogleFonts.cairo(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.errorLight)),
+                      Text(Formatters.currency(total),
+                          style: GoogleFonts.cairo(
+                              fontSize: 14,
+                              fontWeight: FontWeight.w800,
+                              color: AppColors.errorLight)),
                     ],
                   ),
                 ),
                 Expanded(
-                  child: ListView.builder(
-                    padding: const EdgeInsets.all(16),
-                    itemCount: ctrl.debtsReport.length,
+                  child: ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    itemCount: sorted.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
                     itemBuilder: (ctx, i) {
-                      final d = ctrl.debtsReport[i];
-                      return Card(
-                        child: ListTile(
-                          title: Text(d['customerName'] ?? ''),
-                          subtitle:
-                              Text('${d['invoiceCount'] ?? 0} فاتورة غير مسددة'),
-                          trailing: Text(
-                            Formatters.formatCurrency(
-                                ((d['totalDebt'] as num?) ?? 0).toDouble()),
-                            style: TextStyle(
-                                color: AppColors.error,
-                                fontWeight: FontWeight.bold),
-                          ),
+                      final d = sorted[i];
+                      final debt =
+                          ((d['totalDebt'] as num?) ?? 0).toDouble();
+                      return Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).cardTheme.color,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                              color:
+                                  AppColors.errorLight.withValues(alpha: 0.15)),
                         ),
-                      );
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: AppColors.errorLight
+                                    .withValues(alpha: 0.1),
+                                shape: BoxShape.circle,
+                              ),
+                              child: Center(
+                                child: Text('${i + 1}',
+                                    style: GoogleFonts.cairo(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: AppColors.errorLight)),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(d['customerName'] ?? '—',
+                                      style: GoogleFonts.cairo(
+                                          fontSize: 13,
+                                          fontWeight: FontWeight.w700)),
+                                  Text(
+                                    '${d['invoiceCount'] ?? 0} فاتورة غير مسددة',
+                                    style: GoogleFonts.cairo(
+                                        fontSize: 11,
+                                        color: AppColors.textSecondary),
+                                  ),
+                                  if ((d['repName'] as String?)
+                                          ?.isNotEmpty ==
+                                      true)
+                                    Text(d['repName']!,
+                                        style: GoogleFonts.cairo(
+                                            fontSize: 11,
+                                            color: AppColors.primaryLight)),
+                                ],
+                              ),
+                            ),
+                            Text(
+                              Formatters.currency(debt),
+                              style: GoogleFonts.cairo(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w800,
+                                  color: AppColors.errorLight),
+                            ),
+                          ],
+                        ),
+                      ).animate().fadeIn(delay: (40 + i * 35).ms);
                     },
                   ),
                 ),
@@ -152,84 +183,162 @@ class _SalesManagerReportsPageState extends State<SalesManagerReportsPage>
             );
           }),
 
-          // المدفوعات
-          Obx(() {
-            if (ctrl.isLoading.value && ctrl.paymentsReport.isEmpty) {
-              return const LoadingIndicator();
-            }
-            if (ctrl.paymentsReport.isEmpty) {
-              return const EmptyState(
-                  icon: Icons.payments_outlined, title: 'لا توجد مدفوعات');
-            }
-            return ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: ctrl.paymentsReport.length,
-              itemBuilder: (ctx, i) {
-                final p = ctrl.paymentsReport[i];
-                final amount = ((p['amount'] as num?) ?? 0).toDouble();
-                final isVerified = p['isVerified'] == true;
-                return Card(
-                  child: ListTile(
-                    leading: Icon(
-                      isVerified
-                          ? Icons.verified_outlined
-                          : Icons.pending_outlined,
-                      color: isVerified ? AppColors.success : Colors.orange,
-                    ),
-                    title: Text(Formatters.formatCurrency(amount)),
-                    subtitle:
-                        Text('${p['repName'] ?? ''} • ${p['createdAt']?.toString().substring(0, 10) ?? ''}'),
-                    trailing: isVerified
-                        ? const Chip(label: Text('مُسوّى'))
-                        : null,
+          // ── تبويب المدفوعات ──
+          Column(
+            children: [
+              // فلتر التحقق
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: StatefulBuilder(
+                  builder: (ctx, setS) => Row(
+                    children: [
+                      Text('الفلتر:',
+                          style: GoogleFonts.cairo(
+                              fontSize: 13, color: AppColors.textSecondary)),
+                      const SizedBox(width: 8),
+                      for (final entry in [
+                        (null, 'الكل'),
+                        (true, 'مُسوّى'),
+                        (false, 'غير مُسوّى'),
+                      ])
+                        Padding(
+                          padding: const EdgeInsets.only(left: 6),
+                          child: FilterChip(
+                            label: Text(entry.$2,
+                                style: GoogleFonts.cairo(fontSize: 12)),
+                            selected: _verifiedFilter == entry.$1,
+                            onSelected: (v) {
+                              setState(() => _verifiedFilter = entry.$1);
+                              ctrl.loadPaymentsReport(
+                                  verified: entry.$1);
+                            },
+                          ),
+                        ),
+                    ],
                   ),
-                );
-              },
-            );
-          }),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: Obx(() {
+                  if (ctrl.isLoading.value && ctrl.paymentsReport.isEmpty) {
+                    return const LoadingIndicator();
+                  }
+                  if (ctrl.paymentsReport.isEmpty) {
+                    return const EmptyState(
+                        icon: Icons.payments_outlined,
+                        title: 'لا توجد مدفوعات');
+                  }
+                  return ListView.separated(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: ctrl.paymentsReport.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (ctx, i) {
+                      final p = ctrl.paymentsReport[i];
+                      final amount =
+                          ((p['amount'] as num?) ?? 0).toDouble();
+                      final isVerified = p['isVerified'] == true;
+                      final date = p['createdAt'] != null
+                          ? Formatters.date(DateTime.tryParse(
+                                  p['createdAt'].toString()) ??
+                              DateTime.now())
+                          : '—';
+                      return Container(
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).cardTheme.color,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: isVerified
+                                ? AppColors.successLight.withValues(alpha: 0.2)
+                                : AppColors.warningLight.withValues(alpha: 0.2),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 40,
+                              height: 40,
+                              decoration: BoxDecoration(
+                                color: (isVerified
+                                        ? AppColors.successLight
+                                        : AppColors.warningLight)
+                                    .withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: Icon(
+                                isVerified
+                                    ? Icons.verified_rounded
+                                    : Icons.pending_rounded,
+                                color: isVerified
+                                    ? AppColors.successLight
+                                    : AppColors.warningLight,
+                                size: 20,
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(Formatters.currency(amount),
+                                      style: GoogleFonts.cairo(
+                                          fontSize: 14,
+                                          fontWeight: FontWeight.w700,
+                                          color: isVerified
+                                              ? AppColors.successLight
+                                              : AppColors.warningLight)),
+                                  if ((p['repName'] as String?)
+                                          ?.isNotEmpty ==
+                                      true)
+                                    Text(p['repName']!,
+                                        style: GoogleFonts.cairo(
+                                            fontSize: 12,
+                                            color: AppColors.primaryLight)),
+                                  if ((p['customerName'] as String?)
+                                          ?.isNotEmpty ==
+                                      true)
+                                    Text(p['customerName']!,
+                                        style: GoogleFonts.cairo(
+                                            fontSize: 11,
+                                            color: AppColors.textSecondary)),
+                                  Text(date,
+                                      style: GoogleFonts.cairo(
+                                          fontSize: 11,
+                                          color: AppColors.textSecondary)),
+                                ],
+                              ),
+                            ),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 8, vertical: 4),
+                              decoration: BoxDecoration(
+                                color: (isVerified
+                                        ? AppColors.successLight
+                                        : AppColors.warningLight)
+                                    .withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(8),
+                              ),
+                              child: Text(
+                                isVerified ? 'مُسوّى' : 'معلق',
+                                style: GoogleFonts.cairo(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w600,
+                                    color: isVerified
+                                        ? AppColors.successLight
+                                        : AppColors.warningLight),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ).animate().fadeIn(delay: (40 + i * 35).ms);
+                    },
+                  );
+                }),
+              ),
+            ],
+          ),
         ],
-      ),
-    );
-  }
-
-  Future<void> _pickRange(
-      BuildContext ctx, SalesManagerController ctrl) async {
-    final range = await showDateRangePicker(
-      context: ctx,
-      firstDate: DateTime(2023),
-      lastDate: DateTime.now(),
-    );
-    if (range != null) {
-      setState(() {
-        _from = range.start;
-        _to = range.end;
-      });
-      ctrl.loadSalesSummary(
-        from: Formatters.toApiDate(_from!),
-        to: Formatters.toApiDate(_to!),
-      );
-    }
-  }
-}
-
-class _SummaryItem extends StatelessWidget {
-  final String label;
-  final String value;
-  final Color? valueColor;
-
-  const _SummaryItem(this.label, this.value, {this.valueColor});
-
-  @override
-  Widget build(BuildContext context) {
-    return Card(
-      child: ListTile(
-        title: Text(label),
-        trailing: Text(
-          value,
-          style: TextStyle(
-              fontWeight: FontWeight.bold,
-              color: valueColor ?? AppColors.primary),
-        ),
       ),
     );
   }

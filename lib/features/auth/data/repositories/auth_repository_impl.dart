@@ -22,7 +22,7 @@ class AuthRepositoryImpl implements AuthRepository {
   }) async {
     return _performLogin(
       () => _remoteDataSource.loginCustomer(
-          LoginRequest(username: username, password: password)),
+          LoginRequest(phone: username, password: password)),
     );
   }
 

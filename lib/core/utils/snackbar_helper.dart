@@ -1,6 +1,7 @@
 // مساعد الرسائل المنبثقة — رسائل نجاح/خطأ/تنبيه/معلومة
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../network/api_exception.dart';
 
 class SnackbarHelper {
   SnackbarHelper._();
@@ -63,5 +64,12 @@ class SnackbarHelper {
       borderRadius: 12,
       icon: const Icon(Icons.info, color: Colors.white),
     );
+  }
+
+  /// يستخرج رسالة الخطأ العربية من [ApiException] إن وُجدت،
+  /// وإلا يعرض [fallback]. يُستخدم في جميع catch blocks.
+  static void handleApiError(Object e, String fallback) {
+    final msg = e is ApiException ? e.message : fallback;
+    showError(msg);
   }
 }

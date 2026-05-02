@@ -9,23 +9,23 @@ class RoleSelectionPage extends StatelessWidget {
   const RoleSelectionPage({super.key});
 
   static const _roles = [
-    _RoleData('👤', 'عميل', 'تصفح المنتجات واطلب ما تريد', Color(0xFF10B981), AppRoutes.customerLogin),
-    _RoleData('🚚', 'سائق', 'إدارة التوصيلات والطلبات المسندة', Color(0xFF2E7DFF), AppRoutes.driverLogin),
-    _RoleData('🧾', 'مندوب', 'إدارة العملاء والتحصيلات', Color(0xFFFF7A00), AppRoutes.representativeLogin),
-    _RoleData('�', 'مشرف', 'متابعة المندوبين وموافقات العملاء', Color(0xFF06B6D4), AppRoutes.adminLogin),
-    _RoleData('📊', 'مدير مبيعات', 'التقارير والموافقات الإدارية', Color(0xFF8B5CF6), AppRoutes.adminLogin),
-    _RoleData('👑', 'مسؤول', 'لوحة التحكم والإدارة الكاملة', Color(0xFFEC4899), AppRoutes.adminLogin),
+    _RoleData('👤', 'عميل', 'تصفح المنتجات واطلب ما تريد', Color(0xFF10B981), AppRoutes.login),
+    _RoleData('🚚', 'سائق', 'إدارة التوصيلات والطلبات المسندة', Color(0xFF2E7DFF), AppRoutes.login),
+    _RoleData('🧾', 'مندوب', 'إدارة العملاء والتحصيلات', Color(0xFFFF7A00), AppRoutes.login),
+    _RoleData('🔍', 'مشرف', 'متابعة المندوبين وموافقات العملاء', Color(0xFF06B6D4), AppRoutes.login),
+    _RoleData('📊', 'مدير مبيعات', 'التقارير والموافقات الإدارية', Color(0xFF8B5CF6), AppRoutes.login),
+    _RoleData('👑', 'مسؤول', 'لوحة التحكم والإدارة الكاملة', Color(0xFFEC4899), AppRoutes.login),
   ];
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: SafeArea(
-        child: Padding(
+        child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Column(
             children: [
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
               // Logo
               Container(
                 width: 72,
@@ -59,30 +59,30 @@ class RoleSelectionPage extends StatelessWidget {
                   color: AppColors.textSecondary,
                 ),
               ).animate().fadeIn(delay: 300.ms),
-              const SizedBox(height: 40),
-              // Role cards grid — 2x2
-              Expanded(
-                child: GridView.count(
-                  crossAxisCount: 2,
-                  mainAxisSpacing: 16,
-                  crossAxisSpacing: 16,
-                  childAspectRatio: 0.95,
-                  physics: const NeverScrollableScrollPhysics(),
-                  children: List.generate(_roles.length, (i) {
-                    final r = _roles[i];
-                    return _RoleCard(
-                      emoji: r.emoji,
-                      title: r.title,
-                      subtitle: r.subtitle,
-                      color: r.color,
-                      onTap: () => Get.toNamed(r.route),
-                    )
-                        .animate()
-                        .fadeIn(delay: (400 + i * 120).ms, duration: 400.ms)
-                        .slideY(begin: 0.15);
-                  }),
-                ),
+              const SizedBox(height: 32),
+              // Role cards grid — scrollable 2-column
+              GridView.count(
+                crossAxisCount: 2,
+                mainAxisSpacing: 16,
+                crossAxisSpacing: 16,
+                childAspectRatio: 0.95,
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                children: List.generate(_roles.length, (i) {
+                  final r = _roles[i];
+                  return _RoleCard(
+                    emoji: r.emoji,
+                    title: r.title,
+                    subtitle: r.subtitle,
+                    color: r.color,
+                    onTap: () => Get.toNamed(r.route),
+                  )
+                      .animate()
+                      .fadeIn(delay: (400 + i * 120).ms, duration: 400.ms)
+                      .slideY(begin: 0.15);
+                }),
               ),
+              const SizedBox(height: 24),
             ],
           ),
         ),

@@ -22,7 +22,8 @@ class AuthController extends GetxController {
   final usernameController = TextEditingController();
   final confirmPasswordController = TextEditingController();
 
-  final formKey = GlobalKey<FormState>();
+  final formKey = GlobalKey<FormState>();        // نموذج العميل
+  final employeeFormKey = GlobalKey<FormState>(); // نموذج الموظف
   final registerFormKey = GlobalKey<FormState>();
 
   final isLoading = false.obs;
@@ -73,7 +74,7 @@ class AuthController extends GetxController {
     isLoading.value = true;
 
     final result = await _repository.loginCustomer(
-      username: usernameController.text.trim(),
+      username: phoneController.text.trim(),
       password: passwordController.text,
     );
 
@@ -90,7 +91,7 @@ class AuthController extends GetxController {
 
   /// تسجيل دخول موحّد للموظفين — يوجّه حسب الدور المُعاد من الخادم
   Future<void> _loginEmployeeAndRoute() async {
-    if (!formKey.currentState!.validate()) return;
+    if (!(employeeFormKey.currentState?.validate() ?? false)) return;
     isLoading.value = true;
 
     final result = await _repository.loginEmployee(

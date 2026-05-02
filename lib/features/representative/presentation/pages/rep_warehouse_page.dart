@@ -80,8 +80,8 @@ class _RepWarehousePageState extends State<RepWarehousePage>
                   child: ListTile(
                     leading: CircleAvatar(
                       backgroundColor: qty > 0
-                          ? AppColors.success.withOpacity(0.15)
-                          : AppColors.error.withOpacity(0.15),
+                          ? AppColors.success.withValues(alpha: 0.15)
+                          : AppColors.error.withValues(alpha: 0.15),
                       child: Icon(
                         Icons.inventory_2_outlined,
                         color: qty > 0 ? AppColors.success : AppColors.error,
@@ -99,8 +99,8 @@ class _RepWarehousePageState extends State<RepWarehousePage>
                                   ? AppColors.success
                                   : AppColors.error)),
                       backgroundColor: qty > 0
-                          ? AppColors.success.withOpacity(0.1)
-                          : AppColors.error.withOpacity(0.1),
+                        ? AppColors.success.withValues(alpha: 0.1)
+                        : AppColors.error.withValues(alpha: 0.1),
                     ),
                   ),
                 );

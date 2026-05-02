@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/services/auth_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/helpers.dart';
 import '../../../../core/widgets/loading_indicator.dart';
 import '../controllers/driver_controllers.dart';
 
@@ -44,7 +45,7 @@ class DriverHomePage extends GetView<DriverHomeController> {
         if (controller.isLoading.value) return const LoadingIndicator();
 
         final assigned = controller.assignedOrders.length;
-        final inProgress = controller.assignedOrders.where((o) => o.status == 'Shipped' || o.status == 'InDelivery').length;
+        final inProgress = controller.assignedOrders.where((o) => o.status == 'AwaitingDelivery').length;
         final completedToday = controller.completedTodayCount.value;
 
         return RefreshIndicator(
@@ -114,7 +115,7 @@ class DriverHomePage extends GetView<DriverHomeController> {
                         const SizedBox(height: 4),
                         _infoRow(Icons.location_on_outlined, order.customerAddress, context),
                         // No amount displayed per spec
-                        if (order.status == 'AwaitingDelivery' || order.status == 'Approved' || order.status == 'Shipped') ...[
+                        if (order.status == 'AwaitingDelivery' || order.status == 'Accepted') ...[
                           const SizedBox(height: 12),
                           SizedBox(
                             width: double.infinity,
@@ -122,21 +123,21 @@ class DriverHomePage extends GetView<DriverHomeController> {
                               onPressed: controller.isUpdating.value
                                   ? null
                                   : () {
-                                      final nextStatus = (order.status == 'Shipped' || order.status == 'AwaitingDelivery')
+                                      final nextStatus = order.status == 'AwaitingDelivery'
                                           ? 'Delivered'
-                                          : 'Shipped';
+                                          : 'AwaitingDelivery';
                                       controller.updateStatus(order.id, nextStatus);
                                     },
                               icon: Icon(
-                                order.status == 'Shipped' ? Icons.check_circle : Icons.local_shipping,
+                                order.status == 'AwaitingDelivery' ? Icons.check_circle : Icons.local_shipping,
                                 size: 18,
                               ),
                               label: Text(
-                                order.status == 'Shipped' ? 'تم التوصيل' : 'بدء التوصيل',
+                                order.status == 'AwaitingDelivery' ? 'تم التوصيل' : 'بدء التوصيل',
                                 style: GoogleFonts.cairo(fontSize: 13, fontWeight: FontWeight.w600),
                               ),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: order.status == 'Shipped' ? AppColors.successLight : AppColors.primaryLight,
+                                backgroundColor: order.status == 'AwaitingDelivery' ? AppColors.successLight : AppColors.primaryLight,
                                 foregroundColor: Colors.white,
                                 padding: const EdgeInsets.symmetric(vertical: 10),
                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
@@ -169,14 +170,16 @@ class DriverHomePage extends GetView<DriverHomeController> {
 
   Color _getStatusColor(String status) {
     switch (status) {
-      case 'Approved':
-      case 'AwaitingDelivery':
+      case 'Accepted':
         return AppColors.pending;
-      case 'Shipped':
-      case 'InDelivery':
+      case 'AwaitingDelivery':
         return AppColors.inProgress;
       case 'Delivered':
         return AppColors.delivered;
+      case 'Completed':
+        return AppColors.approved;
+      case 'Rejected':
+        return AppColors.rejected;
       default:
         return AppColors.cancelled;
     }
@@ -184,16 +187,18 @@ class DriverHomePage extends GetView<DriverHomeController> {
 
   String _getStatusText(String status) {
     switch (status) {
-      case 'Approved':
+      case 'Accepted':
+        return 'مقبول';
       case 'AwaitingDelivery':
-        return 'بانتظار التوصيل';
-      case 'Shipped':
-      case 'InDelivery':
         return 'قيد التوصيل';
       case 'Delivered':
-        return 'تم التوصيل';
+        return 'تم التسليم';
+      case 'Completed':
+        return 'مكتمل';
+      case 'Rejected':
+        return 'مرفوض';
       default:
-        return status;
+        return InvoiceStatusHelper.label(status);
     }
   }
 }

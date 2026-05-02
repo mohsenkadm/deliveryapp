@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../controllers/sales_manager_controller.dart';
+import 'sales_manager_home_page.dart';
 import 'sales_manager_reps_page.dart';
 import 'sales_manager_pending_page.dart';
 import 'sales_manager_invoices_page.dart';
@@ -19,6 +20,7 @@ class _SalesManagerMainPageState extends State<SalesManagerMainPage> {
   int _currentIndex = 0;
 
   final _pages = const [
+    SalesManagerHomePage(),
     SalesManagerRepsPage(),
     SalesManagerPendingPage(),
     SalesManagerInvoicesPage(),
@@ -36,6 +38,11 @@ class _SalesManagerMainPageState extends State<SalesManagerMainPage> {
         selectedIndex: _currentIndex,
         onDestinationSelected: (i) => setState(() => _currentIndex = i),
         destinations: [
+          const NavigationDestination(
+            icon: Icon(Icons.home_outlined),
+            selectedIcon: Icon(Icons.home),
+            label: 'الرئيسية',
+          ),
           NavigationDestination(
             icon: Obx(() => Badge(
                   isLabelVisible: ctrl.reps.isNotEmpty,

@@ -54,9 +54,9 @@ class _RepDebtsPageState extends State<RepDebtsPage> {
               margin: const EdgeInsets.all(16),
               padding: const EdgeInsets.all(16),
               decoration: BoxDecoration(
-                color: AppColors.error.withOpacity(0.1),
+                color: AppColors.error.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.error.withOpacity(0.3)),
+                border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -83,7 +83,7 @@ class _RepDebtsPageState extends State<RepDebtsPage> {
                   return Card(
                     child: ListTile(
                       leading: CircleAvatar(
-                        backgroundColor: AppColors.error.withOpacity(0.15),
+                        backgroundColor: AppColors.error.withValues(alpha: 0.15),
                         child: Icon(Icons.person_outline,
                             color: AppColors.error),
                       ),

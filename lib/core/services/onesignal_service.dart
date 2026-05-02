@@ -2,6 +2,7 @@
 import 'package:get/get.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 import '../constants/api_constants.dart';
+import '../routes/app_routes.dart';
 
 class OneSignalService extends GetxService {
   /// تهيئة OneSignal وطلب إذن الإشعارات
@@ -41,13 +42,13 @@ class OneSignalService extends GetxService {
 
     switch (type) {
       case 'order':
-        Get.toNamed('/order-details', arguments: {'id': id});
+        Get.toNamed(AppRoutes.orderDetailsAlias, arguments: {'id': id});
         break;
       case 'invoice':
-        Get.toNamed('/invoice-details', arguments: {'id': id});
+        Get.toNamed(AppRoutes.invoiceDetailsAlias, arguments: {'id': id});
         break;
       default:
-        Get.toNamed('/notifications');
+        Get.toNamed(AppRoutes.notificationsAlias);
     }
   }
 }

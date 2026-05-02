@@ -353,4 +353,18 @@ class CustomerNotificationsController extends GetxController {
       );
     }
   }
+
+  Future<void> markAllRead() async {
+    final unread = notifications.where((n) => !n.isRead).toList();
+    for (final n in unread) {
+      await _repository.markNotificationRead(n.id);
+    }
+    notifications.value = notifications.map((n) => NotificationModel(
+      id: n.id,
+      title: n.title,
+      body: n.body,
+      isRead: true,
+      createdAt: n.createdAt,
+    )).toList();
+  }
 }

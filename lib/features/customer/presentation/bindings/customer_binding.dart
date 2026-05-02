@@ -10,5 +10,6 @@ class CustomerBinding extends Bindings {
     Get.lazyPut(() => ProductsController());
     Get.lazyPut(() => OrdersController());
     Get.lazyPut(() => DebtsController());
+    Get.lazyPut(() => CustomerNotificationsController());
   }
 }
