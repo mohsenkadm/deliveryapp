@@ -1,4 +1,11 @@
 // ثوابت نقاط الاتصال بالخادم (API Endpoints)
+// متوافقة مع DeliverySystem.API — الإصدار الموحّد
+//
+// ملاحظات معمارية مهمة:
+// - يوجد ثلاث نقاط دخول للمصادقة فقط: /api/auth/admin , /api/auth/customer , /api/auth/employee
+// - الموظفون جدول واحد (Employees) مع عمود Roles كقائمة CSV (يمكن لموظف امتلاك عدة أدوار).
+// - كل الردود مغلّفة بـ ApiResponse<T> { success, messageAr, messageEn, data }.
+// - JWT يبقى صالحاً 7 أيام افتراضياً (لا يوجد refresh token في هذه الواجهة).
 class ApiConstants {
   ApiConstants._();
 
@@ -11,28 +18,45 @@ class ApiConstants {
   /// مسار هاب SignalR للإشعارات الفورية
   static const String signalRHub = '/hubs/notifications';
 
-  // ── المصادقة ──
-  /// POST تسجيل دخول العميل — { phone, password }
-  static const String loginCustomer = '/api/customer/login';
-  /// POST تسجيل عميل جديد (ذاتي)
+  // ════════════════════════════════════════════════════════════════
+  // المصادقة (3 نقاط دخول فقط)
+  // ════════════════════════════════════════════════════════════════
+
+  /// POST تسجيل دخول الأدمن — { username, password } → AuthResponseDto
+  static const String loginAdmin = '/api/auth/admin';
+
+  /// POST تسجيل دخول العميل — { username, password } → AuthResponseDto
+  static const String loginCustomer = '/api/auth/customer';
+
+  /// POST تسجيل دخول الموظف (لكل التركيبات الممكنة من الأدوار)
+  static const String loginEmployee = '/api/auth/employee';
+
+  // أسماء قديمة محفوظة للتوافق مع الكود الموجود (تستخدم نفس نقاط الدخول)
+  static const String loginDriver = loginEmployee;
+  static const String loginRepresentative = loginEmployee;
+  static const String loginRepresentativeEmployee = loginEmployee;
+  static const String loginSupervisor = loginEmployee;
+  static const String loginSalesManager = loginEmployee;
+
+  // ── الملف الشخصي الموحّد ──
+  /// GET الملف الشخصي للمستخدم الحالي (أي دور) — kind + profile
+  static const String me = '/api/me';
+
+  // ── العميل: تسجيل ذاتي + ملف شخصي ──
+  /// POST تسجيل عميل جديد (ذاتي — ينشأ الحساب بحالة "بانتظار الموافقة")
   static const String registerCustomer = '/api/customer/register';
-  /// GET الملف الشخصي للعميل
+
+  /// GET الملف الشخصي للعميل الحالي
+  @Deprecated('استخدم /api/me — الواجهة الموحَّدة')
   static const String customerProfile = '/api/customer/profile';
 
-  /// POST تسجيل دخول الموظفين (سائق/مندوب/مشرف/مدير/أدمن)
-  /// { username, password } → { token, role }
-  static const String loginEmployee = '/api/admin/login';
-
-  /// POST إضافة أدمن جديد [Bearer: Admin]
-  static const String addAdmin = '/api/admin/add-admin';
-
-  // ── المصادقة - مشتركة ──
-  /// POST تغيير كلمة المرور
-  static const String changePassword = '/api/auth/change-password';
-  /// POST تحديث التوكن
+  // ── أُزيلت من الواجهة الجديدة (يحتفظ بها للتوافق فقط) ──
+  @Deprecated('غير موجود في الواجهة الحالية — توكن JWT يدوم 7 أيام')
   static const String refreshToken = '/api/auth/refresh-token';
-  /// POST تسجيل الخروج
+  @Deprecated('غير موجود في الواجهة الحالية — يتم تسجيل الخروج محلياً')
   static const String logout = '/api/auth/logout';
+  @Deprecated('غير مدعوم في الواجهة الحالية')
+  static const String changePassword = '/api/auth/change-password';
 
   // ══════════════════════════════════════════════════════════════
   // تطبيق العميل  →  /api/mobile/customer  [Bearer: Customer]
@@ -59,12 +83,9 @@ class ApiConstants {
   /// GET ملخص الديون
   static const String customerDebts = '/api/mobile/customer/debts';
 
-  /// GET إشعارات العميل
-  static const String customerNotifications = '/api/mobile/customer/notifications';
-
-  /// PATCH تعليم إشعار العميل كمقروء
-  static String customerMarkNotificationRead(String id) =>
-      '/api/mobile/customer/notifications/$id/read';
+  // ملاحظة: إشعارات العميل أصبحت موحَّدة على /api/notifications.
+  // التعريفات أدناه (بأسماء قديمة) ما تزال محفوظة كأسماء مستعارة لـ
+  // `notifications` و`markNotificationRead`. (انظر قسم "نقاط مشتركة")
 
   // ══════════════════════════════════════════════════════════════
   // تطبيق السائق  →  /api/mobile/driver  [Bearer: Driver,Employee]
@@ -76,17 +97,17 @@ class ApiConstants {
   /// GET تفاصيل طلب السائق
   static String driverOrderDetail(String id) => '/api/mobile/driver/orders/$id';
 
-  /// POST تأكيد التوصيل
-  static String driverDeliver(String id) => '/api/mobile/driver/orders/$id/deliver';
+  /// POST تأكيد التوصيل (السائق)
+  static String driverConfirmDelivery(String id) =>
+      '/api/mobile/driver/orders/$id/confirm-delivery';
 
-  /// POST تحصيل دفعة من عميل
-  static String driverCollectPayment(String id) =>
-      '/api/mobile/driver/orders/$id/collect-payment';
+  /// alias قديم — يشير إلى نفس endpoint الجديد لأن `/deliver` لم يعد مدعوماً.
+  @Deprecated('استخدم driverConfirmDelivery — endpoint /deliver لم يعد متاحاً')
+  static String driverDeliver(String id) => driverConfirmDelivery(id);
 
-  /// POST تسليم نقدية للشركة
-  static const String driverSubmitPayment = '/api/mobile/driver/payments/submit';
+  // ❌ حُذفت نقاط تحصيل وتسليم النقد من السائق — السائق لا يتعامل مع المدفوعات.
 
-  /// PATCH تحديث حالة طلب السائق
+  /// POST تحديث حالة طلب السائق — body: { status }
   static String driverOrderStatus(String id) => '/api/mobile/driver/orders/$id/status';
 
   /// GET ملخص أداء السائق
@@ -217,48 +238,193 @@ class ApiConstants {
   // نقاط مشتركة
   // ══════════════════════════════════════════════════════════════
 
-  /// GET إشعاراتي (حسب الدور)
+  /// GET إشعاراتي (الجهة المستهدفة تُحدَّد من دور المستخدم)
   static const String notifications = '/api/notifications';
 
   /// PATCH تعليم إشعار كمقروء
   static String markNotificationRead(String id) => '/api/notifications/$id/read';
 
-  /// GET فواتير العميل (مشترك)
-  static const String sharedCustomerInvoices = '/api/invoices/customer';
+  // أسماء قديمة محفوظة للتوافق — كل أنواع الإشعارات تستخدم نفس النقطة
+  static const String customerNotifications = notifications;
+  static String customerMarkNotificationRead(String id) => markNotificationRead(id);
 
-  /// GET فواتير المندوب (مشترك)
-  static const String sharedRepresentativeInvoices = '/api/invoices/representative';
+  // ══════════════════════════════════════════════════════════════
+  // الفواتير (مشتركة — للأدمن فقط)
+  // ══════════════════════════════════════════════════════════════
 
-  /// GET فواتير السائق (مشترك)
-  static const String sharedDriverInvoices = '/api/invoices/driver';
-
-  /// POST إنشاء فاتورة (مشترك)
+  /// POST إنشاء فاتورة (نقطة دخول الأدمن)
   static const String createInvoice = '/api/invoices';
+  static const String invoices = createInvoice;
 
-  /// POST دفع فاتورة
+  /// POST دفع فاتورة (كاملة أو جزئية) — body: { amount }
   static String invoicePay(String id) => '/api/invoices/$id/pay';
 
-  /// PATCH تحديث حالة الفاتورة من السائق
-  static String invoiceStatusDriver(String id) => '/api/invoices/$id/status/driver';
+  /// PATCH تحديث حالة الفاتورة (تجاوز الأدمن) — body: { status }
+  static String invoiceStatus(String id) => '/api/invoices/$id/status';
 
-  /// PATCH تحديث حالة الفاتورة من المدير
-  static String invoiceStatusAdmin(String id) => '/api/invoices/$id/status/admin';
+  // ── سير عمل الفاتورة (Invoice Workflow) ──
+  /// POST قبول الفاتورة — Manager
+  static String invoiceAccept(String id) => '/api/invoices/$id/accept';
 
-  // ── لإبقاء التوافق مع الكود القديم ──
-  static const String loginAdmin = loginEmployee;
-  static const String loginDriver = loginEmployee;
-  static const String loginRepresentative = loginEmployee;
+  /// POST رفض الفاتورة — Manager
+  static String invoiceReject(String id) => '/api/invoices/$id/reject';
 
-  // ── الأدمن (Admin) ──
-  static const String adminDashboard = '/api/admin/dashboard';
-  static const String adminCustomers = '/api/admin/customers';
-  static const String products = '/api/admin/products';
-  static const String categories = '/api/admin/categories';
-  static const String warehouses = '/api/admin/warehouses';
-  static const String inventory = '/api/admin/inventory';
-  static const String invoices = '/api/admin/invoices';
-  static const String adminRepresentatives = '/api/admin/representatives';
-  static const String adminDrivers = '/api/admin/drivers';
-  static const String debts = '/api/admin/debts';
-  static const String adminPendingApprovals = '/api/admin/pending-approvals';
+  /// POST تأجيل الفاتورة — Manager
+  static String invoiceDefer(String id) => '/api/invoices/$id/defer';
+
+  /// POST بدء التجهيز في المستودع — Warehouse
+  static String invoiceStartWarehouse(String id) =>
+      '/api/invoices/$id/start-warehouse';
+
+  /// POST إسناد سائق — Manager
+  static String invoiceAssignDriver(String id) =>
+      '/api/invoices/$id/assign-driver';
+
+  /// POST إخراج للسائق (Dispatch) — Warehouse
+  static String invoiceDispatch(String id) => '/api/invoices/$id/dispatch';
+
+  /// POST دفع جزئي — Cashier
+  static String invoicePayPartial(String id) =>
+      '/api/invoices/$id/pay-partial';
+
+  /// POST دفع كامل — Cashier
+  static String invoicePayFull(String id) => '/api/invoices/$id/pay-full';
+
+  // أسماء قديمة محفوظة للتوافق
+  static String invoiceStatusAdmin(String id) => invoiceStatus(id);
+  static String invoiceStatusDriver(String id) => invoiceStatus(id);
+
+  // ══════════════════════════════════════════════════════════════
+  // الإدارة الخلفية — الأدمن (جدول Admins فقط)
+  // ══════════════════════════════════════════════════════════════
+
+  /// POST إنشاء أدمن جديد
+  static const String addAdmin = '/api/admin/add-admin';
+
+  /// GET قائمة الأدمنز
+  static const String admins = '/api/admin/admins';
+
+  /// DELETE حذف أدمن
+  static String adminById(String id) => '/api/admin/admins/$id';
+
+  /// PATCH تفعيل/تعطيل أدمن
+  static String adminToggleActive(String id) =>
+      '/api/admin/admins/$id/toggle-active';
+
+  /// GET / PUT صلاحيات الأدمن
+  static String adminPermissions(String id) =>
+      '/api/admin/admins/$id/permissions';
+
+  // ══════════════════════════════════════════════════════════════
+  // الإدارة الخلفية — العملاء (Admin only)
+  // ══════════════════════════════════════════════════════════════
+
+  /// قائمة وإنشاء العملاء (?search=&employeeId=&isApproved=)
+  static const String customers = '/api/customers';
+
+  /// جلب/تحديث/حذف عميل
+  static String customerById(String id) => '/api/customers/$id';
+
+  /// PATCH الموافقة على عميل
+  static String customerApprove(String id) => '/api/customers/$id/approve';
+
+  // ══════════════════════════════════════════════════════════════
+  // الإدارة الخلفية — الموظفون (جدول واحد، يدعم أدواراً متعددة)
+  // ══════════════════════════════════════════════════════════════
+
+  /// قائمة وإنشاء الموظفين (?search=&employeeType=)
+  static const String employees = '/api/employees';
+
+  /// جلب/تحديث/حذف موظف
+  static String employeeById(String id) => '/api/employees/$id';
+
+  // ══════════════════════════════════════════════════════════════
+  // الإدارة الخلفية — الفروع (Admin only)
+  // ══════════════════════════════════════════════════════════════
+
+  /// قائمة وإنشاء الفروع (?search=&isActive=)
+  static const String branches = '/api/branches';
+  static String branchById(String id) => '/api/branches/$id';
+
+  // ══════════════════════════════════════════════════════════════
+  // الإدارة الخلفية — التصنيفات
+  // ══════════════════════════════════════════════════════════════
+
+  /// قائمة (Authenticated) / إنشاء (Admin) — مع بحث
+  static const String categories = '/api/categories';
+  static String categoryById(String id) => '/api/categories/$id';
+
+  // ══════════════════════════════════════════════════════════════
+  // الإدارة الخلفية — المنتجات
+  // ══════════════════════════════════════════════════════════════
+
+  /// قائمة (Authenticated) / إنشاء (Admin) — (?search=&categoryId=)
+  static const String products = '/api/products';
+  static String productById(String id) => '/api/products/$id';
+
+  // ══════════════════════════════════════════════════════════════
+  // الإدارة الخلفية — المستودعات (Admin only)
+  // ══════════════════════════════════════════════════════════════
+
+  /// قائمة وإنشاء المستودعات (?search=)
+  static const String warehouses = '/api/warehouses';
+  static String warehouseById(String id) => '/api/warehouses/$id';
+
+  // ══════════════════════════════════════════════════════════════
+  // الإدارة الخلفية — المخزون (Admin only)
+  // ══════════════════════════════════════════════════════════════
+
+  /// GET (?productId=&warehouseId=) و POST لإضافة/زيادة كمية
+  static const String inventory = '/api/inventory';
+
+  /// PUT (?quantity=N) لتعيين كمية مطلقة، DELETE لحذف الصف
+  static String inventoryById(String id) => '/api/inventory/$id';
+
+  // ══════════════════════════════════════════════════════════════
+  // الإدارة الخلفية — العروض
+  // ══════════════════════════════════════════════════════════════
+
+  /// قائمة العروض النشطة (Authenticated)
+  static const String offers = '/api/offers';
+
+  /// قائمة كاملة فلترة (Admin)
+  static const String offersAll = '/api/offers/all';
+
+  /// GET فحص العروض الفعّالة (?productId=&promoCode=)
+  static const String offersCheck = '/api/offers/check';
+
+  /// GET التحقق من كود الخصم (?promoCode=&productId=)
+  static const String offersValidatePromo = '/api/offers/validate-promo';
+
+  /// عرض/تحديث/حذف عرض (Admin)
+  static String offerById(String id) => '/api/offers/$id';
+
+  // ══════════════════════════════════════════════════════════════
+  // الإدارة الخلفية — الإعدادات (Admin only)
+  // ══════════════════════════════════════════════════════════════
+
+  static const String settings = '/api/settings';
+
+  // ══════════════════════════════════════════════════════════════
+  // أسماء قديمة محفوظة لتوافق الشاشات الإدارية الموجودة حالياً
+  // ══════════════════════════════════════════════════════════════
+
+  /// قائمة العملاء في الإدارة الخلفية → /api/customers
+  static const String adminCustomers = customers;
+
+  /// قائمة المندوبين في الإدارة الخلفية → /api/employees
+  /// (يُستخدم مع `?employeeType=...` أو فلترة الأدوار من جانب العميل)
+  static const String adminRepresentatives = employees;
+
+  /// قائمة السائقين في الإدارة الخلفية → /api/employees
+  static const String adminDrivers = employees;
+
+  /// تقرير ملخّص — تقرير المدير
+  static const String adminDashboard = '/api/mobile/manager/reports/summary';
+
+  /// تقرير الديون — تقرير المدير
+  static const String debts = '/api/mobile/manager/reports/debts';
+
+  /// طلبات الموافقة المعلّقة — تقرير المدير
+  static const String adminPendingApprovals = '/api/mobile/manager/customers/pending';
 }

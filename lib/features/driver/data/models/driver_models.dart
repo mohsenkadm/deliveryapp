@@ -1,4 +1,5 @@
 // نماذج بيانات السائق — طلبات التوصيل وملخص الأداء
+import '../../../../core/utils/helpers.dart';
 import '../../domain/entities/driver_entities.dart';
 
 class DeliveryOrderModel extends DeliveryOrder {
@@ -26,7 +27,7 @@ class DeliveryOrderModel extends DeliveryOrder {
       id: json['id']?.toString() ?? '',
       orderNumber:
           json['invoiceNumber'] ?? json['orderNumber'] ?? '',
-      status: json['status'] ?? '',
+      status: InvoiceStatusHelper.parse(json['status'] ?? json['statusText'], fallback: ''),
       customerName: customer['fullName'] ?? customer['customerName'] ?? '',
       customerPhone: customer['phone'] ?? customer['customerPhone'] ?? '',
       customerAddress: customer['address'] ?? customer['customerAddress'] ?? '',

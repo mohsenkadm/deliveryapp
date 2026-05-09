@@ -5,7 +5,7 @@ import '../controllers/supervisor_controller.dart';
 import 'supervisor_reps_page.dart';
 import 'supervisor_pending_customers_page.dart';
 import 'supervisor_sales_report_page.dart';
-import '../../../settings/presentation/pages/settings_page.dart';
+import '../../../settings/presentation/widgets/role_settings_tab.dart';
 
 class SupervisorMainPage extends StatefulWidget {
   const SupervisorMainPage({super.key});
@@ -21,7 +21,7 @@ class _SupervisorMainPageState extends State<SupervisorMainPage> {
     SupervisorRepsPage(),
     SupervisorPendingCustomersPage(),
     SupervisorSalesReportPage(),
-    SettingsPage(),
+    RoleSettingsTab(),
   ];
 
   @override

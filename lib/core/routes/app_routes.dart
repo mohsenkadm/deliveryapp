@@ -53,8 +53,6 @@ abstract class AppRoutes {
 
   // Driver extra screens
   static const driverSummary = '/driver/summary';
-  static const driverCollectPayment = '/driver/collect-payment';
-  static const driverSubmitPayment = '/driver/submit-payment';
 
   // Customer extra screens
   static const invoiceViewer = '/customer/invoice-viewer';
@@ -83,6 +81,10 @@ abstract class AppRoutes {
   static const debtsSettlement = '/admin/debts-settlement';
   static const activityLogs = '/admin/activity-logs';
   static const adminNotifications = '/admin/notifications';
+  static const manageBranches = '/admin/manage-branches';
+  static const manageOffers = '/admin/manage-offers';
+  static const systemSettings = '/admin/system-settings';
+  static const adminPermissions = '/admin/permissions';
 
   // Settings (shared)
   static const settings = '/settings';
@@ -93,6 +95,7 @@ abstract class AppRoutes {
   static const privacyPolicy = '/settings/privacy';
   static const technicalSupport = '/settings/support';
   static const changePassword = '/settings/change-password';
+  static const brandingSettings = '/settings/branding';
 
   // Deep-link aliases (used by OneSignal push notification handler)
   static const orderDetailsAlias = '/order-details';

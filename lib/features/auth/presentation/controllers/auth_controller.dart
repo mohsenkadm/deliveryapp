@@ -2,9 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/services/auth_service.dart';
+import '../../../../core/services/branding_service.dart';
 import '../../../../core/services/onesignal_service.dart';
 import '../../../../core/services/signalr_service.dart';
 import '../../../../core/utils/snackbar_helper.dart';
+import '../../../admin/data/datasources/admin_remote_datasource.dart';
 import '../../data/datasources/auth_remote_datasource.dart';
 import '../../data/repositories/auth_repository_impl.dart';
 import '../../domain/repositories/auth_repository.dart';
@@ -24,11 +26,17 @@ class AuthController extends GetxController {
 
   final formKey = GlobalKey<FormState>();        // نموذج العميل
   final employeeFormKey = GlobalKey<FormState>(); // نموذج الموظف
+  final adminFormKey = GlobalKey<FormState>();    // نموذج المسؤول
   final registerFormKey = GlobalKey<FormState>();
+
+  // حقول تسجيل دخول المسؤول (تبويب منفصل)
+  final adminUsernameController = TextEditingController();
+  final adminPasswordController = TextEditingController();
 
   final isLoading = false.obs;
   final obscurePassword = true.obs;
   final obscureConfirmPassword = true.obs;
+  final adminObscurePassword = true.obs;
 
   @override
   void onInit() {
@@ -47,6 +55,8 @@ class AuthController extends GetxController {
     addressController.dispose();
     usernameController.dispose();
     confirmPasswordController.dispose();
+    adminUsernameController.dispose();
+    adminPasswordController.dispose();
     super.onClose();
   }
 
@@ -58,6 +68,8 @@ class AuthController extends GetxController {
     addressController.clear();
     usernameController.clear();
     confirmPasswordController.clear();
+    adminUsernameController.clear();
+    adminPasswordController.clear();
   }
 
   /// ربط OneSignal بمعرف المستخدم بعد تسجيل الدخول
@@ -84,12 +96,16 @@ class AuthController extends GetxController {
       (user) {
         _clearFields();
         _linkOneSignal();
+        try {
+          Get.find<SignalRService>().connect();
+        } catch (_) {}
         Get.offAllNamed(AppRoutes.customer);
       },
     );
   }
 
-  /// تسجيل دخول موحّد للموظفين — يوجّه حسب الدور المُعاد من الخادم
+  /// تسجيل دخول موحّد للموظفين — إذا كان الموظف يحمل عدة أدوار يُوجَّه
+  /// إلى شاشة اختيار الـ workspace أولاً.
   Future<void> _loginEmployeeAndRoute() async {
     if (!(employeeFormKey.currentState?.validate() ?? false)) return;
     isLoading.value = true;
@@ -105,34 +121,32 @@ class AuthController extends GetxController {
       (user) {
         _clearFields();
         _linkOneSignal();
-        // تشغيل اتصال SignalR
         try {
           Get.find<SignalRService>().connect();
         } catch (_) {}
-        _routeByRole(user.role);
+
+        if (user.isMultiRole) {
+          Get.offAllNamed(AppRoutes.roleSelection, arguments: user.roles);
+        } else {
+          _routeByRole(user.role);
+        }
       },
     );
   }
 
   void _routeByRole(String role) {
-    switch (role.toLowerCase()) {
-      case 'driver':
-        Get.offAllNamed(AppRoutes.driver);
-        break;
-      case 'representative':
-        Get.offAllNamed(AppRoutes.representative);
-        break;
-      case 'supervisor':
-        Get.offAllNamed(AppRoutes.supervisor);
-        break;
-      case 'salesmanager':
-      case 'sales_manager':
-        Get.offAllNamed(AppRoutes.salesManager);
-        break;
-      case 'admin':
-      default:
-        Get.offAllNamed(AppRoutes.admin);
-    }
+    _syncSystemSettings();
+    Get.offAllNamed(AuthService.routeForRole(role));
+  }
+
+  /// مزامنة إعدادات النظام الخارجية (الشعار/الألوان/الاسم) بعد التسجيل.
+  /// تتم بصمت دون إيقاف التدفق إذا فشلت (لأن الصلاحيات قد لا تسمح للعميل).
+  void _syncSystemSettings() {
+    try {
+      final ds = AdminRemoteDataSource(Get.find<DioClient>());
+      final branding = Get.find<BrandingService>();
+      ds.getSystemSettings().then(branding.syncFromServer).catchError((_) {});
+    } catch (_) {}
   }
 
   /// تسجيل دخول السائق
@@ -147,8 +161,30 @@ class AuthController extends GetxController {
   /// تسجيل دخول مدير المبيعات
   Future<void> loginSalesManager() => _loginEmployeeAndRoute();
 
-  /// تسجيل دخول المدير
-  Future<void> loginAdmin() => _loginEmployeeAndRoute();
+  /// تسجيل دخول الموظف عبر تبويب الموظف (يستخدم /api/representative/login)
+  Future<void> loginEmployee() => _loginEmployeeAndRoute();
+
+  /// تسجيل دخول المسؤول (أدمن) — يستخدم /api/admin/login مباشرةً
+  Future<void> loginAdmin() async {
+    if (!(adminFormKey.currentState?.validate() ?? false)) return;
+    isLoading.value = true;
+
+    final result = await _repository.loginAdmin(
+      username: adminUsernameController.text.trim(),
+      password: adminPasswordController.text,
+    );
+
+    isLoading.value = false;
+    result.fold(
+      (failure) => SnackbarHelper.showError(failure.message),
+      (user) {
+        _clearFields();
+        _linkOneSignal();
+        _syncSystemSettings();
+        Get.offAllNamed(AppRoutes.admin);
+      },
+    );
+  }
 
   /// تسجيل عميل جديد
   Future<void> registerCustomer() async {
@@ -180,6 +216,6 @@ class AuthController extends GetxController {
     await _repository.logout();
     isLoading.value = false;
     _clearFields();
-    Get.offAllNamed(AppRoutes.roleSelection);
+    Get.offAllNamed(AppRoutes.login);
   }
 }

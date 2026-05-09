@@ -3,6 +3,7 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/client_type_badge.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../../../../core/widgets/loading_indicator.dart';
 import '../controllers/admin_controllers.dart';
@@ -207,6 +208,7 @@ class _CustomerCard extends StatelessWidget {
     final phone = customer['phone'] ?? '';
     final store = customer['storeName'] ?? '';
     final email = customer['email'] ?? '';
+    final clientType = customer['clientType']?.toString();
     final initial = name.isNotEmpty ? name[0] : '?';
 
     return Container(
@@ -238,9 +240,17 @@ class _CustomerCard extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(name,
-                    style: GoogleFonts.cairo(
-                        fontSize: 15, fontWeight: FontWeight.w700)),
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(name,
+                          style: GoogleFonts.cairo(
+                              fontSize: 15, fontWeight: FontWeight.w700)),
+                    ),
+                    if (clientType != null && clientType.isNotEmpty)
+                      ClientTypeBadge(type: clientType, dense: true),
+                  ],
+                ),
                 if (store.isNotEmpty)
                   Text(store,
                       style: GoogleFonts.cairo(

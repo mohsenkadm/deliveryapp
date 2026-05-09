@@ -64,7 +64,7 @@ class RegistrationPendingPage extends StatelessWidget {
               const SizedBox(height: 48),
               CustomButton(
                 text: 'العودة لتسجيل الدخول',
-                onPressed: () => Get.offAllNamed(AppRoutes.roleSelection),
+                onPressed: () => Get.offAllNamed(AppRoutes.login),
               ).animate().fadeIn(delay: 700.ms).slideY(begin: 0.15),
             ],
           ),

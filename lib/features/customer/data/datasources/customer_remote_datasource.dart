@@ -8,17 +8,20 @@ class CustomerRemoteDataSource {
   CustomerRemoteDataSource(this._dioClient);
 
   /// GET المنتجات مع بحث وفلترة وترقيم صفحات
+  /// [nearExpiryDays] أظهر فقط المنتجات المنتهية خلال X يوم.
   Future<ProductListResult> getProducts({
     int page = 1,
     int pageSize = 20,
     String? search,
     String? categoryId,
     String? branchId,
+    int? nearExpiryDays,
   }) async {
     final params = <String, dynamic>{'page': page, 'pageSize': pageSize};
     if (search != null && search.isNotEmpty) params['search'] = search;
     if (categoryId != null) params['categoryId'] = categoryId;
     if (branchId != null) params['branchId'] = branchId;
+    if (nearExpiryDays != null) params['nearExpiryDays'] = nearExpiryDays;
 
     final response = await _dioClient.get(
         ApiConstants.customerProducts,
@@ -44,6 +47,21 @@ class CustomerRemoteDataSource {
     );
   }
 
+  /// GET قائمة التصنيفات (?search=)
+  Future<List<CategoryModel>> getCategories({String? search}) async {
+    final params = <String, dynamic>{};
+    if (search != null && search.isNotEmpty) params['search'] = search;
+    final response = await _dioClient.get(
+      ApiConstants.categories,
+      queryParameters: params.isEmpty ? null : params,
+    );
+    final body = response.data['data'] ?? response.data;
+    final List raw = body is List ? body : (body['data'] ?? body['items'] ?? []);
+    return raw
+        .map((e) => CategoryModel.fromJson(e as Map<String, dynamic>))
+        .toList();
+  }
+
   /// GET الطلبات مع فلتر الحالة
   Future<List<OrderModel>> getMyOrders({String? status}) async {
     final params = <String, dynamic>{};
@@ -62,18 +80,47 @@ class CustomerRemoteDataSource {
     return OrderModel.fromJson(response.data['data'] ?? response.data);
   }
 
-  /// POST إنشاء طلب (Checkout)
+  /// POST إنشاء طلب — يستخدم `CreateInvoiceDto`.
+  /// يقوم الخادم تلقائياً بحقن `customerId` من توكن JWT.
+  ///
+  /// شكل عنصر `details`:
+  ///   { productId, quantity, unitPrice?, discount? }
+  ///
+  /// [deliveryScheduleType]: 'Immediate' أو 'Scheduled'.
+  /// [scheduledDeliveryDate]: مطلوب عندما يكون النوع 'Scheduled'.
   Future<OrderModel> createOrder({
     required List<Map<String, dynamic>> items,
     String? notes,
-    String? address,
+    String? promoCode,
+    String? address, // غير مستخدم — مُحتفَظ به للتوافق مع الواجهات القديمة
+    String deliveryScheduleType = 'Immediate',
+    DateTime? scheduledDeliveryDate,
   }) async {
+    // قبول كلا الشكلين {productId, quantity, ...} و{id, qty} لأقصى توافق.
+    final details = items.map((m) {
+      final productId = m['productId'] ?? m['product_id'] ?? m['id'];
+      final quantity = m['quantity'] ?? m['qty'] ?? 1;
+      return <String, dynamic>{
+        'productId': productId,
+        'quantity': quantity,
+        if (m['unitPrice'] != null) 'unitPrice': m['unitPrice'],
+        if (m['discount'] != null) 'discount': m['discount'],
+      };
+    }).toList();
+
     final response = await _dioClient.post(
       ApiConstants.customerCreateOrder,
       data: {
-        'items': items,
-        if (notes != null) 'notes': notes,
-        if (address != null) 'address': address,
+        'dto': {
+          'invoiceSource': 2, // Customer (enum int)
+          'details': details,
+          if (notes != null) 'notes': notes,
+          if (promoCode != null) 'promoCode': promoCode,
+          'deliveryScheduleType': deliveryScheduleType,
+          if (scheduledDeliveryDate != null)
+            'scheduledDeliveryDate':
+                scheduledDeliveryDate.toUtc().toIso8601String(),
+        },
       },
     );
     return OrderModel.fromJson(response.data['data'] ?? response.data);
@@ -88,9 +135,29 @@ class CustomerRemoteDataSource {
   String getInvoiceUrl(String id) =>
       '${ApiConstants.baseUrl}${ApiConstants.customerOrderInvoice(id)}';
 
-  /// GET ملخص الديون
-  Future<DebtSummaryModel> getMyDebts() async {
-    final response = await _dioClient.get(ApiConstants.customerDebts);
+  /// GET ملخص الديون مع فلاتر التاريخ/المبلغ والفرز.
+  ///
+  /// [sortBy] = `date` | `amount`. [sortDir] = `asc` | `desc`.
+  Future<DebtSummaryModel> getMyDebts({
+    DateTime? from,
+    DateTime? to,
+    double? minAmount,
+    double? maxAmount,
+    String? sortBy,
+    String? sortDir,
+  }) async {
+    final params = <String, dynamic>{};
+    if (from != null) params['from'] = from.toUtc().toIso8601String();
+    if (to != null) params['to'] = to.toUtc().toIso8601String();
+    if (minAmount != null) params['minAmount'] = minAmount;
+    if (maxAmount != null) params['maxAmount'] = maxAmount;
+    if (sortBy != null) params['sortBy'] = sortBy;
+    if (sortDir != null) params['sortDir'] = sortDir;
+
+    final response = await _dioClient.get(
+      ApiConstants.customerDebts,
+      queryParameters: params.isEmpty ? null : params,
+    );
     return DebtSummaryModel.fromJson(
         response.data['data'] ?? response.data);
   }

@@ -342,4 +342,45 @@ class AppTheme {
       ),
     );
   }
+
+  // ══════════════════════════════════════════
+  //  ثيمات قابلة للتخصيص (BrandingService)
+  // ══════════════════════════════════════════
+  /// بناء الثيم الفاتح مع لون أساسي/ثانوي مخصّص
+  static ThemeData buildLightTheme({Color? primary, Color? secondary}) {
+    final base = lightTheme;
+    if (primary == null && secondary == null) return base;
+    final p = primary ?? AppColors.primaryLight;
+    final s = secondary ?? AppColors.secondaryLight;
+    return base.copyWith(
+      primaryColor: p,
+      colorScheme: base.colorScheme.copyWith(primary: p, secondary: s),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: base.elevatedButtonTheme.style?.copyWith(
+          backgroundColor: WidgetStatePropertyAll(p),
+        ),
+      ),
+      floatingActionButtonTheme:
+          base.floatingActionButtonTheme.copyWith(backgroundColor: p),
+    );
+  }
+
+  /// بناء الثيم الداكن مع لون أساسي/ثانوي مخصّص
+  static ThemeData buildDarkTheme({Color? primary, Color? secondary}) {
+    final base = darkTheme;
+    if (primary == null && secondary == null) return base;
+    final p = primary ?? AppColors.primaryDark;
+    final s = secondary ?? AppColors.secondaryDark;
+    return base.copyWith(
+      primaryColor: p,
+      colorScheme: base.colorScheme.copyWith(primary: p, secondary: s),
+      elevatedButtonTheme: ElevatedButtonThemeData(
+        style: base.elevatedButtonTheme.style?.copyWith(
+          backgroundColor: WidgetStatePropertyAll(p),
+        ),
+      ),
+      floatingActionButtonTheme:
+          base.floatingActionButtonTheme.copyWith(backgroundColor: p),
+    );
+  }
 }

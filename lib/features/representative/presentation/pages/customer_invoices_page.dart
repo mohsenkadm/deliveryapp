@@ -23,7 +23,17 @@ class CustomerInvoicesPage extends GetView<RepresentativeHomeController> {
     'Rejected',
     'Deferred',
   ];
-  static const _statusLabels = ['الكل', 'انتظار', 'موافق', 'مرفوض', 'مُسلّم'];
+  static const _statusLabels = [
+    'الكل',
+    'انتظار',
+    'موافق',
+    'تجهيز',
+    'في التوصيل',
+    'مُسلّم',
+    'مكتمل',
+    'مرفوض',
+    'مؤجل',
+  ];
 
   @override
   Widget build(BuildContext context) {

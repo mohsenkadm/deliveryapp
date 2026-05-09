@@ -7,7 +7,7 @@ import 'sales_manager_reps_page.dart';
 import 'sales_manager_pending_page.dart';
 import 'sales_manager_invoices_page.dart';
 import 'sales_manager_reports_page.dart';
-import '../../../settings/presentation/pages/settings_page.dart';
+import '../../../settings/presentation/widgets/role_settings_tab.dart';
 
 class SalesManagerMainPage extends StatefulWidget {
   const SalesManagerMainPage({super.key});
@@ -25,7 +25,7 @@ class _SalesManagerMainPageState extends State<SalesManagerMainPage> {
     SalesManagerPendingPage(),
     SalesManagerInvoicesPage(),
     SalesManagerReportsPage(),
-    SettingsPage(),
+    RoleSettingsTab(),
   ];
 
   @override

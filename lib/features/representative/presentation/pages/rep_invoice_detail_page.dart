@@ -2,10 +2,13 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:qr_flutter/qr_flutter.dart';
 import '../../../../core/routes/app_routes.dart';
+import '../../../../core/services/pdf_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/utils/helpers.dart';
+import '../../../../core/utils/snackbar_helper.dart';
 import '../../../../core/widgets/loading_indicator.dart';
 import '../controllers/representative_controllers.dart';
 
@@ -33,6 +36,16 @@ class RepInvoiceDetailPage extends GetView<RepresentativeHomeController> {
           style: GoogleFonts.cairo(fontWeight: FontWeight.w700),
         ),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.qr_code_2),
+            tooltip: 'رمز QR',
+            onPressed: () => _showQr(invoiceId),
+          ),
+          IconButton(
+            icon: const Icon(Icons.print_outlined),
+            tooltip: 'طباعة / مشاركة PDF',
+            onPressed: () => _printPdf(controller, invoiceId),
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () => controller.loadInvoiceDetail(invoiceId),
@@ -267,6 +280,81 @@ class RepInvoiceDetailPage extends GetView<RepresentativeHomeController> {
         );
       }),
     );
+  }
+
+  void _showQr(String invoiceId) {
+    Get.dialog(
+      AlertDialog(
+        title: const Text('رمز الفاتورة'),
+        content: SizedBox(
+          width: 220,
+          height: 240,
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              QrImageView(
+                data: 'INV:$invoiceId',
+                version: QrVersions.auto,
+                size: 200,
+              ),
+              const SizedBox(height: 8),
+              Text('فاتورة #$invoiceId',
+                  style: const TextStyle(fontSize: 12, color: Colors.grey)),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Get.back(), child: const Text('إغلاق')),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _printPdf(
+      RepresentativeHomeController ctrl, String invoiceId) async {
+    final inv = ctrl.invoiceDetail.value;
+    if (inv == null) {
+      SnackbarHelper.showError('انتظر تحميل بيانات الفاتورة');
+      return;
+    }
+    try {
+      final items = ((inv['items'] as List?) ?? const [])
+          .map<Map<String, dynamic>>((e) {
+        final m = e as Map<String, dynamic>;
+        final qty = (m['quantity'] as num?)?.toDouble() ?? 0;
+        final price = (m['price'] as num?)?.toDouble() ?? 0;
+        return {
+          'name': m['productName'] ?? m['product']?['name'] ?? '',
+          'quantity': qty,
+          'unit': m['unit'] ?? '',
+          'price': price,
+          'total': qty * price,
+        };
+      }).toList();
+      final pdf = await PdfService.instance.buildInvoicePdf({
+        'id': inv['id'] ?? invoiceId,
+        'invoiceNumber': inv['id'] ?? invoiceId,
+        'date': inv['createdAt']?.toString().substring(0, 10) ?? '',
+        'customerName': inv['customerName'] ?? inv['customer']?['fullName'] ?? '',
+        'storeName': inv['storeName'] ?? inv['customer']?['storeName'] ?? '',
+        'phone': inv['customerPhone'] ?? inv['customer']?['phone'] ?? '',
+        'address': inv['address'] ?? inv['customer']?['address'] ?? '',
+        'status': inv['status'] ?? '',
+        'items': items,
+        'subtotal': inv['totalAmount'] ?? 0,
+        'discount': inv['discount'] ?? 0,
+        'total': inv['totalAmount'] ?? 0,
+        'paid': inv['paidAmount'] ?? 0,
+        'remaining':
+            ((inv['totalAmount'] as num?)?.toDouble() ?? 0) -
+                ((inv['paidAmount'] as num?)?.toDouble() ?? 0),
+        'notes': inv['notes'] ?? '',
+      });
+      await PdfService.instance.printOrPreview(pdf, name: 'invoice_$invoiceId');
+    } catch (e) {
+      SnackbarHelper.showError('فشل تحضير ملف الطباعة');
+    }
   }
 }
 

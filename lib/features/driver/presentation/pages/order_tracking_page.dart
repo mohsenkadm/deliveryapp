@@ -4,11 +4,11 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:url_launcher/url_launcher.dart';
-import '../../../../core/routes/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/utils/helpers.dart';
 import '../../../../core/widgets/custom_button.dart';
+import '../../../../core/widgets/customer_location_map.dart';
 import '../../domain/entities/driver_entities.dart';
 import '../controllers/driver_controllers.dart';
 
@@ -48,6 +48,17 @@ class OrderTrackingPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // ── خريطة موقع العميل ──
+            if (order.latitude != null && order.longitude != null) ...[
+              CustomerLocationMap(
+                latitude: order.latitude!,
+                longitude: order.longitude!,
+                title: order.storeName ?? order.customerName,
+                subtitle: order.customerAddress,
+              ).animate().fadeIn().slideY(begin: -0.05),
+              const SizedBox(height: 14),
+            ],
+
             // ── بطاقة معلومات العميل ──
             _SectionCard(
               title: 'معلومات العميل',
@@ -259,38 +270,6 @@ class _ActionSection extends StatelessWidget {
               )),
 
         if (status == 'AwaitingDelivery') const SizedBox(height: 12),
-
-        // تحصيل دفعة — bottom sheet
-        if (status == 'AwaitingDelivery' || status == 'Delivered')
-          OutlinedButton.icon(
-            onPressed: () => CollectPaymentSheet.show(context, order.id, ctrl),
-            icon: const Icon(Icons.payments_rounded, size: 18),
-            label: Text('تحصيل دفعة',
-                style: GoogleFonts.cairo(fontWeight: FontWeight.w600)),
-            style: OutlinedButton.styleFrom(
-              foregroundColor: Colors.orange,
-              side: const BorderSide(color: Colors.orange),
-              minimumSize: const Size.fromHeight(44),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10)),
-            ),
-          ),
-
-        if (status == 'AwaitingDelivery' || status == 'Delivered')
-          const SizedBox(height: 12),
-
-        // تسليم نقدية للشركة
-        OutlinedButton.icon(
-          onPressed: () => Get.toNamed(AppRoutes.driverSubmitPayment),
-          icon: const Icon(Icons.account_balance_wallet_outlined, size: 18),
-          label: Text('تسليم نقدية للشركة',
-              style: GoogleFonts.cairo(fontWeight: FontWeight.w600)),
-          style: OutlinedButton.styleFrom(
-            minimumSize: const Size.fromHeight(44),
-            shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(10)),
-          ),
-        ),
       ],
     );
   }
@@ -317,161 +296,6 @@ class _ActionSection extends StatelessWidget {
     if (ok == true) {
       await ctrl.confirmDelivery(order.id);
       Get.back();
-    }
-  }
-}
-
-// ─────────────────────────────────────────────
-// Bottom Sheet: تحصيل دفعة
-// ─────────────────────────────────────────────
-class CollectPaymentSheet extends StatefulWidget {
-  final String orderId;
-  final DriverHomeController ctrl;
-
-  const CollectPaymentSheet(
-      {super.key, required this.orderId, required this.ctrl});
-
-  static void show(
-      BuildContext context, String orderId, DriverHomeController ctrl) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (_) =>
-          CollectPaymentSheet(orderId: orderId, ctrl: ctrl),
-    );
-  }
-
-  @override
-  State<CollectPaymentSheet> createState() => _CollectPaymentSheetState();
-}
-
-class _CollectPaymentSheetState extends State<CollectPaymentSheet> {
-  final _formKey = GlobalKey<FormState>();
-  final _amountCtrl = TextEditingController();
-  final _notesCtrl = TextEditingController();
-
-  @override
-  void dispose() {
-    _amountCtrl.dispose();
-    _notesCtrl.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final bottom = MediaQuery.of(context).viewInsets.bottom;
-
-    return Container(
-      padding: EdgeInsets.fromLTRB(20, 12, 20, 20 + bottom),
-      decoration: BoxDecoration(
-        color: Theme.of(context).scaffoldBackgroundColor,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-      ),
-      child: Form(
-        key: _formKey,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // Handle bar
-            Center(
-              child: Container(
-                width: 40,
-                height: 4,
-                margin: const EdgeInsets.only(bottom: 20),
-                decoration: BoxDecoration(
-                  color: AppColors.dividerLight,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-            ),
-            Text('تحصيل دفعة من العميل',
-                style: GoogleFonts.cairo(
-                    fontSize: 18, fontWeight: FontWeight.w700)),
-            const SizedBox(height: 4),
-            Text('رقم الطلب: ${widget.orderId}',
-                style: GoogleFonts.cairo(
-                    fontSize: 13, color: AppColors.textSecondary)),
-            const SizedBox(height: 20),
-            // حقل المبلغ
-            TextFormField(
-              controller: _amountCtrl,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              textDirection: TextDirection.ltr,
-              decoration: InputDecoration(
-                labelText: 'المبلغ المحصّل',
-                labelStyle: GoogleFonts.cairo(),
-                hintText: '0.00',
-                prefixIcon:
-                    const Icon(Icons.payments_outlined),
-                suffixText: 'د.ع',
-                filled: true,
-                fillColor: Theme.of(context).cardTheme.color,
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none),
-              ),
-              validator: (v) {
-                if (v == null || v.isEmpty) return 'أدخل المبلغ';
-                if (double.tryParse(v) == null || double.parse(v) <= 0) {
-                  return 'مبلغ غير صحيح';
-                }
-                return null;
-              },
-            ),
-            const SizedBox(height: 14),
-            // حقل الملاحظات
-            TextFormField(
-              controller: _notesCtrl,
-              maxLines: 2,
-              decoration: InputDecoration(
-                labelText: 'ملاحظات (اختياري)',
-                labelStyle: GoogleFonts.cairo(),
-                prefixIcon: const Icon(Icons.note_outlined),
-                filled: true,
-                fillColor: Theme.of(context).cardTheme.color,
-                border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none),
-              ),
-            ),
-            const SizedBox(height: 24),
-            Obx(() => ElevatedButton(
-                  onPressed: widget.ctrl.isActing.value ? null : _submit,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.orange,
-                    foregroundColor: Colors.white,
-                    minimumSize: const Size.fromHeight(48),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
-                  ),
-                  child: widget.ctrl.isActing.value
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Colors.white))
-                      : Text('تأكيد التحصيل',
-                          style: GoogleFonts.cairo(
-                              fontSize: 15, fontWeight: FontWeight.w700)),
-                )),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) return;
-    await widget.ctrl.collectPayment(
-      widget.orderId,
-      double.parse(_amountCtrl.text),
-      _notesCtrl.text.isEmpty ? null : _notesCtrl.text,
-    );
-    if (!widget.ctrl.isActing.value) {
-      Get.back(); // close sheet
     }
   }
 }

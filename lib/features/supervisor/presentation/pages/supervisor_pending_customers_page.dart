@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/client_type_badge.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../../../../core/widgets/loading_indicator.dart';
 import '../controllers/supervisor_controller.dart';
@@ -128,9 +129,11 @@ class SupervisorPendingCustomersPage extends StatelessWidget {
                             icon: Icons.map_outlined,
                             text: 'المنطقة: ${c['region']}'),
                       if ((c['clientType'] as String?)?.isNotEmpty == true)
-                        _DetailRow(
-                            icon: Icons.business_outlined,
-                            text: 'النوع: ${c['clientType']}'),
+                        Padding(
+                          padding: const EdgeInsets.only(top: 6),
+                          child: ClientTypeBadge(
+                              type: c['clientType'] as String?),
+                        ),
                       const SizedBox(height: 12),
                       // أزرار الموافقة / الرفض
                       Row(

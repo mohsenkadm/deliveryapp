@@ -56,6 +56,40 @@ class RegisterCustomerPage extends GetView<RepresentativeHomeController> {
                 prefixIcon: Icons.map,
                 validator: Validators.required,
               ),
+              const SizedBox(height: 16),
+              // ── نوع العميل (مفرد / جملة) ──
+              Obx(() => Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 8),
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: Colors.grey.shade300),
+                    ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.category_outlined, size: 20),
+                        const SizedBox(width: 10),
+                        Text('نوع العميل:',
+                            style: GoogleFonts.cairo(
+                                fontSize: 13, fontWeight: FontWeight.w600)),
+                        const Spacer(),
+                        ChoiceChip(
+                          label: const Text('مفرد'),
+                          selected: controller.clientType.value == 'Retail',
+                          onSelected: (_) =>
+                              controller.clientType.value = 'Retail',
+                        ),
+                        const SizedBox(width: 6),
+                        ChoiceChip(
+                          label: const Text('جملة'),
+                          selected:
+                              controller.clientType.value == 'Wholesale',
+                          onSelected: (_) =>
+                              controller.clientType.value = 'Wholesale',
+                        ),
+                      ],
+                    ),
+                  )),
               const SizedBox(height: 24),
               Obx(() => CustomButton(
                     text: 'تسجيل العميل',

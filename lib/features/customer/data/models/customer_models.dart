@@ -1,4 +1,5 @@
 // نماذج بيانات العميل — المنتجات، التصنيفات، الطلبات، الديون
+import '../../../../core/utils/helpers.dart';
 import '../../domain/entities/customer_entities.dart';
 
 class ProductModel extends Product {
@@ -18,6 +19,8 @@ class ProductModel extends Product {
     super.discountPercentage,
     super.cartonType,
     super.baseQuantity,
+    super.expirationDate,
+    super.isNearExpiry,
   });
 
   factory ProductModel.fromJson(Map<String, dynamic> json) {
@@ -42,6 +45,10 @@ class ProductModel extends Product {
       discountPercentage: discount,
       cartonType: json['cartonType'],
       baseQuantity: json['baseQuantity'] ?? 1,
+      expirationDate: json['expirationDate'] != null
+          ? DateTime.tryParse(json['expirationDate'].toString())
+          : null,
+      isNearExpiry: json['isNearExpiry'] ?? false,
     );
   }
 }
@@ -70,6 +77,9 @@ class OrderModel extends Order {
     required super.orderNumber,
     required super.status,
     required super.totalAmount,
+    super.paidAmount,
+    super.remainingAmount,
+    super.paymentStatus,
     super.deliveryFee,
     super.notes,
     required super.createdAt,
@@ -78,25 +88,50 @@ class OrderModel extends Order {
     super.customerName,
     super.customerAddress,
     super.customerPhone,
+    super.deliveryScheduleType,
+    super.scheduledDeliveryDate,
   });
+
+  static const List<String> _scheduleTypes = ['Immediate', 'Scheduled'];
+  static const List<String> _paymentStatuses = ['Unpaid', 'Partial', 'Paid'];
+
+  static String? _enumStr(dynamic v, List<String> values) {
+    if (v == null) return null;
+    if (v is int && v >= 0 && v < values.length) return values[v];
+    final s = v.toString();
+    final i = int.tryParse(s);
+    if (i != null && i >= 0 && i < values.length) return values[i];
+    return s;
+  }
 
   factory OrderModel.fromJson(Map<String, dynamic> json) {
     return OrderModel(
       id: json['id']?.toString() ?? '',
       orderNumber: json['orderNumber'] ?? json['invoiceNumber'] ?? '',
-      status: json['status'] ?? 'Pending',
+      status: InvoiceStatusHelper.parse(json['status'] ?? json['statusText']),
       totalAmount: (json['totalAmount'] ?? json['total'] ?? 0).toDouble(),
-      deliveryFee: json['deliveryFee']?.toDouble(),
+      paidAmount: (json['paidAmount'] ?? 0).toDouble(),
+      remainingAmount: (json['remainingAmount'] ?? 0).toDouble(),
+      paymentStatus:
+          _enumStr(json['paymentStatus'] ?? json['paymentStatusText'], _paymentStatuses),
+      deliveryFee: (json['deliveryFee'] as num?)?.toDouble(),
       notes: json['notes'],
-      createdAt: DateTime.tryParse(json['createdAt'] ?? '') ?? DateTime.now(),
-      items: (json['items'] as List<dynamic>?)
-              ?.map((e) => OrderItemModel.fromJson(e))
+      createdAt: DateTime.tryParse(
+              (json['createdAt'] ?? json['orderDate'] ?? '').toString()) ??
+          DateTime.now(),
+      items: ((json['items'] ?? json['details']) as List<dynamic>?)
+              ?.map((e) => OrderItemModel.fromJson(e as Map<String, dynamic>))
               .toList() ??
-          [],
+          const [],
       driverName: json['driverName'],
       customerName: json['customerName'],
       customerAddress: json['customerAddress'],
       customerPhone: json['customerPhone'],
+      deliveryScheduleType:
+          _enumStr(json['deliveryScheduleType'], _scheduleTypes),
+      scheduledDeliveryDate: json['scheduledDeliveryDate'] != null
+          ? DateTime.tryParse(json['scheduledDeliveryDate'].toString())
+          : null,
     );
   }
 }
@@ -112,11 +147,11 @@ class OrderItemModel extends OrderItem {
 
   factory OrderItemModel.fromJson(Map<String, dynamic> json) {
     return OrderItemModel(
-      productId: json['productId']?.toString() ?? '',
-      productName: json['productName'] ?? '',
-      quantity: json['quantity'] ?? 0,
+      productId: (json['productId'] ?? json['id'])?.toString() ?? '',
+      productName: json['productName'] ?? json['name'] ?? '',
+      quantity: (json['quantity'] ?? json['qty'] ?? 0) as int,
       price: (json['price'] ?? json['unitPrice'] ?? 0).toDouble(),
-      total: (json['total'] ?? json['subtotal'] ?? 0).toDouble(),
+      total: (json['total'] ?? json['subtotal'] ?? json['lineTotal'] ?? 0).toDouble(),
     );
   }
 }
@@ -172,7 +207,7 @@ class DebtModel extends Debt {
       paidAmount: (json['paidAmount'] ?? 0).toDouble(),
       remainingAmount: (json['remainingAmount'] ?? 0).toDouble(),
       dueDate: DateTime.tryParse(json['dueDate'] ?? '') ?? DateTime.now(),
-      status: json['status'] ?? '',
+      status: InvoiceStatusHelper.parse(json['status'] ?? json['statusText'], fallback: ''),
     );
   }
 }

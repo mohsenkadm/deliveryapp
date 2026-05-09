@@ -36,6 +36,43 @@ class InvoiceStatusHelper {
     'Completed',
   ];
 
+  /// تحويل قيمة الحالة القادمة من الباك-إند (int enum أو نص) إلى نص موحَّد.
+  /// ترتيب enum InvoiceStatus في الباك-إند:
+  /// 0=Pending, 1=Accepted, 2=WarehouseProcessing, 3=AwaitingDelivery,
+  /// 4=Delivered, 5=Completed, 6=Rejected, 7=Deferred
+  static const List<String> _enumOrder = [
+    'Pending',
+    'Accepted',
+    'WarehouseProcessing',
+    'AwaitingDelivery',
+    'Delivered',
+    'Completed',
+    'Rejected',
+    'Deferred',
+  ];
+
+  static String parse(dynamic value, {String fallback = 'Pending'}) {
+    if (value == null) return fallback;
+    if (value is int) {
+      if (value >= 0 && value < _enumOrder.length) return _enumOrder[value];
+      return fallback;
+    }
+    final s = value.toString().trim();
+    if (s.isEmpty) return fallback;
+    // قيمة رقمية كنص
+    final asInt = int.tryParse(s);
+    if (asInt != null && asInt >= 0 && asInt < _enumOrder.length) {
+      return _enumOrder[asInt];
+    }
+    // نص إنجليزي مطابق للـ enum
+    if (_enumOrder.contains(s)) return s;
+    // نص عربي قادم من statusText — نعكس الخريطة
+    for (final entry in _arabicLabels.entries) {
+      if (entry.value == s) return entry.key;
+    }
+    return s;
+  }
+
   static String label(String status) =>
       _arabicLabels[status] ?? status;
 

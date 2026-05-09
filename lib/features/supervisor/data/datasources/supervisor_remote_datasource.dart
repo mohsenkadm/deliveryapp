@@ -54,9 +54,12 @@ class SupervisorRemoteDataSource {
     await _dioClient.post(ApiConstants.supervisorApproveCustomer(id));
   }
 
-  /// POST رفض عميل
-  Future<void> rejectCustomer(String id) async {
-    await _dioClient.post(ApiConstants.supervisorRejectCustomer(id));
+  /// POST رفض عميل — body اختياري: { reason? }
+  Future<void> rejectCustomer(String id, {String? reason}) async {
+    await _dioClient.post(
+      ApiConstants.supervisorRejectCustomer(id),
+      data: reason != null ? {'reason': reason} : null,
+    );
   }
 
   /// GET تقرير المبيعات ?from=&to=

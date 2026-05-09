@@ -1,18 +1,15 @@
 // نموذج طلب تسجيل الدخول
-// يدعم تسجيل الدخول بـ username (موظفون) أو phone (عملاء)
+//
+// الواجهة الموحّدة الجديدة تستقبل دائماً { username, password }
+// لجميع نقاط الدخول الثلاث (admin / customer / employee).
 class LoginRequest {
-  final String? username;
-  final String? phone;
+  final String username;
   final String password;
 
-  LoginRequest({this.username, this.phone, required this.password})
-      : assert(username != null || phone != null,
-            'Either username or phone must be provided');
+  LoginRequest({required this.username, required this.password});
 
-  Map<String, dynamic> toJson() {
-    final map = <String, dynamic>{'password': password};
-    if (phone != null && phone!.isNotEmpty) map['phone'] = phone;
-    if (username != null && username!.isNotEmpty) map['username'] = username;
-    return map;
-  }
+  Map<String, dynamic> toJson() => {
+        'username': username,
+        'password': password,
+      };
 }

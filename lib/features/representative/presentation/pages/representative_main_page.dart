@@ -4,10 +4,10 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/services/auth_service.dart';
-import '../../../auth/presentation/controllers/auth_controller.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/loading_indicator.dart';
+import '../../../settings/presentation/widgets/role_settings_tab.dart';
 import '../controllers/representative_controllers.dart';
 import 'customer_invoices_page.dart';
 import 'rep_debts_page.dart';
@@ -27,7 +27,7 @@ class RepresentativeMainPage extends GetView<RepresentativeHomeController> {
       const RepDebtsPage(),
       const RepWarehousePage(),
       const RepPaymentsPage(),
-      const _RepSettingsTab(),
+      const RoleSettingsTab(notificationsRoute: AppRoutes.representativeNotifications),
     ];
 
     return Obx(() => Scaffold(
@@ -255,43 +255,7 @@ class _MyCustomersTabState extends State<_MyCustomersTab> {
 }
 
 // ── Settings Tab ──
-class _RepSettingsTab extends StatelessWidget {
-  const _RepSettingsTab();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text('الإعدادات', style: GoogleFonts.cairo(fontWeight: FontWeight.w700))),
-      body: ListView(
-        children: [
-          _settingsTile(Icons.person_outline, 'الملف الشخصي', () => Get.toNamed(AppRoutes.profile)),
-          _settingsTile(Icons.lock_outline, 'تغيير كلمة المرور', () => Get.toNamed(AppRoutes.changePassword)),
-          _settingsTile(Icons.dark_mode_outlined, 'المظهر', () => Get.toNamed(AppRoutes.themeSettings)),
-          const Divider(height: 1),
-          _settingsTile(Icons.info_outline, 'حول التطبيق', () => Get.toNamed(AppRoutes.aboutApp)),
-          _settingsTile(Icons.privacy_tip_outlined, 'سياسة الخصوصية', () => Get.toNamed(AppRoutes.privacyPolicy)),
-          _settingsTile(Icons.support_agent_outlined, 'الدعم الفني', () => Get.toNamed(AppRoutes.technicalSupport)),
-          const Divider(height: 1),
-          ListTile(
-            leading: const Icon(Icons.logout, color: Colors.red),
-            title: Text('تسجيل الخروج', style: GoogleFonts.cairo(color: Colors.red)),
-            trailing: const Icon(Icons.chevron_left, color: Colors.red),
-            onTap: () => Get.find<AuthController>().logout(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _settingsTile(IconData icon, String title, VoidCallback onTap) {
-    return ListTile(
-      leading: Icon(icon),
-      title: Text(title, style: GoogleFonts.cairo()),
-      trailing: const Icon(Icons.chevron_left),
-      onTap: onTap,
-    );
-  }
-}
+// Settings tab moved to shared RoleSettingsTab widget.
 
 // ── Shared Widgets ──
 

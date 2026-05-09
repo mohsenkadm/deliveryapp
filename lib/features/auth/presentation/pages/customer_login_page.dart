@@ -4,9 +4,10 @@ import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/custom_button.dart';
+import '../../../../core/widgets/custom_text_field.dart';
 import '../controllers/auth_controller.dart';
-import '../widgets/auth_form.dart';
 
 class CustomerLoginPage extends GetView<AuthController> {
   const CustomerLoginPage({super.key});
@@ -43,7 +44,35 @@ class CustomerLoginPage extends GetView<AuthController> {
                   style: GoogleFonts.cairo(fontSize: 14, color: AppColors.textSecondary),
                 ).animate().fadeIn(delay: 300.ms),
                 const SizedBox(height: 32),
-                const AuthForm().animate().fadeIn(delay: 400.ms).slideY(begin: 0.1),
+                Column(
+                  children: [
+                    CustomTextField(
+                      label: 'رقم الهاتف أو اسم المستخدم',
+                      hint: '07XXXXXXXX أو username',
+                      controller: controller.phoneController,
+                      validator: Validators.required,
+                      keyboardType: TextInputType.text,
+                      prefixIcon: Icons.person_outlined,
+                      textInputAction: TextInputAction.next,
+                    ),
+                    const SizedBox(height: 16),
+                    Obx(() => CustomTextField(
+                          label: 'كلمة المرور',
+                          hint: 'أدخل كلمة المرور',
+                          controller: controller.passwordController,
+                          validator: Validators.password,
+                          obscureText: controller.obscurePassword.value,
+                          prefixIcon: Icons.lock_outlined,
+                          textInputAction: TextInputAction.done,
+                          suffixIcon: IconButton(
+                            icon: Icon(controller.obscurePassword.value
+                                ? Icons.visibility_off
+                                : Icons.visibility),
+                            onPressed: () => controller.obscurePassword.toggle(),
+                          ),
+                        )),
+                  ],
+                ).animate().fadeIn(delay: 400.ms).slideY(begin: 0.1),
                 const SizedBox(height: 24),
                 Obx(() => CustomButton(
                       text: 'تسجيل الدخول',

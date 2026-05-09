@@ -10,6 +10,7 @@ import '../../../../core/services/notification_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/loading_indicator.dart';
+import '../../../settings/presentation/widgets/role_settings_tab.dart';
 import '../controllers/admin_controllers.dart';
 
 class AdminMainPage extends StatelessWidget {
@@ -31,7 +32,7 @@ class _AdminScaffold extends GetView<AdminDashboardController> {
       _AdminDashboard(),
       _AdminManagement(),
       _AdminNotifications(),
-      _AdminSettingsTab(),
+      RoleSettingsTab(notificationsRoute: AppRoutes.adminNotifications),
     ];
 
     return Scaffold(
@@ -294,6 +295,8 @@ class _AdminDrawer extends StatelessWidget {
           _drawerTile(Icons.inventory_2_rounded, 'إدارة المنتجات', () { Get.back(); Get.toNamed('/admin/products'); }),
           _drawerTile(Icons.category_rounded, 'إدارة الأقسام', () { Get.back(); Get.toNamed(AppRoutes.manageCategories); }),
           _drawerTile(Icons.warehouse_rounded, 'إدارة المخازن', () { Get.back(); Get.toNamed(AppRoutes.manageWarehouses); }),
+          _drawerTile(Icons.store_mall_directory_rounded, 'إدارة الفروع', () { Get.back(); Get.toNamed(AppRoutes.manageBranches); }),
+          _drawerTile(Icons.local_offer_rounded, 'العروض والترويج', () { Get.back(); Get.toNamed(AppRoutes.manageOffers); }),
           _drawerTile(Icons.receipt_long_rounded, 'الفواتير', () { Get.back(); Get.toNamed(AppRoutes.manageInvoices); }),
           _drawerTile(Icons.support_agent_rounded, 'المندوبين', () { Get.back(); Get.toNamed(AppRoutes.manageRepresentatives); }),
           _drawerTile(Icons.delivery_dining_rounded, 'السائقين', () { Get.back(); Get.toNamed(AppRoutes.manageDrivers); }),
@@ -302,6 +305,8 @@ class _AdminDrawer extends StatelessWidget {
           _drawerTile(Icons.pending_actions_rounded, 'طلبات الموافقة', () { Get.back(); Get.toNamed(AppRoutes.pendingApprovals); }),
           _drawerTile(Icons.analytics_rounded, 'التحليلات', () { Get.back(); Get.toNamed(AppRoutes.analytics); }),
           _drawerTile(Icons.history_rounded, 'سجل النشاط', () { Get.back(); Get.toNamed(AppRoutes.activityLogs); }),
+          _drawerTile(Icons.tune_rounded, 'إعدادات النظام', () { Get.back(); Get.toNamed(AppRoutes.systemSettings); }),
+          _drawerTile(Icons.admin_panel_settings_rounded, 'صلاحيات المسؤولين', () { Get.back(); Get.toNamed(AppRoutes.adminPermissions); }),
           const Divider(),
           _drawerTile(Icons.settings_rounded, 'الإعدادات', () { Get.back(); Get.toNamed(AppRoutes.settings); }),
           ListTile(
@@ -338,6 +343,10 @@ class _AdminManagement extends StatelessWidget {
           _ManagementCard(icon: Icons.inventory_2_rounded, title: 'إدارة المنتجات', subtitle: 'إضافة وتعديل المنتجات', color: AppColors.successLight, onTap: () => Get.toNamed('/admin/products')),
           _ManagementCard(icon: Icons.category_rounded, title: 'إدارة الأقسام', subtitle: 'تصنيف المنتجات', color: AppColors.accentLight, onTap: () => Get.toNamed(AppRoutes.manageCategories)),
           _ManagementCard(icon: Icons.warehouse_rounded, title: 'إدارة المخازن', subtitle: 'المخزون والمستودعات', color: Colors.teal, onTap: () => Get.toNamed(AppRoutes.manageWarehouses)),
+          _ManagementCard(icon: Icons.store_mall_directory_rounded, title: 'إدارة الفروع', subtitle: 'فروع الشركة', color: Colors.brown, onTap: () => Get.toNamed(AppRoutes.manageBranches)),
+          _ManagementCard(icon: Icons.local_offer_rounded, title: 'العروض والترويج', subtitle: 'كوبونات وتخفيضات', color: Colors.pink, onTap: () => Get.toNamed(AppRoutes.manageOffers)),
+          _ManagementCard(icon: Icons.tune_rounded, title: 'إعدادات النظام', subtitle: 'الإعدادات العامة', color: Colors.blueGrey, onTap: () => Get.toNamed(AppRoutes.systemSettings)),
+          _ManagementCard(icon: Icons.admin_panel_settings_rounded, title: 'صلاحيات المسؤولين', subtitle: 'تحكم بالوصول للصفحات', color: Colors.deepPurple, onTap: () => Get.toNamed(AppRoutes.adminPermissions)),
           _ManagementCard(icon: Icons.storage_rounded, title: 'إدارة المخزون', subtitle: 'كميات المخزون', color: Colors.indigo, onTap: () => Get.toNamed(AppRoutes.manageInventory)),
           _ManagementCard(icon: Icons.receipt_long_rounded, title: 'الفواتير', subtitle: 'جميع الفواتير', color: AppColors.secondaryLight, onTap: () => Get.toNamed(AppRoutes.manageInvoices)),
           _ManagementCard(icon: Icons.support_agent_rounded, title: 'المندوبين', subtitle: 'إدارة المندوبين', color: Colors.purple, onTap: () => Get.toNamed(AppRoutes.manageRepresentatives)),
@@ -444,45 +453,6 @@ class _AdminNotifications extends StatelessWidget {
           },
         );
       }),
-    );
-  }
-}
-
-// ── Admin Settings Tab ──
-class _AdminSettingsTab extends StatelessWidget {
-  const _AdminSettingsTab();
-
-  @override
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: Text('الإعدادات', style: GoogleFonts.cairo(fontWeight: FontWeight.w700))),
-      body: ListView(
-        children: [
-          _settingsTile(Icons.person_outline, 'الملف الشخصي', () => Get.toNamed(AppRoutes.profile)),
-          _settingsTile(Icons.lock_outline, 'تغيير كلمة المرور', () => Get.toNamed(AppRoutes.changePassword)),
-          _settingsTile(Icons.dark_mode_outlined, 'المظهر', () => Get.toNamed(AppRoutes.themeSettings)),
-          const Divider(height: 1),
-          _settingsTile(Icons.info_outline, 'حول التطبيق', () => Get.toNamed(AppRoutes.aboutApp)),
-          _settingsTile(Icons.privacy_tip_outlined, 'سياسة الخصوصية', () => Get.toNamed(AppRoutes.privacyPolicy)),
-          _settingsTile(Icons.support_agent_outlined, 'الدعم الفني', () => Get.toNamed(AppRoutes.technicalSupport)),
-          const Divider(height: 1),
-          ListTile(
-            leading: const Icon(Icons.logout, color: Colors.red),
-            title: Text('تسجيل الخروج', style: GoogleFonts.cairo(color: Colors.red)),
-            trailing: const Icon(Icons.chevron_left, color: Colors.red),
-            onTap: () => Get.find<AuthController>().logout(),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _settingsTile(IconData icon, String title, VoidCallback onTap) {
-    return ListTile(
-      leading: Icon(icon),
-      title: Text(title, style: GoogleFonts.cairo()),
-      trailing: const Icon(Icons.chevron_left),
-      onTap: onTap,
     );
   }
 }

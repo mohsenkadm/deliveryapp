@@ -32,8 +32,12 @@ class SalesManagerRemoteDataSource {
     await _dioClient.post(ApiConstants.managerApproveCustomer(id));
   }
 
-  Future<void> rejectCustomer(String id) async {
-    await _dioClient.post(ApiConstants.managerRejectCustomer(id));
+  /// POST رفض عميل — body اختياري: { reason? }
+  Future<void> rejectCustomer(String id, {String? reason}) async {
+    await _dioClient.post(
+      ApiConstants.managerRejectCustomer(id),
+      data: reason != null ? {'reason': reason} : null,
+    );
   }
 
   Future<List<Map<String, dynamic>>> getPendingInvoices() async {
@@ -57,7 +61,33 @@ class SalesManagerRemoteDataSource {
     if (to != null) params['to'] = to;
     final r = await _dioClient.get(ApiConstants.managerSummaryReport,
         queryParameters: params);
-    return (r.data['data'] ?? r.data) as Map<String, dynamic>;
+    final body = r.data['data'] ?? r.data;
+
+    // الواجهة الحالية ترجع List<{repId, repName, totalInvoices,
+    // totalAmount, totalPaid, totalDebt}>. نُجمّعها لملخص واحد.
+    if (body is List) {
+      double totalSales = 0;
+      double totalCollected = 0;
+      double totalDebts = 0;
+      int totalInvoices = 0;
+      for (final e in body) {
+        if (e is! Map) continue;
+        totalSales += ((e['totalAmount'] as num?) ?? 0).toDouble();
+        totalCollected += ((e['totalPaid'] as num?) ?? 0).toDouble();
+        totalDebts += ((e['totalDebt'] as num?) ?? 0).toDouble();
+        totalInvoices += ((e['totalInvoices'] as num?) ?? 0).toInt();
+      }
+      return <String, dynamic>{
+        'totalSales': totalSales,
+        'totalCollected': totalCollected,
+        'totalDebts': totalDebts,
+        'totalInvoices': totalInvoices,
+        'totalReps': body.length,
+        'reps': body.cast<Map<String, dynamic>>(),
+      };
+    }
+
+    return (body as Map).cast<String, dynamic>();
   }
 
   Future<List<Map<String, dynamic>>> getDebtsReport() async {

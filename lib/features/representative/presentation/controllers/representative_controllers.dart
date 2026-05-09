@@ -34,6 +34,18 @@ class RepresentativeHomeController extends GetxController {
   final transferOrders = <Map<String, dynamic>>[].obs;
   final isLoadingTransfers = false.obs;
 
+  // ── سلة إنشاء الفاتورة ──
+  /// عناصر السلة لإنشاء فاتورة جديدة. كل عنصر يحوي:
+  /// productId, productName, quantity, price, maxStock
+  final invoiceCart = <RepCartItem>[].obs;
+  final selectedInvoiceCustomerId = Rxn<String>();
+
+  double get invoiceCartTotal =>
+      invoiceCart.fold(0.0, (s, i) => s + i.quantity * i.price);
+
+  int get invoiceCartCount =>
+      invoiceCart.fold(0, (s, i) => s + i.quantity);
+
   final isActing = false.obs;
 
   // نماذج تسجيل العميل
@@ -43,6 +55,9 @@ class RepresentativeHomeController extends GetxController {
   final addressController = TextEditingController();
   final regionController = TextEditingController();
   final registerFormKey = GlobalKey<FormState>();
+
+  /// نوع العميل: Retail (مفرد) أو Wholesale (جملة)
+  final clientType = 'Retail'.obs;
 
   @override
   void onInit() {
@@ -89,7 +104,7 @@ class RepresentativeHomeController extends GetxController {
         'phone': phoneController.text.trim(),
         'address': addressController.text.trim(),
         'region': regionController.text.trim(),
-        'clientType': 'Retail',
+        'clientType': clientType.value,
       });
       SnackbarHelper.showSuccess('تم إضافة العميل بنجاح — في انتظار الموافقة');
       nameController.clear();
@@ -156,6 +171,105 @@ class RepresentativeHomeController extends GetxController {
       await _ds.createInvoice(data);
       SnackbarHelper.showSuccess('تم إنشاء الفاتورة بنجاح');
       loadInvoices();
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشل إنشاء الفاتورة');
+    }
+    isActing.value = false;
+  }
+
+  // ── إدارة سلة الفاتورة ──
+
+  /// إضافة منتج للسلة (يأتي عادةً من قائمة المستودع).
+  void addProductToCart({
+    required String productId,
+    required String productName,
+    required double price,
+    int quantity = 1,
+    int? maxStock,
+  }) {
+    final i = invoiceCart.indexWhere((e) => e.productId == productId);
+    if (i != -1) {
+      final next = invoiceCart[i].quantity + quantity;
+      if (maxStock != null && next > maxStock) {
+        SnackbarHelper.showError('الكمية المتاحة في المستودع: $maxStock');
+        return;
+      }
+      invoiceCart[i].quantity = next;
+      invoiceCart.refresh();
+    } else {
+      invoiceCart.add(RepCartItem(
+        productId: productId,
+        productName: productName,
+        price: price,
+        quantity: quantity,
+        maxStock: maxStock,
+      ));
+    }
+  }
+
+  void updateCartQuantity(String productId, int quantity) {
+    if (quantity <= 0) {
+      removeFromCart(productId);
+      return;
+    }
+    final i = invoiceCart.indexWhere((e) => e.productId == productId);
+    if (i == -1) return;
+    final item = invoiceCart[i];
+    if (item.maxStock != null && quantity > item.maxStock!) {
+      SnackbarHelper.showError('الكمية المتاحة في المستودع: ${item.maxStock}');
+      return;
+    }
+    item.quantity = quantity;
+    invoiceCart.refresh();
+  }
+
+  void updateCartPrice(String productId, double price) {
+    final i = invoiceCart.indexWhere((e) => e.productId == productId);
+    if (i == -1) return;
+    invoiceCart[i].price = price;
+    invoiceCart.refresh();
+  }
+
+  void removeFromCart(String productId) {
+    invoiceCart.removeWhere((e) => e.productId == productId);
+  }
+
+  void clearInvoiceCart() {
+    invoiceCart.clear();
+    selectedInvoiceCustomerId.value = null;
+  }
+
+  /// إنشاء الفاتورة من السلة بعد اختيار العميل.
+  Future<void> submitInvoiceFromCart({String? notes}) async {
+    if (selectedInvoiceCustomerId.value == null) {
+      SnackbarHelper.showError('يرجى اختيار العميل');
+      return;
+    }
+    if (invoiceCart.isEmpty) {
+      SnackbarHelper.showError('السلة فارغة — أضف منتجاً واحداً على الأقل');
+      return;
+    }
+    final data = <String, dynamic>{
+      'dto': {
+        'invoiceSource': 1, // Representative
+        'customerId': selectedInvoiceCustomerId.value,
+        if (notes != null && notes.trim().isNotEmpty) 'notes': notes.trim(),
+        'details': invoiceCart
+            .map((c) => {
+                  'productId': c.productId,
+                  'quantity': c.quantity,
+                  'unitPrice': c.price,
+                })
+            .toList(),
+      },
+    };
+    isActing.value = true;
+    try {
+      await _ds.createInvoice(data);
+      SnackbarHelper.showSuccess('تم إنشاء الفاتورة بنجاح');
+      clearInvoiceCart();
+      loadInvoices();
+      Get.back();
     } catch (e) {
       SnackbarHelper.handleApiError(e, 'فشل إنشاء الفاتورة');
     }
@@ -272,4 +386,23 @@ class RepresentativeHomeController extends GetxController {
     }
     isActing.value = false;
   }
+}
+
+/// عنصر في سلة فاتورة المندوب — قابل للتعديل (qty/price).
+class RepCartItem {
+  final String productId;
+  final String productName;
+  int quantity;
+  double price;
+  final int? maxStock;
+
+  RepCartItem({
+    required this.productId,
+    required this.productName,
+    required this.quantity,
+    required this.price,
+    this.maxStock,
+  });
+
+  double get total => quantity * price;
 }

@@ -1,4 +1,4 @@
-// متحكمات السائق — الطلبات، التوصيل، تحصيل الدفع، ملخص الأداء
+// متحكمات السائق — الطلبات، التوصيل، ملخص الأداء (السائق لا يتعامل مع النقد)
 import 'package:get/get.dart';
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/utils/snackbar_helper.dart';
@@ -95,34 +95,6 @@ class DriverHomeController extends GetxController {
       await loadData();
     } catch (e) {
       SnackbarHelper.handleApiError(e, 'فشل تأكيد التوصيل');
-    }
-    isActing.value = false;
-  }
-
-  /// تحصيل دفعة من عميل
-  Future<void> collectPayment(
-      String orderId, double amount, String? notes) async {
-    isActing.value = true;
-    try {
-      await _ds.collectPayment(orderId, amount, notes);
-      SnackbarHelper.showSuccess('تم تسجيل الدفعة بنجاح');
-      await loadData();
-    } catch (e) {
-      SnackbarHelper.handleApiError(e, 'فشل تسجيل الدفعة');
-    }
-    isActing.value = false;
-  }
-
-  /// تسليم نقدية للشركة
-  Future<void> submitPayment(
-      {String? invoiceId, required double amount, String? notes}) async {
-    isActing.value = true;
-    try {
-      await _ds.submitPayment(
-          invoiceId: invoiceId, amount: amount, notes: notes);
-      SnackbarHelper.showSuccess('تم تسليم النقدية بنجاح');
-    } catch (e) {
-      SnackbarHelper.handleApiError(e, 'فشل تسليم النقدية');
     }
     isActing.value = false;
   }

@@ -28,13 +28,13 @@ class OnboardingPage extends GetView<OnboardingController> {
                       opacity: controller.isLastPage ? 0 : 1,
                       duration: const Duration(milliseconds: 200),
                       child: TextButton(
-                        onPressed: controller.isLastPage ? null : controller.completeOnboarding,
+                        onPressed: controller.isLastPage
+                            ? null
+                            : controller.completeOnboarding,
                         child: Text(
                           'تخطي',
                           style: GoogleFonts.cairo(
-                            fontSize: 16,
-                            color: AppColors.textSecondary,
-                          ),
+                              fontSize: 16, color: AppColors.textSecondary),
                         ),
                       ),
                     )),
@@ -46,59 +46,83 @@ class OnboardingPage extends GetView<OnboardingController> {
               child: PageView.builder(
                 controller: pageController,
                 itemCount: controller.slides.length,
-                onPageChanged: (index) => controller.currentPage.value = index,
+                onPageChanged: (index) =>
+                    controller.currentPage.value = index,
                 itemBuilder: (context, index) {
                   final slide = controller.slides[index];
                   return OnboardingSlide(
-                    title: slide['title']!,
-                    description: slide['description']!,
-                    lottieAsset: slide['lottie']!,
+                    title: slide['title'] as String,
+                    description: slide['description'] as String,
+                    lottieAsset: slide['lottie'] as String,
+                    icon: slide['icon'] as IconData,
+                    highlightIcons: slide['highlightIcons'] as List<IconData>,
+                    highlightLabels:
+                        slide['highlightLabels'] as List<String>,
+                    color: slide['color'] as Color,
+                    gradientStart: slide['gradientStart'] as Color,
+                    gradientEnd: slide['gradientEnd'] as Color,
                   );
                 },
               ),
             ),
 
-            // Indicator + Buttons
+            // Indicator + Button
             Padding(
               padding: const EdgeInsets.fromLTRB(24, 0, 24, 32),
               child: Column(
                 children: [
-                  SmoothPageIndicator(
-                    controller: pageController,
-                    count: controller.slides.length,
-                    effect: ExpandingDotsEffect(
-                      activeDotColor: Theme.of(context).colorScheme.primary,
-                      dotColor: Theme.of(context).colorScheme.primary.withValues(alpha: 0.15),
-                      dotHeight: 8,
-                      dotWidth: 8,
-                      expansionFactor: 3,
-                      spacing: 6,
-                    ),
-                  ),
+                  Obx(() {
+                    final activeColor =
+                        (controller.slides[controller.currentPage.value]
+                            ['color'] as Color);
+                    return SmoothPageIndicator(
+                      controller: pageController,
+                      count: controller.slides.length,
+                      effect: ExpandingDotsEffect(
+                        activeDotColor: activeColor,
+                        dotColor: activeColor.withValues(alpha: 0.18),
+                        dotHeight: 8,
+                        dotWidth: 8,
+                        expansionFactor: 3,
+                        spacing: 6,
+                      ),
+                    );
+                  }),
                   const SizedBox(height: 32),
-                  Obx(() => SizedBox(
-                        width: double.infinity,
-                        height: 54,
-                        child: ElevatedButton(
-                          onPressed: () {
-                            if (!controller.isLastPage) {
-                              pageController.nextPage(
-                                duration: const Duration(milliseconds: 350),
-                                curve: Curves.easeInOut,
-                              );
-                            } else {
-                              controller.completeOnboarding();
-                            }
-                          },
-                          child: Text(
-                            controller.isLastPage ? 'ابدأ الآن' : 'التالي',
-                            style: GoogleFonts.cairo(
-                              fontSize: 16,
-                              fontWeight: FontWeight.w600,
-                            ),
-                          ),
+                  Obx(() {
+                    final activeColor =
+                        (controller.slides[controller.currentPage.value]
+                            ['color'] as Color);
+                    return SizedBox(
+                      width: double.infinity,
+                      height: 54,
+                      child: ElevatedButton(
+                        onPressed: () {
+                          if (!controller.isLastPage) {
+                            pageController.nextPage(
+                              duration: const Duration(milliseconds: 350),
+                              curve: Curves.easeInOut,
+                            );
+                          } else {
+                            controller.completeOnboarding();
+                          }
+                        },
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: activeColor,
+                          foregroundColor: Colors.white,
+                          elevation: 0,
+                          shadowColor: activeColor.withValues(alpha: 0.4),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(16)),
                         ),
-                      )),
+                        child: Text(
+                          controller.isLastPage ? 'ابدأ الآن' : 'التالي',
+                          style: GoogleFonts.cairo(
+                              fontSize: 16, fontWeight: FontWeight.w700),
+                        ),
+                      ),
+                    );
+                  }),
                 ],
               ),
             ).animate().fadeIn(delay: 500.ms),

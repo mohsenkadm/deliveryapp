@@ -11,7 +11,7 @@ class AuthMiddleware extends GetMiddleware {
   RouteSettings? redirect(String? route) {
     final authService = Get.find<AuthService>();
     if (!authService.isLoggedIn) {
-      return const RouteSettings(name: '/role-selection');
+      return const RouteSettings(name: '/login');
     }
     return null;
   }

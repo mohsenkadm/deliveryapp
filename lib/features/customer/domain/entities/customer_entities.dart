@@ -17,6 +17,9 @@ class Product extends Equatable {
   final double? discountPercentage;
   final String? cartonType;
   final int? baseQuantity;
+  // حقول انتهاء الصلاحية
+  final DateTime? expirationDate;
+  final bool isNearExpiry;
 
   const Product({
     required this.id,
@@ -34,6 +37,8 @@ class Product extends Equatable {
     this.discountPercentage,
     this.cartonType,
     this.baseQuantity,
+    this.expirationDate,
+    this.isNearExpiry = false,
   });
 
   @override
@@ -71,6 +76,9 @@ class Order extends Equatable {
   final String orderNumber;
   final String status;
   final double totalAmount;
+  final double paidAmount;
+  final double remainingAmount;
+  final String? paymentStatus; // 'Unpaid' | 'Partial' | 'Paid'
   final double? deliveryFee;
   final String? notes;
   final DateTime createdAt;
@@ -79,12 +87,18 @@ class Order extends Equatable {
   final String? customerName;
   final String? customerAddress;
   final String? customerPhone;
+  // جدولة التسليم
+  final String? deliveryScheduleType; // 'Immediate' | 'Scheduled'
+  final DateTime? scheduledDeliveryDate;
 
   const Order({
     required this.id,
     required this.orderNumber,
     required this.status,
     required this.totalAmount,
+    this.paidAmount = 0,
+    this.remainingAmount = 0,
+    this.paymentStatus,
     this.deliveryFee,
     this.notes,
     required this.createdAt,
@@ -93,6 +107,8 @@ class Order extends Equatable {
     this.customerName,
     this.customerAddress,
     this.customerPhone,
+    this.deliveryScheduleType,
+    this.scheduledDeliveryDate,
   });
 
   @override

@@ -91,6 +91,40 @@ class ProductsPage extends GetView<ProductsController> {
                 )),
           ),
 
+          // ── فلتر "قارب على الانتهاء" ──
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+            child: Obx(() {
+              final active = controller.nearExpiryDays.value != null;
+              return Align(
+                alignment: AlignmentDirectional.centerStart,
+                child: FilterChip(
+                  selected: active,
+                  avatar: Icon(
+                    Icons.warning_amber_rounded,
+                    size: 18,
+                    color: active ? Colors.white : Colors.red,
+                  ),
+                  label: Text(
+                    active
+                        ? 'قارب على الانتهاء (${controller.nearExpiryDays.value} يوم)'
+                        : 'قارب على الانتهاء',
+                    style: GoogleFonts.cairo(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: active ? Colors.white : Colors.red,
+                    ),
+                  ),
+                  selectedColor: Colors.red,
+                  backgroundColor: Colors.red.withValues(alpha: 0.08),
+                  side: BorderSide(color: Colors.red.withValues(alpha: 0.3)),
+                  onSelected: (_) =>
+                      controller.filterByNearExpiry(active ? null : 7),
+                ),
+              );
+            }),
+          ),
+
           // ── شبكة المنتجات ──
           Expanded(
             child: Obx(() {

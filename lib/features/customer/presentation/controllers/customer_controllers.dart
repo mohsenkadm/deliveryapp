@@ -34,13 +34,18 @@ class CustomerHomeController extends GetxController {
 
   Future<void> loadData() async {
     isLoading.value = true;
-    await Future.wait([_loadProducts(), _loadStats()]);
+    await Future.wait([_loadProducts(), _loadCategories(), _loadStats()]);
     isLoading.value = false;
   }
 
   Future<void> _loadProducts() async {
     final result = await _repository.getProducts(pageSize: 8);
     result.fold((f) => null, (r) => products.value = r.items);
+  }
+
+  Future<void> _loadCategories() async {
+    final result = await _repository.getCategories();
+    result.fold((f) => null, (data) => categories.value = data);
   }
 
   Future<void> _loadStats() async {
@@ -79,6 +84,8 @@ class ProductsController extends GetxController {
   final selectedCategoryId = Rxn<String>();
   final selectedBranchId = Rxn<String>();
   final searchQuery = ''.obs;
+  /// فلتر المنتجات القاربة على الانتهاء (X يوم)
+  final nearExpiryDays = Rxn<int>();
 
   int _page = 1;
   static const int _pageSize = 20;
@@ -115,6 +122,7 @@ class ProductsController extends GetxController {
       search: searchQuery.value.isEmpty ? null : searchQuery.value,
       categoryId: selectedCategoryId.value,
       branchId: selectedBranchId.value,
+      nearExpiryDays: nearExpiryDays.value,
     );
 
     result.fold(
@@ -141,6 +149,12 @@ class ProductsController extends GetxController {
 
   void filterByBranch(String? id) {
     selectedBranchId.value = id;
+    loadProducts(reset: true);
+  }
+
+  /// تفعيل/إلغاء فلتر المنتجات القاربة على الانتهاء.
+  void filterByNearExpiry(int? days) {
+    nearExpiryDays.value = days;
     loadProducts(reset: true);
   }
 }
@@ -197,7 +211,13 @@ class CartController extends GetxController {
 
   void clearCart() => cartItems.clear();
 
-  Future<void> checkout({String? notes, String? address}) async {
+  Future<void> checkout({
+    String? notes,
+    String? address,
+    String? promoCode,
+    String deliveryScheduleType = 'Immediate',
+    DateTime? scheduledDeliveryDate,
+  }) async {
     if (cartItems.isEmpty) return;
     isSubmitting.value = true;
 
@@ -205,12 +225,18 @@ class CartController extends GetxController {
         .map((c) => {
               'productId': c.product.id,
               'quantity': c.quantity,
-              'price': c.product.discountPrice ?? c.product.price,
+              'unitPrice': c.product.discountPrice ?? c.product.price,
             })
         .toList();
 
     final result = await _repository.createOrder(
-        items: items, notes: notes, address: address);
+      items: items,
+      notes: notes,
+      address: address,
+      promoCode: promoCode,
+      deliveryScheduleType: deliveryScheduleType,
+      scheduledDeliveryDate: scheduledDeliveryDate,
+    );
 
     isSubmitting.value = false;
     result.fold(
@@ -292,6 +318,16 @@ class DebtsController extends GetxController {
   final summary = Rxn<DebtSummaryModel>();
   final isLoading = true.obs;
 
+  // فلاتر الديون
+  final fromDate = Rxn<DateTime>();
+  final toDate = Rxn<DateTime>();
+  final minAmount = Rxn<double>();
+  final maxAmount = Rxn<double>();
+  /// `date` | `amount`
+  final sortBy = Rxn<String>();
+  /// `asc` | `desc`
+  final sortDir = Rxn<String>();
+
   @override
   void onInit() {
     super.onInit();
@@ -302,12 +338,48 @@ class DebtsController extends GetxController {
 
   Future<void> loadDebts() async {
     isLoading.value = true;
-    final result = await _repository.getMyDebts();
+    final result = await _repository.getMyDebts(
+      from: fromDate.value,
+      to: toDate.value,
+      minAmount: minAmount.value,
+      maxAmount: maxAmount.value,
+      sortBy: sortBy.value,
+      sortDir: sortDir.value,
+    );
     result.fold(
       (f) => SnackbarHelper.showError(f.message),
       (data) => summary.value = data,
     );
     isLoading.value = false;
+  }
+
+  /// تطبيق فلاتر جديدة وإعادة التحميل.
+  void applyFilters({
+    DateTime? from,
+    DateTime? to,
+    double? min,
+    double? max,
+    String? sortByValue,
+    String? sortDirValue,
+  }) {
+    fromDate.value = from;
+    toDate.value = to;
+    minAmount.value = min;
+    maxAmount.value = max;
+    sortBy.value = sortByValue;
+    sortDir.value = sortDirValue;
+    loadDebts();
+  }
+
+  /// إعادة تعيين جميع الفلاتر.
+  void clearFilters() {
+    fromDate.value = null;
+    toDate.value = null;
+    minAmount.value = null;
+    maxAmount.value = null;
+    sortBy.value = null;
+    sortDir.value = null;
+    loadDebts();
   }
 }
 

@@ -9,12 +9,12 @@ class RoleSelectionPage extends StatelessWidget {
   const RoleSelectionPage({super.key});
 
   static const _roles = [
-    _RoleData('👤', 'عميل', 'تصفح المنتجات واطلب ما تريد', Color(0xFF10B981), AppRoutes.login),
-    _RoleData('🚚', 'سائق', 'إدارة التوصيلات والطلبات المسندة', Color(0xFF2E7DFF), AppRoutes.login),
-    _RoleData('🧾', 'مندوب', 'إدارة العملاء والتحصيلات', Color(0xFFFF7A00), AppRoutes.login),
+    _RoleData('👤', 'عميل', 'تصفح المنتجات واطلب ما تريد', Color(0xFF10B981), AppRoutes.customerLogin),
+    _RoleData('🚚', 'سائق', 'إدارة التوصيلات والطلبات المسندة', Color(0xFF2E7DFF), AppRoutes.driverLogin),
+    _RoleData('🧾', 'مندوب', 'إدارة العملاء والتحصيلات', Color(0xFFFF7A00), AppRoutes.representativeLogin),
     _RoleData('🔍', 'مشرف', 'متابعة المندوبين وموافقات العملاء', Color(0xFF06B6D4), AppRoutes.login),
     _RoleData('📊', 'مدير مبيعات', 'التقارير والموافقات الإدارية', Color(0xFF8B5CF6), AppRoutes.login),
-    _RoleData('👑', 'مسؤول', 'لوحة التحكم والإدارة الكاملة', Color(0xFFEC4899), AppRoutes.login),
+    _RoleData('👑', 'مسؤول', 'لوحة التحكم والإدارة الكاملة', Color(0xFFEC4899), AppRoutes.adminLogin),
   ];
 
   @override

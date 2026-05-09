@@ -20,7 +20,7 @@ class DriverLoginPage extends GetView<AuthController> {
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Form(
-            key: controller.formKey,
+            key: controller.employeeFormKey,
             child: Column(
               children: [
                 const SizedBox(height: 20),

@@ -30,14 +30,45 @@ class ProductCard extends StatelessWidget {
               borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
               child: AspectRatio(
                 aspectRatio: 1.2,
-                child: product.imageUrl != null
-                    ? CachedNetworkImage(
-                        imageUrl: product.imageUrl!,
-                        fit: BoxFit.cover,
-                        placeholder: (_, __) => Container(color: Colors.grey[200], child: const Center(child: CircularProgressIndicator(strokeWidth: 2))),
-                        errorWidget: (_, __, ___) => Container(color: Colors.grey[200], child: const Icon(Icons.image, size: 40, color: Colors.grey)),
-                      )
-                    : Container(color: Colors.grey[200], child: const Icon(Icons.image, size: 40, color: Colors.grey)),
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: product.imageUrl != null
+                          ? CachedNetworkImage(
+                              imageUrl: product.imageUrl!,
+                              fit: BoxFit.cover,
+                              placeholder: (_, __) => Container(color: Colors.grey[200], child: const Center(child: CircularProgressIndicator(strokeWidth: 2))),
+                              errorWidget: (_, __, ___) => Container(color: Colors.grey[200], child: const Icon(Icons.image, size: 40, color: Colors.grey)),
+                            )
+                          : Container(color: Colors.grey[200], child: const Icon(Icons.image, size: 40, color: Colors.grey)),
+                    ),
+                    if (product.isNearExpiry)
+                      Positioned(
+                        top: 6,
+                        right: 6,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.red,
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.warning_amber_rounded,
+                                  size: 12, color: Colors.white),
+                              const SizedBox(width: 3),
+                              Text('قارب على الانتهاء',
+                                  style: GoogleFonts.cairo(
+                                      fontSize: 9,
+                                      fontWeight: FontWeight.w700,
+                                      color: Colors.white)),
+                            ],
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
               ),
             ),
             Padding(

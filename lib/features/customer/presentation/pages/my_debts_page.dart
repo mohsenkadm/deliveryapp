@@ -16,6 +16,11 @@ class MyDebtsPage extends GetView<DebtsController> {
       appBar: AppBar(
         title: const Text('مديونياتي'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.filter_list),
+            tooltip: 'فلاتر',
+            onPressed: () => _showFilters(context),
+          ),
           IconButton(icon: const Icon(Icons.refresh), onPressed: controller.loadDebts),
         ],
       ),
@@ -205,3 +210,186 @@ class _SummaryPill extends StatelessWidget {
   }
 }
 
+void _showFilters(BuildContext context) {
+  final ctrl = Get.find<DebtsController>();
+  DateTime? from = ctrl.fromDate.value;
+  DateTime? to = ctrl.toDate.value;
+  final minCtrl = TextEditingController(
+      text: ctrl.minAmount.value?.toStringAsFixed(0) ?? '');
+  final maxCtrl = TextEditingController(
+      text: ctrl.maxAmount.value?.toStringAsFixed(0) ?? '');
+  String? sortBy = ctrl.sortBy.value;
+  String? sortDir = ctrl.sortDir.value;
+
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+    ),
+    builder: (ctx) => StatefulBuilder(
+      builder: (ctx, setState) => Padding(
+        padding: EdgeInsets.fromLTRB(
+          20, 20, 20, MediaQuery.of(ctx).viewInsets.bottom + 20,
+        ),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('فلاتر الديون',
+                  style: GoogleFonts.cairo(
+                      fontSize: 18, fontWeight: FontWeight.w700)),
+              const SizedBox(height: 16),
+
+              // التاريخ
+              Text('النطاق الزمني', style: GoogleFonts.cairo(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.calendar_today, size: 16),
+                      label: Text(
+                        from == null ? 'من تاريخ' : Formatters.date(from!),
+                        style: GoogleFonts.cairo(fontSize: 12),
+                      ),
+                      onPressed: () async {
+                        final picked = await showDatePicker(
+                          context: ctx,
+                          initialDate: from ?? DateTime.now(),
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime.now().add(const Duration(days: 1)),
+                        );
+                        if (picked != null) setState(() => from = picked);
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      icon: const Icon(Icons.calendar_today, size: 16),
+                      label: Text(
+                        to == null ? 'إلى تاريخ' : Formatters.date(to!),
+                        style: GoogleFonts.cairo(fontSize: 12),
+                      ),
+                      onPressed: () async {
+                        final picked = await showDatePicker(
+                          context: ctx,
+                          initialDate: to ?? DateTime.now(),
+                          firstDate: DateTime(2020),
+                          lastDate: DateTime.now().add(const Duration(days: 1)),
+                        );
+                        if (picked != null) setState(() => to = picked);
+                      },
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // المبلغ
+              Text('نطاق المبلغ', style: GoogleFonts.cairo(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: minCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'الحد الأدنى',
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: TextField(
+                      controller: maxCtrl,
+                      keyboardType: TextInputType.number,
+                      decoration: const InputDecoration(
+                        labelText: 'الحد الأعلى',
+                        border: OutlineInputBorder(),
+                        isDense: true,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 16),
+
+              // الفرز
+              Text('الفرز', style: GoogleFonts.cairo(fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: [
+                  ChoiceChip(
+                    label: Text('التاريخ', style: GoogleFonts.cairo(fontSize: 12)),
+                    selected: sortBy == 'date',
+                    onSelected: (_) => setState(() => sortBy = 'date'),
+                  ),
+                  ChoiceChip(
+                    label: Text('المبلغ', style: GoogleFonts.cairo(fontSize: 12)),
+                    selected: sortBy == 'amount',
+                    onSelected: (_) => setState(() => sortBy = 'amount'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                children: [
+                  ChoiceChip(
+                    label: Text('تصاعدي', style: GoogleFonts.cairo(fontSize: 12)),
+                    selected: sortDir == 'asc',
+                    onSelected: (_) => setState(() => sortDir = 'asc'),
+                  ),
+                  ChoiceChip(
+                    label: Text('تنازلي', style: GoogleFonts.cairo(fontSize: 12)),
+                    selected: sortDir == 'desc',
+                    onSelected: (_) => setState(() => sortDir = 'desc'),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 24),
+
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton(
+                      onPressed: () {
+                        ctrl.clearFilters();
+                        Navigator.pop(ctx);
+                      },
+                      child: Text('إعادة تعيين', style: GoogleFonts.cairo()),
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: FilledButton(
+                      onPressed: () {
+                        ctrl.applyFilters(
+                          from: from,
+                          to: to,
+                          min: double.tryParse(minCtrl.text),
+                          max: double.tryParse(maxCtrl.text),
+                          sortByValue: sortBy,
+                          sortDirValue: sortDir,
+                        );
+                        Navigator.pop(ctx);
+                      },
+                      child: Text('تطبيق', style: GoogleFonts.cairo()),
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  );
+}

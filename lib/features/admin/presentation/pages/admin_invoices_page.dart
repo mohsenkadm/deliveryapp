@@ -30,45 +30,62 @@ class AdminInvoicesPage extends GetView<AdminOrdersController> {
         title: Text('الفواتير', style: GoogleFonts.cairo(fontWeight: FontWeight.w700)),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(52),
-          child: Obx(() => SizedBox(
-            height: 52,
-            child: ListView.separated(
-              scrollDirection: Axis.horizontal,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              itemCount: _statuses.length,
-              separatorBuilder: (_, __) => const SizedBox(width: 8),
-              itemBuilder: (_, i) {
-                final selected = selectedStatus.value == _statuses[i];
-                return GestureDetector(
-                  onTap: () => selectedStatus.value = _statuses[i],
-                  child: AnimatedContainer(
-                    duration: const Duration(milliseconds: 200),
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 6),
-                    decoration: BoxDecoration(
-                      color: selected ? AppColors.primary : AppColors.surface,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: selected ? AppColors.primary : AppColors.dividerLight),
+          child: Obx(() {
+            // اقرأ القيمة هنا لضمان تسجيل اشتراك Rx قبل بناء الـ ListView
+            final current = selectedStatus.value;
+            return SizedBox(
+              height: 52,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                itemCount: _statuses.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (_, i) {
+                  final selected = current == _statuses[i];
+                  return GestureDetector(
+                    onTap: () => selectedStatus.value = _statuses[i],
+                    child: AnimatedContainer(
+                      duration: const Duration(milliseconds: 200),
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 6),
+                      decoration: BoxDecoration(
+                        color: selected
+                            ? AppColors.primary
+                            : AppColors.surface,
+                        borderRadius: BorderRadius.circular(20),
+                        border: Border.all(
+                            color: selected
+                                ? AppColors.primary
+                                : AppColors.dividerLight),
+                      ),
+                      child: Text(_statusLabels[i],
+                          style: GoogleFonts.cairo(
+                              fontSize: 12,
+                              fontWeight: FontWeight.w600,
+                              color: selected
+                                  ? Colors.white
+                                  : AppColors.textSecondary)),
                     ),
-                    child: Text(_statusLabels[i],
-                        style: GoogleFonts.cairo(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w600,
-                            color: selected ? Colors.white : AppColors.textSecondary)),
-                  ),
-                );
-              },
-            ),
-          )),
+                  );
+                },
+              ),
+            );
+          }),
         ),
       ),
       body: Obx(() {
         if (controller.isLoading.value) return const LoadingIndicator();
+        // اقرأ القيمة هنا لضمان تسجيل اشتراك Rx
+        final current = selectedStatus.value;
         final all = controller.invoices;
-        final filtered = selectedStatus.value == 'الكل'
+        final filtered = current == 'الكل'
             ? all
-            : all.where((inv) => (inv['status'] ?? '') == selectedStatus.value).toList();
+            : all.where((inv) => (inv['status'] ?? '') == current).toList();
         if (filtered.isEmpty) {
-          return const EmptyState(title: 'لا توجد فواتير', icon: Icons.receipt_long_outlined);
+          return const EmptyState(
+              title: 'لا توجد فواتير',
+              icon: Icons.receipt_long_outlined);
         }
         return RefreshIndicator(
           onRefresh: controller.loadInvoices,

@@ -15,11 +15,22 @@ class OrderDetailsPage extends GetView<OrdersController> {
 
   @override
   Widget build(BuildContext context) {
-    final args = Get.arguments as Map<String, dynamic>;
-    final orderId = args['orderId'] as String;
+    final args = Get.arguments;
+    final orderId = args is Map
+        ? (args['orderId']?.toString() ?? '')
+        : (args?.toString() ?? '');
 
     return Scaffold(
-      appBar: AppBar(title: const Text('تفاصيل الطلب')),
+      appBar: AppBar(
+        title: const Text('تفاصيل الطلب'),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.home_outlined),
+            tooltip: 'الرئيسية',
+            onPressed: () => Get.offAllNamed(AppRoutes.customer),
+          ),
+        ],
+      ),
       body: FutureBuilder(
         future: () async {
           final repo = controller.repository;

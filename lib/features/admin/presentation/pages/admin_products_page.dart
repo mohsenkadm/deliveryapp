@@ -117,7 +117,13 @@ class AdminProductsPage extends GetView<AdminProductsController> {
       controller.nameController.text =
           existing['name']?.toString() ?? '';
       controller.priceController.text =
-          existing['price']?.toString() ?? '';
+          (existing['retailPrice'] ?? existing['price'] ?? '').toString();
+      controller.wholesalePriceController.text =
+          (existing['wholesalePrice'] ?? '').toString();
+      controller.cartonTypeController.text =
+          (existing['cartonType'] ?? '').toString();
+      controller.baseQuantityController.text =
+          (existing['baseQuantity'] ?? '').toString();
       controller.descriptionController.text =
           existing['description']?.toString() ?? '';
       controller.selectedCategoryId.value =
@@ -158,10 +164,38 @@ class AdminProductsPage extends GetView<AdminProductsController> {
                 const SizedBox(height: 12),
                 CustomTextField(
                   controller: controller.priceController,
-                  label: 'السعر',
+                  label: 'سعر المفرد',
                   prefixIcon: Icons.attach_money,
                   keyboardType: TextInputType.number,
                   validator: Validators.required,
+                ),
+                const SizedBox(height: 12),
+                CustomTextField(
+                  controller: controller.wholesalePriceController,
+                  label: 'سعر الجملة',
+                  prefixIcon: Icons.local_offer_outlined,
+                  keyboardType: TextInputType.number,
+                ),
+                const SizedBox(height: 12),
+                Row(
+                  children: [
+                    Expanded(
+                      child: CustomTextField(
+                        controller: controller.cartonTypeController,
+                        label: 'الوحدة (كرتون/علبة/جم)',
+                        prefixIcon: Icons.inventory_outlined,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: CustomTextField(
+                        controller: controller.baseQuantityController,
+                        label: 'العدد بالوحدة',
+                        prefixIcon: Icons.numbers,
+                        keyboardType: TextInputType.number,
+                      ),
+                    ),
+                  ],
                 ),
                 const SizedBox(height: 12),
                 CustomTextField(

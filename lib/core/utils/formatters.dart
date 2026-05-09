@@ -6,7 +6,7 @@ class Formatters {
   static String currency(double amount) {
     final formatter = NumberFormat.currency(
       locale: 'ar',
-      symbol: 'ر.س',
+      symbol: 'د.ع',
       decimalDigits: 2,
     );
     return formatter.format(amount);

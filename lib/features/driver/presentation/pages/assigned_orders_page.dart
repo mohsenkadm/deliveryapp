@@ -9,7 +9,6 @@ import '../../../../core/widgets/empty_state.dart';
 import '../../../../core/widgets/loading_indicator.dart';
 import '../../domain/entities/driver_entities.dart';
 import '../controllers/driver_controllers.dart';
-import 'order_tracking_page.dart';
 
 class AssignedOrdersPage extends GetView<DriverHomeController> {
   const AssignedOrdersPage({super.key});
@@ -195,17 +194,6 @@ class _ActionButtons extends StatelessWidget {
                 loading: ctrl.isActing.value,
                 onTap: () => _confirmDelivery(context),
               )),
-        ],
-
-        // تحصيل دفعة
-        if (status == 'AwaitingDelivery' || status == 'Delivered') ...[
-          const SizedBox(height: 8),
-          _btn(
-            label: 'تحصيل دفعة',
-            icon: Icons.payments_rounded,
-            color: Colors.orange,
-            onTap: () => CollectPaymentSheet.show(context, order.id, ctrl),
-          ),
         ],
       ],
     );

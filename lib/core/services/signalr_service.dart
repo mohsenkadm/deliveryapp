@@ -1,28 +1,33 @@
 // خدمة الإشعارات الفورية عبر SignalR
+//
+// تتصل بـ /hubs/notifications من DeliverySystem.API. يتم إرسال JWT عبر
+// `accessTokenFactory` (الطريقة الموصى بها في الوثائق).
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get/get.dart';
 import 'package:signalr_netcore/signalr_client.dart';
 import '../constants/api_constants.dart';
+import '../constants/storage_keys.dart';
 import '../utils/snackbar_helper.dart';
 
 class SignalRService extends GetxService {
   static SignalRService get to => Get.find<SignalRService>();
 
   HubConnection? _connection;
-  final _storage = const FlutterSecureStorage();
+  final _storage = const FlutterSecureStorage(
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+  );
 
   final isConnected = false.obs;
   final notifications = <Map<String, dynamic>>[].obs;
   final unreadCount = 0.obs;
 
-  /// تهيئة الاتصال بـ SignalR
+  /// تهيئة الاتصال بـ SignalR — يجب استدعاؤها بعد نجاح تسجيل الدخول.
   Future<void> connect() async {
     try {
-      final token = await _storage.read(key: 'accessToken');
-      if (token == null) return;
+      final token = await _storage.read(key: StorageKeys.accessToken);
+      if (token == null || token.isEmpty) return;
 
-      final hubUrl =
-          '${ApiConstants.baseUrl}${ApiConstants.signalRHub}?access_token=$token';
+      final hubUrl = '${ApiConstants.baseUrl}${ApiConstants.signalRHub}';
 
       _connection = HubConnectionBuilder()
           .withUrl(
@@ -35,19 +40,15 @@ class SignalRService extends GetxService {
           .withAutomaticReconnect()
           .build();
 
-      // استماع لإشعارات الطلبات
+      // الحدث الرسمي من الواجهة الجديدة
       _connection!.on('ReceiveNotification', _onNotification);
-      _connection!.on('OrderStatusChanged', _onOrderStatusChanged);
-      _connection!.on('NewOrder', _onNewOrder);
 
       _connection!.onclose(({error}) {
         isConnected.value = false;
       });
-
       _connection!.onreconnecting(({error}) {
         isConnected.value = false;
       });
-
       _connection!.onreconnected(({connectionId}) {
         isConnected.value = true;
       });
@@ -61,30 +62,16 @@ class SignalRService extends GetxService {
 
   void _onNotification(List<Object?>? args) {
     if (args == null || args.isEmpty) return;
-    final data = args[0] as Map<String, dynamic>?;
-    if (data == null) return;
+    final raw = args[0];
+    if (raw is! Map) return;
+    final data = Map<String, dynamic>.from(raw);
 
     notifications.insert(0, data);
     unreadCount.value++;
 
-    final title = data['title']?.toString() ?? 'إشعار جديد';
-    final body = data['body']?.toString() ?? '';
+    final title = (data['title'] ?? 'إشعار جديد').toString();
+    final body = (data['body'] ?? '').toString();
     SnackbarHelper.showInfo('$title\n$body');
-  }
-
-  void _onOrderStatusChanged(List<Object?>? args) {
-    if (args == null || args.isEmpty) return;
-    final data = args[0] as Map<String, dynamic>?;
-    if (data == null) return;
-
-    final status = data['status']?.toString() ?? '';
-    final orderId = data['orderId']?.toString() ?? '';
-    SnackbarHelper.showInfo('تحديث الطلب #$orderId\nالحالة: $status');
-  }
-
-  void _onNewOrder(List<Object?>? args) {
-    if (args == null || args.isEmpty) return;
-    SnackbarHelper.showInfo('طلب جديد - تم استلام طلب جديد');
   }
 
   void markAllRead() {

@@ -9,7 +9,13 @@ import '../constants/storage_keys.dart';
 import '../utils/snackbar_helper.dart';
 import 'api_exception.dart';
 
-/// عميل Dio المركزي — يُدير التوكن والاعتراضات وأخطاء الشبكة
+/// عميل Dio المركزي — يُدير التوكن واعتراضات المصادقة وأخطاء الشبكة.
+///
+/// متوافق مع DeliverySystem.API:
+/// - JWT يُحقن في الترويسة `Authorization: Bearer ...`.
+/// - لا يوجد refresh token. عند 401 يتم مسح الجلسة والتوجيه لشاشة تسجيل الدخول.
+/// - الأخطاء تُحوَّل إلى `ApiException` مع قراءة `messageAr` من الردّ الموحَّد.
+/// - يدعم 410 (نقطة دخول مهملة بديلة).
 class DioClient {
   late final Dio _dio;
   final FlutterSecureStorage _secureStorage;
@@ -18,10 +24,12 @@ class DioClient {
     _dio = Dio(
       BaseOptions(
         baseUrl: ApiConstants.baseUrl,
-        connectTimeout: const Duration(milliseconds: AppConstants.connectionTimeout),
-        receiveTimeout: const Duration(milliseconds: AppConstants.receiveTimeout),
+        connectTimeout:
+            const Duration(milliseconds: AppConstants.connectionTimeout),
+        receiveTimeout:
+            const Duration(milliseconds: AppConstants.receiveTimeout),
         headers: {
-          'Content-Type': 'application/json',
+          'Content-Type': 'application/json; charset=utf-8',
           'Accept': 'application/json',
         },
       ),
@@ -29,7 +37,6 @@ class DioClient {
 
     _dio.interceptors.add(_authInterceptor());
 
-    // تفعيل سجل الطلبات في وضع التطوير فقط
     if (kDebugMode) {
       _dio.interceptors.add(PrettyDioLogger(
         requestHeader: true,
@@ -41,68 +48,37 @@ class DioClient {
     }
   }
 
-  /// اعتراض المصادقة — إضافة التوكن + معالجة 401 و 403
+  /// اعتراض المصادقة — حقن التوكن + معالجة 401 / 403 / 410
   InterceptorsWrapper _authInterceptor() {
     return InterceptorsWrapper(
       onRequest: (options, handler) async {
-        final token = await _secureStorage.read(key: StorageKeys.accessToken);
+        final token =
+            await _secureStorage.read(key: StorageKeys.accessToken);
         if (token != null && token.isNotEmpty) {
           options.headers['Authorization'] = 'Bearer $token';
         }
         return handler.next(options);
       },
       onError: (error, handler) async {
-        if (error.response?.statusCode == 401) {
-          // محاولة تحديث التوكن
-          final refreshed = await _refreshToken();
-          if (refreshed) {
-            final token = await _secureStorage.read(key: StorageKeys.accessToken);
-            error.requestOptions.headers['Authorization'] = 'Bearer $token';
-            final response = await _dio.fetch(error.requestOptions);
-            return handler.resolve(response);
-          } else {
-            // فشل التحديث — تسجيل الخروج والتوجيه لصفحة الأدوار
-            await _secureStorage.deleteAll();
-            Get.offAllNamed('/role-selection');
+        final status = error.response?.statusCode;
+        if (status == 401) {
+          // التوكن منتهٍ أو غير صالح — مسح الجلسة والعودة لشاشة الدخول
+          await _secureStorage.deleteAll();
+          if (Get.currentRoute != '/login') {
+            Get.offAllNamed('/login');
           }
-        } else if (error.response?.statusCode == 403) {
-          // عرض رسالة عدم الصلاحية
+        } else if (status == 403) {
           SnackbarHelper.showError('ليس لديك صلاحية للقيام بهذا الإجراء');
+        } else if (status == 410) {
+          SnackbarHelper.showError(
+              'هذه الخدمة لم تعد متاحة. يرجى تحديث التطبيق');
         }
         return handler.next(error);
       },
     );
   }
 
-  /// تحديث التوكن باستخدام refreshToken
-  Future<bool> _refreshToken() async {
-    try {
-      final refreshToken = await _secureStorage.read(key: StorageKeys.refreshToken);
-      if (refreshToken == null) return false;
-
-      final response = await Dio(
-        BaseOptions(baseUrl: ApiConstants.baseUrl),
-      ).post(
-        ApiConstants.refreshToken,
-        data: {'refreshToken': refreshToken},
-      );
-
-      if (response.statusCode == 200) {
-        await _secureStorage.write(
-          key: StorageKeys.accessToken,
-          value: response.data['accessToken'],
-        );
-        await _secureStorage.write(
-          key: StorageKeys.refreshToken,
-          value: response.data['refreshToken'],
-        );
-        return true;
-      }
-      return false;
-    } catch (_) {
-      return false;
-    }
-  }
+  Dio get raw => _dio;
 
   // ── طرق HTTP ──
 
@@ -112,7 +88,8 @@ class DioClient {
     Options? options,
   }) async {
     try {
-      return await _dio.get(path, queryParameters: queryParameters, options: options);
+      return await _dio.get(path,
+          queryParameters: queryParameters, options: options);
     } on DioException catch (e) {
       throw _handleError(e);
     }
@@ -125,7 +102,8 @@ class DioClient {
     Options? options,
   }) async {
     try {
-      return await _dio.post(path, data: data, queryParameters: queryParameters, options: options);
+      return await _dio.post(path,
+          data: data, queryParameters: queryParameters, options: options);
     } on DioException catch (e) {
       throw _handleError(e);
     }
@@ -138,13 +116,14 @@ class DioClient {
     Options? options,
   }) async {
     try {
-      return await _dio.put(path, data: data, queryParameters: queryParameters, options: options);
+      return await _dio.put(path,
+          data: data, queryParameters: queryParameters, options: options);
     } on DioException catch (e) {
       throw _handleError(e);
     }
   }
 
-  /// طلب PATCH — يُستخدم لتحديث حالة الفاتورة
+  /// طلب PATCH — مستخدَم لتحديث حالة الفاتورة وتعليم الإشعار كمقروء
   Future<Response> patch(
     String path, {
     dynamic data,
@@ -152,7 +131,8 @@ class DioClient {
     Options? options,
   }) async {
     try {
-      return await _dio.patch(path, data: data, queryParameters: queryParameters, options: options);
+      return await _dio.patch(path,
+          data: data, queryParameters: queryParameters, options: options);
     } on DioException catch (e) {
       throw _handleError(e);
     }
@@ -165,13 +145,14 @@ class DioClient {
     Options? options,
   }) async {
     try {
-      return await _dio.delete(path, data: data, queryParameters: queryParameters, options: options);
+      return await _dio.delete(path,
+          data: data, queryParameters: queryParameters, options: options);
     } on DioException catch (e) {
       throw _handleError(e);
     }
   }
 
-  /// معالجة أخطاء Dio وتحويلها إلى ApiException
+  /// تحويل أخطاء Dio إلى `ApiException`
   ApiException _handleError(DioException error) {
     switch (error.type) {
       case DioExceptionType.connectionTimeout:
@@ -187,24 +168,37 @@ class DioClient {
     }
   }
 
-  /// معالجة أخطاء الاستجابة حسب رمز الحالة
+  /// قراءة `messageAr` من ردّ ApiResponse الموحّد
   ApiException _handleResponseError(Response? response) {
     final statusCode = response?.statusCode;
-    final message = response?.data is Map
-        ? (response?.data['messageAr'] ?? response?.data['message'] ?? response?.data['title'] ?? 'حدث خطأ')
-        : 'حدث خطأ';
+    String message = 'حدث خطأ';
+    if (response?.data is Map) {
+      final m = response!.data as Map;
+      message = (m['messageAr'] ??
+              m['message'] ??
+              m['title'] ??
+              m['messageEn'] ??
+              'حدث خطأ')
+          .toString();
+    }
 
     switch (statusCode) {
       case 400:
-        return ApiException(message: message, statusCode: 400, data: response?.data);
+        return ApiException(
+            message: message, statusCode: 400, data: response?.data);
       case 401:
         return UnauthorizedException(message: message);
       case 403:
-        return ApiException(message: 'ليس لديك صلاحية للقيام بهذا الإجراء', statusCode: 403);
+        return ApiException(
+            message: 'ليس لديك صلاحية للقيام بهذا الإجراء', statusCode: 403);
       case 404:
         return NotFoundException(message: message);
+      case 410:
+        return ApiException(
+            message: 'هذه الخدمة لم تعد متاحة', statusCode: 410);
       case 422:
-        return ApiException(message: message, statusCode: 422, data: response?.data);
+        return ApiException(
+            message: message, statusCode: 422, data: response?.data);
       case 500:
         return ServerException();
       default:

@@ -1,5 +1,11 @@
 // تنفيذ مستودع المصادقة — طبقة البيانات مع Either<Failure, T>
+//
+// متوافق مع DeliverySystem.API (3 نقاط دخول):
+// - loginAdmin → /api/auth/admin     → UserKind.admin
+// - loginCustomer → /api/auth/customer → UserKind.customer
+// - loginEmployee → /api/auth/employee → UserKind.employee (قد يحمل عدة أدوار)
 import 'package:dartz/dartz.dart';
+import 'package:get/get.dart' hide Response;
 import '../../../../core/errors/failures.dart';
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/services/auth_service.dart';
@@ -8,89 +14,91 @@ import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_remote_datasource.dart';
 import '../models/login_request.dart';
 import '../models/register_request.dart';
-import 'package:get/get.dart' hide Response;
+import '../models/user_model.dart';
 
 class AuthRepositoryImpl implements AuthRepository {
   final AuthRemoteDataSource _remoteDataSource;
 
   AuthRepositoryImpl(this._remoteDataSource);
 
+  // ── العميل ──
   @override
   Future<Either<Failure, User>> loginCustomer({
     required String username,
     required String password,
-  }) async {
-    return _performLogin(
-      () => _remoteDataSource.loginCustomer(
-          LoginRequest(phone: username, password: password)),
-    );
-  }
+  }) =>
+      _performLogin(
+        UserKind.customer,
+        () => _remoteDataSource.loginCustomer(
+          LoginRequest(username: username, password: password),
+        ),
+      );
 
-  /// تسجيل دخول الموظفين — يستخدم /api/admin/login لجميع الأدوار
+  // ── الأدمن ──
+  @override
+  Future<Either<Failure, User>> loginAdmin({
+    required String username,
+    required String password,
+  }) =>
+      _performLogin(
+        UserKind.admin,
+        () => _remoteDataSource.loginAdmin(
+          LoginRequest(username: username, password: password),
+        ),
+      );
+
+  // ── الموظفون (لكل تركيبات الأدوار) ──
+  @override
+  Future<Either<Failure, User>> loginEmployee({
+    required String username,
+    required String password,
+  }) =>
+      _performLogin(
+        UserKind.employee,
+        () => _remoteDataSource.loginEmployee(
+          LoginRequest(username: username, password: password),
+        ),
+      );
+
+  // أسماء قديمة محفوظة — جميعها تستخدم نفس نقطة دخول الموظف.
   @override
   Future<Either<Failure, User>> loginDriver({
     required String username,
     required String password,
-  }) async {
-    return _performLogin(
-      () => _remoteDataSource.loginEmployee(
-          LoginRequest(username: username, password: password)),
-    );
-  }
+  }) =>
+      loginEmployee(username: username, password: password);
 
   @override
   Future<Either<Failure, User>> loginRepresentative({
     required String username,
     required String password,
-  }) async {
-    return _performLogin(
-      () => _remoteDataSource.loginEmployee(
-          LoginRequest(username: username, password: password)),
-    );
-  }
-
-  @override
-  Future<Either<Failure, User>> loginAdmin({
-    required String username,
-    required String password,
-  }) async {
-    return _performLogin(
-      () => _remoteDataSource.loginEmployee(
-          LoginRequest(username: username, password: password)),
-    );
-  }
-
-  @override
-  Future<Either<Failure, User>> loginEmployee({
-    required String username,
-    required String password,
-  }) async {
-    return _performLogin(
-      () => _remoteDataSource.loginEmployee(
-          LoginRequest(username: username, password: password)),
-    );
-  }
+  }) =>
+      loginEmployee(username: username, password: password);
 
   Future<Either<Failure, User>> _performLogin(
+    UserKind kind,
     Future<dynamic> Function() loginCall,
   ) async {
     try {
       final authResponse = await loginCall();
+      final UserModel user = authResponse.user as UserModel;
+
       final authService = Get.find<AuthService>();
       await authService.saveSession(
         token: authResponse.accessToken,
-        refreshToken: authResponse.refreshToken,
-        role: authResponse.user.role,
-        userId: authResponse.user.id,
-        userName: authResponse.user.fullName,
+        role: user.role,
+        roles: user.roles.isNotEmpty ? user.roles : [user.role],
+        userId: user.id,
+        userName: user.fullName,
+        kind: kind,
       );
-      return Right(authResponse.user);
+      return Right(user);
+    } on UnauthorizedException {
+      return const Left(
+          AuthFailure('اسم المستخدم أو كلمة المرور غير صحيحة'));
     } on ApiException catch (e) {
-      if (e is UnauthorizedException) {
-        return const Left(AuthFailure('اسم المستخدم أو كلمة المرور غير صحيحة'));
-      }
       return Left(ServerFailure(e.message));
-    } catch (e) {
+    } catch (_) {
       return const Left(UnknownFailure());
     }
   }
@@ -116,7 +124,7 @@ class AuthRepositoryImpl implements AuthRepository {
       return const Right(null);
     } on ApiException catch (e) {
       return Left(ServerFailure(e.message));
-    } catch (e) {
+    } catch (_) {
       return const Left(UnknownFailure());
     }
   }
@@ -124,11 +132,11 @@ class AuthRepositoryImpl implements AuthRepository {
   @override
   Future<Either<Failure, User>> getProfile() async {
     try {
-      final user = await _remoteDataSource.getCustomerProfile();
+      final user = await _remoteDataSource.getCurrentProfile();
       return Right(user);
     } on ApiException catch (e) {
       return Left(ServerFailure(e.message));
-    } catch (e) {
+    } catch (_) {
       return const Left(UnknownFailure());
     }
   }
@@ -138,17 +146,9 @@ class AuthRepositoryImpl implements AuthRepository {
     required String oldPassword,
     required String newPassword,
   }) async {
-    try {
-      await _remoteDataSource.changePassword(
-        oldPassword: oldPassword,
-        newPassword: newPassword,
-      );
-      return const Right(null);
-    } on ApiException catch (e) {
-      return Left(ServerFailure(e.message));
-    } catch (e) {
-      return const Left(UnknownFailure());
-    }
+    // غير مدعوم في الواجهة الحالية — يُعاد فشل واضح حتى لا يكسر الواجهة.
+    return const Left(
+        ServerFailure('تغيير كلمة المرور غير مدعوم في هذه النسخة من الخادم'));
   }
 
   @override

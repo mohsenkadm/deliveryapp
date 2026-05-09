@@ -14,8 +14,8 @@ class AuthForm extends GetView<AuthController> {
     return Column(
       children: [
         CustomTextField(
-          label: 'اسم المستخدم',
-          hint: 'أدخل اسم المستخدم',
+          label: 'اسم المستخدم أو رقم الهاتف',
+          hint: 'أدخل اسم المستخدم أو 07XXXXXXXX',
           controller: controller.usernameController,
           validator: Validators.required,
           keyboardType: TextInputType.text,

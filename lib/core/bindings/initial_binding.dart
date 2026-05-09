@@ -8,6 +8,7 @@ import '../services/notification_service.dart';
 import '../theme/theme_controller.dart';
 
 import '../services/signalr_service.dart';
+import '../../features/auth/presentation/controllers/auth_controller.dart';
 
 /// الربط الأولي — تسجيل الخدمات والمتحكمات عند بدء التطبيق
 class InitialBinding extends Bindings {
@@ -29,5 +30,8 @@ class InitialBinding extends Bindings {
 
     // Controllers
     Get.put(ThemeController(), permanent: true);
+    // AuthController دائم حقيقي — يملك TextEditingControllers لا يجب
+    // أن تُتلف عند تبديل المسارات (logout / offAllNamed).
+    Get.put<AuthController>(AuthController(), permanent: true);
   }
 }

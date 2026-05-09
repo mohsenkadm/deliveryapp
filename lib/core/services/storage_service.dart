@@ -55,11 +55,36 @@ class StorageService extends GetxService {
   Future<void> setFirstTimeDone() => _box.write(StorageKeys.isFirstTime, false);
 
   String? get userRole => _box.read(StorageKeys.userRole);
-  Future<void> saveUserRole(String role) => _box.write(StorageKeys.userRole, role);
+  Future<void> saveUserRole(String role) =>
+      _box.write(StorageKeys.userRole, role);
+
+  /// قائمة الأدوار الكاملة (للموظفين متعددي الأدوار)
+  List<String> get userRoles {
+    final raw = _box.read<String>(StorageKeys.userRoles);
+    if (raw == null || raw.isEmpty) {
+      final r = userRole;
+      return (r == null || r.isEmpty) ? const [] : [r];
+    }
+    return raw.split(',').where((e) => e.isNotEmpty).toList();
+  }
+
+  Future<void> saveUserRoles(List<String> roles) =>
+      _box.write(StorageKeys.userRoles, roles.join(','));
+
+  /// الدور النشط حالياً (يختاره المستخدم بعد تسجيل الدخول إن كان متعدد الأدوار)
+  String? get activeRole => _box.read(StorageKeys.activeRole);
+  Future<void> saveActiveRole(String role) =>
+      _box.write(StorageKeys.activeRole, role);
+
+  /// نوع المستخدم: customer | employee | admin
+  String? get userKind => _box.read(StorageKeys.userKind);
+  Future<void> saveUserKind(String kind) =>
+      _box.write(StorageKeys.userKind, kind);
 
   String? get userId => _box.read(StorageKeys.userId);
   Future<void> saveUserId(String id) => _box.write(StorageKeys.userId, id);
 
   String? get userName => _box.read(StorageKeys.userName);
-  Future<void> saveUserName(String name) => _box.write(StorageKeys.userName, name);
+  Future<void> saveUserName(String name) =>
+      _box.write(StorageKeys.userName, name);
 }

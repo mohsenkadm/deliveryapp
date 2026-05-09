@@ -90,7 +90,10 @@ class AdminProductsController extends GetxController {
   final isSubmitting = false.obs;
 
   final nameController = TextEditingController();
-  final priceController = TextEditingController();
+  final priceController = TextEditingController(); // retail (legacy alias)
+  final wholesalePriceController = TextEditingController();
+  final cartonTypeController = TextEditingController();
+  final baseQuantityController = TextEditingController();
   final descriptionController = TextEditingController();
   final formKey = GlobalKey<FormState>();
 
@@ -107,6 +110,9 @@ class AdminProductsController extends GetxController {
   void onClose() {
     nameController.dispose();
     priceController.dispose();
+    wholesalePriceController.dispose();
+    cartonTypeController.dispose();
+    baseQuantityController.dispose();
     descriptionController.dispose();
     super.onClose();
   }
@@ -120,16 +126,31 @@ class AdminProductsController extends GetxController {
     isLoading.value = false;
   }
 
+  Map<String, dynamic> _buildProductPayload() {
+    final retail = double.tryParse(priceController.text.trim()) ?? 0;
+    final wholesale =
+        double.tryParse(wholesalePriceController.text.trim()) ?? retail;
+    return {
+      'name': nameController.text.trim(),
+      'description': descriptionController.text.trim(),
+      'retailPrice': retail,
+      'wholesalePrice': wholesale,
+      'cartonType': cartonTypeController.text.trim().isEmpty
+          ? null
+          : cartonTypeController.text.trim(),
+      'baseQuantity':
+          int.tryParse(baseQuantityController.text.trim()) ?? 1,
+      'discountPercentage': 0,
+      'categoryId':
+          int.tryParse(selectedCategoryId.value ?? '') ?? 0,
+    };
+  }
+
   Future<void> createProduct() async {
     if (!formKey.currentState!.validate()) return;
     isSubmitting.value = true;
     try {
-      await _ds.createProduct({
-        'name': nameController.text.trim(),
-        'price': double.parse(priceController.text),
-        'description': descriptionController.text.trim(),
-        'categoryId': selectedCategoryId.value,
-      });
+      await _ds.createProduct(_buildProductPayload());
       SnackbarHelper.showSuccess('تم إضافة المنتج');
       clearForm();
       Get.back();
@@ -144,12 +165,7 @@ class AdminProductsController extends GetxController {
     if (!formKey.currentState!.validate()) return;
     isSubmitting.value = true;
     try {
-      await _ds.updateProduct(id, {
-        'name': nameController.text.trim(),
-        'price': double.parse(priceController.text),
-        'description': descriptionController.text.trim(),
-        'categoryId': selectedCategoryId.value,
-      });
+      await _ds.updateProduct(id, _buildProductPayload());
       SnackbarHelper.showSuccess('تم تحديث المنتج');
       clearForm();
       Get.back();
@@ -173,6 +189,9 @@ class AdminProductsController extends GetxController {
   void clearForm() {
     nameController.clear();
     priceController.clear();
+    wholesalePriceController.clear();
+    cartonTypeController.clear();
+    baseQuantityController.clear();
     descriptionController.clear();
     selectedCategoryId.value = null;
   }

@@ -24,8 +24,8 @@ class SplashController extends GetxController {
       // Has valid JWT → role-based home
       Get.offAllNamed(authService.getHomeRoute());
     } else {
-      // Otherwise → Role Selection
-      Get.offAllNamed(AppRoutes.roleSelection);
+      // Otherwise → Login
+      Get.offAllNamed(AppRoutes.login);
     }
   }
 }

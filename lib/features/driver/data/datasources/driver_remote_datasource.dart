@@ -30,34 +30,17 @@ class DriverRemoteDataSource {
     await _dioClient.post(ApiConstants.driverDeliver(orderId));
   }
 
-  /// POST تحصيل دفعة من عميل
-  Future<void> collectPayment(
-      String orderId, double amount, String? notes) async {
-    await _dioClient.post(
-      ApiConstants.driverCollectPayment(orderId),
-      data: {
-        'amount': amount,
-        if (notes != null) 'notes': notes,
-      },
-    );
-  }
-
-  /// POST تسليم نقدية للشركة
-  Future<void> submitPayment(
-      {String? invoiceId, required double amount, String? notes}) async {
-    await _dioClient.post(
-      ApiConstants.driverSubmitPayment,
-      data: {
-        if (invoiceId != null) 'invoiceId': invoiceId,
-        'amount': amount,
-        if (notes != null) 'notes': notes,
-      },
-    );
-  }
-
-  /// PATCH تحديث حالة الطلب
+  /// POST تحديث حالة الطلب
+  ///
+  /// الواجهة الحالية تقبل فقط `AwaitingDelivery` أو `Completed` من السائق.
+  /// أي قيمة أخرى ستُرفض من جانب العميل قبل إرسالها للخادم.
   Future<void> updateOrderStatus(String orderId, String status) async {
-    await _dioClient.patch(
+    const allowed = {'AwaitingDelivery', 'Completed'};
+    if (!allowed.contains(status)) {
+      throw ArgumentError(
+          'حالة غير مسموحة للسائق: $status. القيم المسموحة: $allowed');
+    }
+    await _dioClient.post(
       ApiConstants.driverOrderStatus(orderId),
       data: {'status': status},
     );

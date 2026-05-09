@@ -1,186 +1,333 @@
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/constants/api_constants.dart';
+import '../../../../core/constants/employee_roles.dart';
 
-// مصدر بيانات المدير عن بُعد
+/// مصدر بيانات الإدارة الخلفية — متوافق مع الواجهة الموحّدة الجديدة.
+///
+/// نقاط مهمة:
+/// - العملاء: /api/customers (CRUD) + PATCH /:id/approve
+/// - الموظفون: /api/employees (CRUD) — جدول واحد بأدوار CSV
+/// - المنتجات/التصنيفات/المستودعات/المخزون: مسارات /api/{resource}
+/// - الفواتير: PATCH /api/invoices/:id/status
+/// - تقارير المدير: /api/mobile/manager/reports/...
 class AdminRemoteDataSource {
   final DioClient _dio;
   AdminRemoteDataSource(this._dio);
 
   // ── لوحة التحكم ──
 
-  /// جلب إحصائيات لوحة التحكم
+  /// تقرير ملخّص يستخدمه الأدمن كـ"لوحة تحكم" مبدئية.
   Future<Map<String, dynamic>> getDashboardStats() async {
     final res = await _dio.get(ApiConstants.adminDashboard);
-    return res.data;
+    final body = res.data;
+    if (body is Map && body['data'] is Map) {
+      return Map<String, dynamic>.from(body['data'] as Map);
+    }
+    return Map<String, dynamic>.from(body as Map);
   }
 
   // ── العملاء ──
 
-  /// جلب جميع العملاء
   Future<List<Map<String, dynamic>>> getAllCustomers({int page = 1}) async {
-    final res = await _dio.get(ApiConstants.adminCustomers, queryParameters: {'page': page});
-    return List<Map<String, dynamic>>.from(res.data['data'] ?? res.data);
+    final res = await _dio.get(ApiConstants.customers,
+        queryParameters: {'page': page});
+    return _list(res.data);
   }
 
-  /// الموافقة على عميل
+  /// PATCH الموافقة على عميل — متوافق مع الواجهة الجديدة
   Future<void> approveCustomer(String id) async {
-    await _dio.put('${ApiConstants.adminCustomers}/$id/approve');
+    await _dio.patch(ApiConstants.customerApprove(id));
   }
 
-  /// رفض عميل
+  /// رفض/حذف عميل — الواجهة الحالية لا توفّر "رفض"؛ نستخدم DELETE.
   Future<void> rejectCustomer(String id) async {
-    await _dio.put('${ApiConstants.adminCustomers}/$id/reject');
+    await _dio.delete(ApiConstants.customerById(id));
   }
 
   // ── المنتجات ──
 
-  /// جلب جميع المنتجات
   Future<List<Map<String, dynamic>>> getAllProducts({int page = 1}) async {
-    final res = await _dio.get(ApiConstants.products, queryParameters: {'page': page});
-    return List<Map<String, dynamic>>.from(res.data['data'] ?? res.data);
+    final res = await _dio.get(ApiConstants.products,
+        queryParameters: {'page': page});
+    return _list(res.data);
   }
 
-  /// إنشاء منتج جديد
   Future<void> createProduct(Map<String, dynamic> data) async {
     await _dio.post(ApiConstants.products, data: data);
   }
 
-  /// تعديل منتج
   Future<void> updateProduct(String id, Map<String, dynamic> data) async {
-    await _dio.put('${ApiConstants.products}/$id', data: data);
+    await _dio.put(ApiConstants.productById(id), data: data);
   }
 
-  /// حذف منتج
   Future<void> deleteProduct(String id) async {
-    await _dio.delete('${ApiConstants.products}/$id');
+    await _dio.delete(ApiConstants.productById(id));
   }
 
   // ── التصنيفات ──
 
-  /// جلب جميع التصنيفات
   Future<List<Map<String, dynamic>>> getAllCategories() async {
     final res = await _dio.get(ApiConstants.categories);
-    return List<Map<String, dynamic>>.from(res.data['data'] ?? res.data);
+    return _list(res.data);
   }
 
-  /// إنشاء تصنيف
   Future<void> createCategory(Map<String, dynamic> data) async {
     await _dio.post(ApiConstants.categories, data: data);
   }
 
-  /// تعديل تصنيف
   Future<void> updateCategory(String id, Map<String, dynamic> data) async {
-    await _dio.put('${ApiConstants.categories}/$id', data: data);
+    await _dio.put(ApiConstants.categoryById(id), data: data);
   }
 
-  /// حذف تصنيف
   Future<void> deleteCategory(String id) async {
-    await _dio.delete('${ApiConstants.categories}/$id');
+    await _dio.delete(ApiConstants.categoryById(id));
   }
 
   // ── المستودعات ──
 
-  /// جلب جميع المستودعات
   Future<List<Map<String, dynamic>>> getAllWarehouses() async {
     final res = await _dio.get(ApiConstants.warehouses);
-    return List<Map<String, dynamic>>.from(res.data['data'] ?? res.data);
+    return _list(res.data);
   }
 
-  /// إنشاء مستودع
   Future<void> createWarehouse(Map<String, dynamic> data) async {
     await _dio.post(ApiConstants.warehouses, data: data);
   }
 
-  // ── المخزون ──
-
-  /// جلب المخزون
-  Future<List<Map<String, dynamic>>> getInventory({String? warehouseId}) async {
-    final res = await _dio.get(ApiConstants.inventory, queryParameters: {if (warehouseId != null) 'warehouseId': warehouseId});
-    return List<Map<String, dynamic>>.from(res.data['data'] ?? res.data);
+  Future<void> updateWarehouse(String id, Map<String, dynamic> data) async {
+    await _dio.put(ApiConstants.warehouseById(id), data: data);
   }
 
-  /// تحديث المخزون
+  // ── المخزون ──
+
+  Future<List<Map<String, dynamic>>> getInventory(
+      {String? productId, String? warehouseId}) async {
+    final res = await _dio.get(ApiConstants.inventory, queryParameters: {
+      if (productId != null) 'productId': productId,
+      if (warehouseId != null) 'warehouseId': warehouseId,
+    });
+    return _list(res.data);
+  }
+
+  /// POST لإضافة/زيادة كمية — body: { productId, warehouseId, quantity }
+  Future<void> addInventory(Map<String, dynamic> data) async {
+    await _dio.post(ApiConstants.inventory, data: data);
+  }
+
+  /// PUT لتعيين كمية مطلقة — `?quantity=N`
+  Future<void> setInventoryQuantity(String id, int quantity) async {
+    await _dio.put(ApiConstants.inventoryById(id),
+        queryParameters: {'quantity': quantity});
+  }
+
+  /// DELETE صف مخزون
+  Future<void> deleteInventory(String id) async {
+    await _dio.delete(ApiConstants.inventoryById(id));
+  }
+
+  /// متروك للتوافق — يفرز POST/PUT حسب وجود `id`.
   Future<void> updateInventory(Map<String, dynamic> data) async {
-    await _dio.put(ApiConstants.inventory, data: data);
+    final id = data['id']?.toString();
+    final qty = data['quantity'];
+    if (id != null && qty is int) {
+      await setInventoryQuantity(id, qty);
+    } else {
+      await addInventory(data);
+    }
   }
 
   // ── الفواتير ──
 
-  /// جلب جميع الفواتير
+  /// قائمة الفواتير المتاحة للأدمن.
+  ///
+  /// ⚠️ الواجهة الحالية لا توفّر `GET /api/invoices`. النقطة الوحيدة
+  /// المتاحة لإدراج الفواتير هي تقرير "الفواتير المعلّقة" للمدير، والتي
+  /// يستطيع الأدمن الوصول إليها.
   Future<List<Map<String, dynamic>>> getAllInvoices({int page = 1}) async {
-    final res = await _dio.get(ApiConstants.invoices, queryParameters: {'page': page});
-    return List<Map<String, dynamic>>.from(res.data['data'] ?? res.data);
+    final res = await _dio.get(ApiConstants.managerPendingInvoices);
+    return _list(res.data);
   }
 
-  /// تحديث حالة فاتورة من المدير (PATCH)
+  /// PATCH تحديث حالة فاتورة — body: { status }
   Future<void> updateInvoiceStatus(String id, String status) async {
-    await _dio.patch(ApiConstants.invoiceStatusAdmin(id), data: {'status': status});
+    await _dio.patch(ApiConstants.invoiceStatus(id), data: {'status': status});
   }
 
-  // ── المندوبين ──
+  // ── الموظفون (يحلّ محلّ "المندوبون" و"السائقون" المنفصلَين) ──
 
-  /// جلب جميع المندوبين
-  Future<List<Map<String, dynamic>>> getAllRepresentatives() async {
-    final res = await _dio.get(ApiConstants.adminRepresentatives);
-    return List<Map<String, dynamic>>.from(res.data['data'] ?? res.data);
+  /// قائمة الموظفين الذين يحملون دوراً معيّناً.
+  /// الواجهة لا توفّر فلتر مباشراً للأدوار، لذا نفلتر على جانب العميل.
+  Future<List<Map<String, dynamic>>> getEmployeesByRole(String role) async {
+    final res = await _dio.get(ApiConstants.employees);
+    final list = _list(res.data);
+    return list.where((e) {
+      final rolesRaw = e['roles'] ?? e['Roles'] ?? '';
+      if (rolesRaw is List) {
+        return rolesRaw.any((r) => r.toString() == role);
+      }
+      return rolesRaw.toString().split(',').contains(role);
+    }).toList();
   }
 
-  // ── السائقين ──
+  Future<List<Map<String, dynamic>>> getAllRepresentatives() =>
+      getEmployeesByRole(EmployeeRoles.representative);
 
-  /// جلب جميع السائقين
-  Future<List<Map<String, dynamic>>> getAllDrivers() async {
-    final res = await _dio.get(ApiConstants.adminDrivers);
-    return List<Map<String, dynamic>>.from(res.data['data'] ?? res.data);
+  Future<List<Map<String, dynamic>>> getAllDrivers() =>
+      getEmployeesByRole(EmployeeRoles.driver);
+
+  /// إنشاء موظف جديد — جدول واحد، يقبل `selectedRoles[]` متعدّدة.
+  Future<void> createEmployee(Map<String, dynamic> data) async {
+    await _dio.post(ApiConstants.employees, data: data);
+  }
+
+  Future<void> updateEmployee(String id, Map<String, dynamic> data) async {
+    await _dio.put(ApiConstants.employeeById(id), data: data);
+  }
+
+  Future<void> deleteEmployee(String id) async {
+    await _dio.delete(ApiConstants.employeeById(id));
   }
 
   // ── الديون ──
 
-  /// جلب جميع الديون
+  /// تقرير ديون المندوبين (من نقطة المدير).
   Future<List<Map<String, dynamic>>> getAllDebts() async {
     final res = await _dio.get(ApiConstants.debts);
-    return List<Map<String, dynamic>>.from(res.data['data'] ?? res.data);
+    return _list(res.data);
   }
 
-  /// تسوية دين
+  /// تسوية دين — غير موجود في الواجهة الحالية. أُبقي على الاسم لتوافق الواجهة.
+  @Deprecated('غير مدعوم في الواجهة الحالية')
   Future<void> settleDebt(String id, Map<String, dynamic> data) async {
-    await _dio.put('${ApiConstants.debts}/$id/settle', data: data);
+    // يمكن استبدالها بدفع جزئي/كامل عبر POST /api/invoices/{id}/pay عند الحاجة.
+    await _dio.post(ApiConstants.invoicePay(id),
+        data: {'amount': data['amount'] ?? 0});
   }
 
   // ── كشف حساب العميل ──
-
-  /// جلب كشف حساب عميل
+  // ملاحظة: الواجهة الحالية لا تحتوي على endpoint مخصّص لكشف الحساب.
+  // نُجمّعه من فواتير العميل + ديونه عند الحاجة.
+  @Deprecated('سيتم استبدالها بدمج /api/customers/{id} + الفواتير + الديون')
   Future<Map<String, dynamic>> getCustomerStatement(String customerId) async {
-    final res = await _dio.get('${ApiConstants.adminCustomers}/$customerId/statement');
-    return res.data;
+    final res = await _dio.get(ApiConstants.customerById(customerId));
+    return Map<String, dynamic>.from(
+        (res.data is Map && res.data['data'] is Map)
+            ? res.data['data']
+            : res.data);
   }
 
   // ── الموافقات المعلقة ──
 
-  /// جلب قائمة الموافقات المعلقة
   Future<List<Map<String, dynamic>>> getPendingApprovals() async {
     final res = await _dio.get(ApiConstants.adminPendingApprovals);
-    return List<Map<String, dynamic>>.from(res.data['data'] ?? res.data);
-  }
-
-  // ── إضافة موظف (مندوب / سائق) ──
-
-  /// إنشاء موظف جديد
-  Future<void> createEmployee(Map<String, dynamic> data) async {
-    await _dio.post('/api/admin/employees', data: data);
-  }
-
-  // ── تحديث مخزن ──
-
-  /// تحديث بيانات مخزن
-  Future<void> updateWarehouse(String id, Map<String, dynamic> data) async {
-    await _dio.put('${ApiConstants.warehouses}/$id', data: data);
+    return _list(res.data);
   }
 
   // ── سجل النشاط ──
-
-  /// جلب سجل النشاط
+  // غير موجود رسمياً في الواجهة. يبقى placeholder لاحتمال إضافته لاحقاً.
+  @Deprecated('غير موجود في الواجهة الحالية')
   Future<List<Map<String, dynamic>>> getActivityLogs() async {
-    final res = await _dio.get('/api/admin/activity-logs');
-    return List<Map<String, dynamic>>.from(res.data['data'] ?? res.data);
+    return const [];
+  }
+
+  // ── الفروع ──
+
+  Future<List<Map<String, dynamic>>> getBranches({String? search, bool? isActive}) async {
+    final res = await _dio.get(ApiConstants.branches, queryParameters: {
+      if (search != null && search.isNotEmpty) 'search': search,
+      if (isActive != null) 'isActive': isActive,
+    });
+    return _list(res.data);
+  }
+
+  Future<void> createBranch(Map<String, dynamic> data) async {
+    await _dio.post(ApiConstants.branches, data: data);
+  }
+
+  Future<void> updateBranch(String id, Map<String, dynamic> data) async {
+    await _dio.put(ApiConstants.branchById(id), data: data);
+  }
+
+  Future<void> deleteBranch(String id) async {
+    await _dio.delete(ApiConstants.branchById(id));
+  }
+
+  // ── العروض ──
+
+  Future<List<Map<String, dynamic>>> getOffers({String? search, bool? isActive}) async {
+    final res = await _dio.get(ApiConstants.offersAll, queryParameters: {
+      if (search != null && search.isNotEmpty) 'search': search,
+      if (isActive != null) 'isActive': isActive,
+    });
+    return _list(res.data);
+  }
+
+  Future<void> createOffer(Map<String, dynamic> data) async {
+    await _dio.post(ApiConstants.offers, data: data);
+  }
+
+  Future<void> updateOffer(String id, Map<String, dynamic> data) async {
+    await _dio.put(ApiConstants.offerById(id), data: data);
+  }
+
+  Future<void> deleteOffer(String id) async {
+    await _dio.delete(ApiConstants.offerById(id));
+  }
+
+  /// التحقق من كود الخصم
+  Future<Map<String, dynamic>?> validatePromo(String promoCode, {String? productId}) async {
+    final res = await _dio.get(ApiConstants.offersValidatePromo, queryParameters: {
+      'promoCode': promoCode,
+      if (productId != null) 'productId': productId,
+    });
+    final body = res.data;
+    if (body is Map && body['data'] is Map) {
+      return Map<String, dynamic>.from(body['data'] as Map);
+    }
+    return null;
+  }
+
+  // ── إعدادات النظام ──
+
+  Future<Map<String, dynamic>> getSystemSettings() async {
+    final res = await _dio.get(ApiConstants.settings);
+    final body = res.data;
+    if (body is Map && body['data'] is Map) {
+      return Map<String, dynamic>.from(body['data'] as Map);
+    }
+    return Map<String, dynamic>.from(body is Map ? body : <String, dynamic>{});
+  }
+
+  Future<void> updateSystemSettings(Map<String, dynamic> data) async {
+    await _dio.put(ApiConstants.settings, data: data);
+  }
+
+  // ── صلاحيات الأدمن ──
+
+  Future<List<Map<String, dynamic>>> getAdmins() async {
+    final res = await _dio.get(ApiConstants.admins);
+    return _list(res.data);
+  }
+
+  Future<List<Map<String, dynamic>>> getAdminPermissions(String adminId) async {
+    final res = await _dio.get(ApiConstants.adminPermissions(adminId));
+    return _list(res.data);
+  }
+
+  Future<void> updateAdminPermissions(String adminId, List<Map<String, dynamic>> perms) async {
+    await _dio.put(ApiConstants.adminPermissions(adminId), data: perms);
+  }
+
+  // ── أدوات مساعدة ──
+
+  static List<Map<String, dynamic>> _list(dynamic body) {
+    final raw = (body is Map && body['data'] != null) ? body['data'] : body;
+    if (raw is List) {
+      return raw
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    }
+    return const [];
   }
 }

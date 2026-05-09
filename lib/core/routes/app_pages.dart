@@ -7,7 +7,6 @@ import '../../features/splash/presentation/pages/splash_page.dart';
 import '../../features/onboarding/presentation/pages/onboarding_page.dart';
 
 // Auth
-import '../../features/auth/presentation/pages/role_selection_page.dart';
 import '../../features/auth/presentation/pages/login_page.dart';
 import '../../features/auth/presentation/pages/customer_login_page.dart';
 import '../../features/auth/presentation/pages/driver_login_page.dart';
@@ -15,6 +14,7 @@ import '../../features/auth/presentation/pages/representative_login_page.dart';
 import '../../features/auth/presentation/pages/admin_login_page.dart';
 import '../../features/auth/presentation/pages/customer_register_page.dart';
 import '../../features/auth/presentation/pages/registration_pending_page.dart';
+import '../../features/auth/presentation/pages/role_picker_page.dart';
 import '../../features/auth/presentation/bindings/auth_binding.dart';
 
 // Customer
@@ -57,8 +57,6 @@ import '../../features/sales_manager/presentation/bindings/sales_manager_binding
 
 // Driver extra
 import '../../features/driver/presentation/pages/driver_summary_page.dart';
-import '../../features/driver/presentation/pages/driver_collect_payment_page.dart';
-import '../../features/driver/presentation/pages/driver_submit_payment_page.dart';
 
 // Customer extra
 import '../../features/customer/presentation/pages/invoice_viewer_page.dart';
@@ -89,15 +87,20 @@ import '../../features/admin/presentation/pages/admin_activity_logs_page.dart';
 import '../../features/admin/presentation/pages/admin_customer_statement_page.dart';
 import '../../features/admin/presentation/bindings/admin_binding.dart';
 import '../../features/admin/presentation/pages/admin_inventory_page.dart';
-
+import '../../features/admin/presentation/pages/admin_branches_page.dart';
+import '../../features/admin/presentation/pages/admin_offers_page.dart';
+import '../../features/admin/presentation/pages/admin_system_settings_page.dart';
+import '../../features/admin/presentation/pages/admin_permissions_page.dart';
 // Settings
 import '../../features/settings/presentation/pages/settings_page.dart';
+import '../../features/settings/presentation/pages/branding_settings_page.dart';
 import '../../features/settings/presentation/pages/profile_page.dart';
 import '../../features/settings/presentation/pages/theme_settings_page.dart';
 import '../../features/settings/presentation/pages/change_password_page.dart';
 import '../../features/settings/presentation/pages/about_app_page.dart';
 import '../../features/settings/presentation/pages/privacy_policy_page.dart';
 import '../../features/settings/presentation/pages/technical_support_page.dart';
+import '../../features/settings/presentation/bindings/settings_binding.dart';
 
 class AppPages {
   static final pages = <GetPage>[
@@ -105,8 +108,8 @@ class AppPages {
     GetPage(name: AppRoutes.splash, page: () => const SplashPage()),
     GetPage(name: AppRoutes.onboarding, page: () => const OnboardingPage()),
 
-    // Auth
-    GetPage(name: AppRoutes.roleSelection, page: () => const RoleSelectionPage(), binding: AuthBinding()),
+    // Auth — roleSelection يستخدمها الموظفون متعددو الأدوار لاختيار workspace
+    GetPage(name: AppRoutes.roleSelection, page: () => const RolePickerPage(), binding: AuthBinding()),
     GetPage(name: AppRoutes.login, page: () => const LoginPage(), binding: AuthBinding()),
     GetPage(name: AppRoutes.customerLogin, page: () => const CustomerLoginPage(), binding: AuthBinding()),
     GetPage(name: AppRoutes.driverLogin, page: () => const DriverLoginPage(), binding: AuthBinding()),
@@ -150,8 +153,6 @@ class AppPages {
 
     // Driver extra screens
     GetPage(name: AppRoutes.driverSummary, page: () => const DriverSummaryPage()),
-    GetPage(name: AppRoutes.driverCollectPayment, page: () => const DriverCollectPaymentPage()),
-    GetPage(name: AppRoutes.driverSubmitPayment, page: () => const DriverSubmitPaymentPage()),
 
     // Customer extra screens
     GetPage(name: AppRoutes.invoiceViewer, page: () => const InvoiceViewerPage()),
@@ -167,33 +168,38 @@ class AppPages {
     GetPage(name: AppRoutes.representativeNotifications, page: () => const RepresentativeNotificationsPage()),
     GetPage(name: AppRoutes.admin, page: () => const AdminMainPage(), binding: AdminBinding()),
     GetPage(name: AppRoutes.adminDashboard, page: () => const AdminMainPage(), binding: AdminBinding()),
-    GetPage(name: AppRoutes.manageCustomers, page: () => const AdminCustomersPage()),
-    GetPage(name: '/admin/customers', page: () => const AdminCustomersPage()),
-    GetPage(name: AppRoutes.manageProducts, page: () => const AdminProductsPage()),
-    GetPage(name: '/admin/products', page: () => const AdminProductsPage()),
-    GetPage(name: AppRoutes.pendingApprovals, page: () => const PendingApprovalsPage()),
-    GetPage(name: AppRoutes.debtsSettlement, page: () => const AdminDebtsPage()),
-    GetPage(name: '/admin/debts', page: () => const AdminDebtsPage()),
-    GetPage(name: AppRoutes.manageRepresentatives, page: () => const AdminRepresentativesPage()),
-    GetPage(name: '/admin/representatives', page: () => const AdminRepresentativesPage()),
-    GetPage(name: AppRoutes.manageDrivers, page: () => const AdminDriversPage()),
-    GetPage(name: '/admin/drivers', page: () => const AdminDriversPage()),
-    GetPage(name: AppRoutes.manageCategories, page: () => const AdminCategoriesPage()),
-    GetPage(name: AppRoutes.manageWarehouses, page: () => const AdminWarehousesPage()),
-    GetPage(name: AppRoutes.manageInventory, page: () => const AdminInventoryPage()),
-    GetPage(name: AppRoutes.manageInvoices, page: () => const AdminInvoicesPage()),
-    GetPage(name: AppRoutes.analytics, page: () => const AdminAnalyticsPage()),
-    GetPage(name: AppRoutes.activityLogs, page: () => const AdminActivityLogsPage()),
+    GetPage(name: AppRoutes.manageCustomers, page: () => const AdminCustomersPage(), binding: AdminBinding()),
+    GetPage(name: '/admin/customers', page: () => const AdminCustomersPage(), binding: AdminBinding()),
+    GetPage(name: AppRoutes.manageProducts, page: () => const AdminProductsPage(), binding: AdminBinding()),
+    GetPage(name: '/admin/products', page: () => const AdminProductsPage(), binding: AdminBinding()),
+    GetPage(name: AppRoutes.pendingApprovals, page: () => const PendingApprovalsPage(), binding: AdminBinding()),
+    GetPage(name: AppRoutes.debtsSettlement, page: () => const AdminDebtsPage(), binding: AdminBinding()),
+    GetPage(name: '/admin/debts', page: () => const AdminDebtsPage(), binding: AdminBinding()),
+    GetPage(name: AppRoutes.manageRepresentatives, page: () => const AdminRepresentativesPage(), binding: AdminBinding()),
+    GetPage(name: '/admin/representatives', page: () => const AdminRepresentativesPage(), binding: AdminBinding()),
+    GetPage(name: AppRoutes.manageDrivers, page: () => const AdminDriversPage(), binding: AdminBinding()),
+    GetPage(name: '/admin/drivers', page: () => const AdminDriversPage(), binding: AdminBinding()),
+    GetPage(name: AppRoutes.manageCategories, page: () => const AdminCategoriesPage(), binding: AdminBinding()),
+    GetPage(name: AppRoutes.manageWarehouses, page: () => const AdminWarehousesPage(), binding: AdminBinding()),
+    GetPage(name: AppRoutes.manageInventory, page: () => const AdminInventoryPage(), binding: AdminBinding()),
+    GetPage(name: AppRoutes.manageInvoices, page: () => const AdminInvoicesPage(), binding: AdminBinding()),
+    GetPage(name: AppRoutes.analytics, page: () => const AdminAnalyticsPage(), binding: AdminBinding()),
+    GetPage(name: AppRoutes.activityLogs, page: () => const AdminActivityLogsPage(), binding: AdminBinding()),
     GetPage(name: AppRoutes.adminNotifications, page: () => const AdminMainPage(), binding: AdminBinding()),
-    GetPage(name: AppRoutes.customerStatement, page: () => const AdminCustomerStatementPage()),
-    GetPage(name: '/admin/customer-statement', page: () => const AdminCustomerStatementPage()),
+    GetPage(name: AppRoutes.manageBranches, page: () => const AdminBranchesPage(), binding: AdminBinding()),
+    GetPage(name: AppRoutes.manageOffers, page: () => const AdminOffersPage(), binding: AdminBinding()),
+    GetPage(name: AppRoutes.systemSettings, page: () => const AdminSystemSettingsPage(), binding: AdminBinding()),
+    GetPage(name: AppRoutes.adminPermissions, page: () => const AdminPermissionsPage(), binding: AdminBinding()),
+    GetPage(name: AppRoutes.customerStatement, page: () => const AdminCustomerStatementPage(), binding: AdminBinding()),
+    GetPage(name: '/admin/customer-statement', page: () => const AdminCustomerStatementPage(), binding: AdminBinding()),
 
     // Settings
-    GetPage(name: AppRoutes.settings, page: () => const SettingsPage()),
-    GetPage(name: AppRoutes.profile, page: () => const ProfilePage()),
-    GetPage(name: AppRoutes.editProfile, page: () => const ProfilePage()),
-    GetPage(name: AppRoutes.themeSettings, page: () => const ThemeSettingsPage()),
-    GetPage(name: AppRoutes.changePassword, page: () => ChangePasswordPage()),
+    GetPage(name: AppRoutes.settings, page: () => const SettingsPage(), binding: SettingsBinding()),
+    GetPage(name: AppRoutes.profile, page: () => const ProfilePage(), binding: SettingsBinding()),
+    GetPage(name: AppRoutes.editProfile, page: () => const ProfilePage(), binding: SettingsBinding()),
+    GetPage(name: AppRoutes.themeSettings, page: () => const ThemeSettingsPage(), binding: SettingsBinding()),
+    GetPage(name: AppRoutes.brandingSettings, page: () => const BrandingSettingsPage()),
+    GetPage(name: AppRoutes.changePassword, page: () => ChangePasswordPage(), binding: SettingsBinding()),
     GetPage(name: AppRoutes.aboutApp, page: () => const AboutAppPage()),
     GetPage(name: AppRoutes.privacyPolicy, page: () => const PrivacyPolicyPage()),
     GetPage(name: AppRoutes.technicalSupport, page: () => const TechnicalSupportPage()),

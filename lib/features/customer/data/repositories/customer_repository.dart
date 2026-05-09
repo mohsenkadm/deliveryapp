@@ -16,6 +16,7 @@ class CustomerRepository {
     String? search,
     String? categoryId,
     String? branchId,
+    int? nearExpiryDays,
   }) async {
     try {
       final result = await _remoteDataSource.getProducts(
@@ -24,7 +25,19 @@ class CustomerRepository {
         search: search,
         categoryId: categoryId,
         branchId: branchId,
+        nearExpiryDays: nearExpiryDays,
       );
+      return Right(result);
+    } on ApiException catch (e) {
+      return Left(ServerFailure(e.message));
+    } catch (_) {
+      return const Left(UnknownFailure());
+    }
+  }
+
+  Future<Either<Failure, List<Category>>> getCategories({String? search}) async {
+    try {
+      final result = await _remoteDataSource.getCategories(search: search);
       return Right(result);
     } on ApiException catch (e) {
       return Left(ServerFailure(e.message));
@@ -59,10 +72,19 @@ class CustomerRepository {
     required List<Map<String, dynamic>> items,
     String? notes,
     String? address,
+    String? promoCode,
+    String deliveryScheduleType = 'Immediate',
+    DateTime? scheduledDeliveryDate,
   }) async {
     try {
       final result = await _remoteDataSource.createOrder(
-          items: items, notes: notes, address: address);
+        items: items,
+        notes: notes,
+        address: address,
+        promoCode: promoCode,
+        deliveryScheduleType: deliveryScheduleType,
+        scheduledDeliveryDate: scheduledDeliveryDate,
+      );
       return Right(result);
     } on ApiException catch (e) {
       return Left(ServerFailure(e.message));
@@ -82,9 +104,23 @@ class CustomerRepository {
     }
   }
 
-  Future<Either<Failure, DebtSummaryModel>> getMyDebts() async {
+  Future<Either<Failure, DebtSummaryModel>> getMyDebts({
+    DateTime? from,
+    DateTime? to,
+    double? minAmount,
+    double? maxAmount,
+    String? sortBy,
+    String? sortDir,
+  }) async {
     try {
-      final result = await _remoteDataSource.getMyDebts();
+      final result = await _remoteDataSource.getMyDebts(
+        from: from,
+        to: to,
+        minAmount: minAmount,
+        maxAmount: maxAmount,
+        sortBy: sortBy,
+        sortDir: sortDir,
+      );
       return Right(result);
     } on ApiException catch (e) {
       return Left(ServerFailure(e.message));

@@ -3,8 +3,10 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../../core/services/pdf_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
+import '../../../../core/utils/snackbar_helper.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../../../../core/widgets/loading_indicator.dart';
 import '../controllers/supervisor_controller.dart';
@@ -47,6 +49,11 @@ class _SupervisorSalesReportPageState
         title: Text('تقرير المبيعات',
             style: GoogleFonts.cairo(fontWeight: FontWeight.w700)),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.picture_as_pdf_outlined),
+            tooltip: 'تصدير PDF',
+            onPressed: () => _exportPdf(ctrl),
+          ),
           IconButton(
             icon: const Icon(Icons.date_range),
             tooltip: 'فلتر التاريخ',
@@ -194,6 +201,43 @@ class _SupervisorSalesReportPageState
         from: Formatters.toApiDate(_from!),
         to: Formatters.toApiDate(_to!),
       );
+    }
+  }
+
+  Future<void> _exportPdf(SupervisorController ctrl) async {
+    if (ctrl.salesReport.isEmpty) {
+      SnackbarHelper.showError('لا توجد بيانات للتصدير');
+      return;
+    }
+    try {
+      final totals = _computeTotals(ctrl.salesReport);
+      final rows = ctrl.salesReport.map<List<String>>((r) {
+        return [
+          (r['repName'] ?? r['name'] ?? '—').toString(),
+          ((r['totalSales'] as num?) ?? 0).toString(),
+          ((r['totalCollected'] as num?) ?? 0).toString(),
+          ((r['invoiceCount'] as num?) ?? 0).toString(),
+        ];
+      }).toList();
+      final subtitle = (_from != null && _to != null)
+          ? 'الفترة: ${Formatters.date(_from!)} → ${Formatters.date(_to!)}'
+          : null;
+      final pdf = await PdfService.instance.buildReportPdf(
+        title: 'تقرير مبيعات المندوبين',
+        subtitle: subtitle,
+        headers: const ['المندوب', 'المبيعات', 'التحصيل', 'عدد الفواتير'],
+        rows: rows,
+        summary: {
+          'إجمالي المبيعات':
+              Formatters.formatCurrency((totals['sales'] ?? 0).toDouble()),
+          'إجمالي التحصيل':
+              Formatters.formatCurrency((totals['collected'] ?? 0).toDouble()),
+          'عدد المندوبين': '${ctrl.salesReport.length}',
+        },
+      );
+      await PdfService.instance.printOrPreview(pdf, name: 'sales_report');
+    } catch (e) {
+      SnackbarHelper.showError('فشل تصدير التقرير');
     }
   }
 }

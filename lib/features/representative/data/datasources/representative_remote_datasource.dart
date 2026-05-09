@@ -113,14 +113,24 @@ class RepresentativeRemoteDataSource {
 
   // ── أوامر النقل ──
 
-  /// POST طلب نقل مخزون (رئيسي → فرعي)
+  /// POST طلب نقل مخزون (رئيسي → فرعي).
+  /// الخادم يفرض النوع `OutboundToRepWarehouse` تلقائياً، لكن نُمرّره أيضاً
+  /// لضمان وضوح النية على جانب العميل.
   Future<void> requestTransfer(Map<String, dynamic> data) async {
-    await _dioClient.post(ApiConstants.repTransferOrders, data: data);
+    final body = <String, dynamic>{
+      ...data,
+      'orderType': 'OutboundToRepWarehouse',
+    };
+    await _dioClient.post(ApiConstants.repTransferOrders, data: body);
   }
 
-  /// POST إعادة مخزون (فرعي → رئيسي)
+  /// POST إعادة مخزون (فرعي → رئيسي). النوع: `ReturnToMainWarehouse`.
   Future<void> returnTransfer(Map<String, dynamic> data) async {
-    await _dioClient.post(ApiConstants.repReturnTransfer, data: data);
+    final body = <String, dynamic>{
+      ...data,
+      'orderType': 'ReturnToMainWarehouse',
+    };
+    await _dioClient.post(ApiConstants.repReturnTransfer, data: body);
   }
 
   /// GET قائمة أوامر النقل ?status=

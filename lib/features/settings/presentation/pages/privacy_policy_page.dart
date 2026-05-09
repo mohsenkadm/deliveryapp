@@ -1,123 +1,89 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../../core/theme/app_colors.dart';
 
-// صفحة سياسة الخصوصية
 class PrivacyPolicyPage extends StatelessWidget {
   const PrivacyPolicyPage({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Directionality(
       textDirection: TextDirection.rtl,
       child: Scaffold(
+        backgroundColor: AppColors.background,
         appBar: AppBar(
           title: Text(
             'سياسة الخصوصية',
             style: GoogleFonts.cairo(fontWeight: FontWeight.w700),
           ),
-          centerTitle: true,
         ),
-        body: SingleChildScrollView(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _sectionTitle(theme, 'مقدمة'),
-              _sectionBody(theme,
-                  'نحن نقدر خصوصيتك ونلتزم بحماية بياناتك الشخصية. توضح هذه السياسة كيفية جمع واستخدام وحماية معلوماتك عند استخدام تطبيق التوصيل.'),
-              const SizedBox(height: 20),
-              _sectionTitle(theme, 'البيانات التي نجمعها'),
-              _bulletPoint(theme, 'الاسم الكامل وبيانات التواصل (البريد الإلكتروني، رقم الهاتف)'),
-              _bulletPoint(theme, 'عنوان التوصيل'),
-              _bulletPoint(theme, 'سجل الطلبات والفواتير'),
-              _bulletPoint(theme, 'بيانات الموقع الجغرافي (للسائقين فقط أثناء التوصيل)'),
-              const SizedBox(height: 20),
-              _sectionTitle(theme, 'كيف نستخدم بياناتك'),
-              _bulletPoint(theme, 'معالجة الطلبات وتوصيلها'),
-              _bulletPoint(theme, 'إرسال إشعارات حول حالة الطلب'),
-              _bulletPoint(theme, 'تحسين خدماتنا وتجربة المستخدم'),
-              _bulletPoint(theme, 'التواصل معك بخصوص حسابك'),
-              const SizedBox(height: 20),
-              _sectionTitle(theme, 'حماية البيانات'),
-              _sectionBody(theme,
-                  'نستخدم تقنيات تشفير متقدمة لحماية بياناتك. يتم تخزين كلمات المرور بشكل مشفر ولا يمكن لأي شخص الوصول إليها. نلتزم بأعلى معايير الأمان لحماية خصوصيتك.'),
-              const SizedBox(height: 20),
-              _sectionTitle(theme, 'حقوقك'),
-              _bulletPoint(theme, 'يمكنك طلب حذف حسابك وبياناتك في أي وقت'),
-              _bulletPoint(theme, 'يمكنك تعديل بياناتك الشخصية من الإعدادات'),
-              _bulletPoint(theme, 'يمكنك إلغاء الاشتراك في الإشعارات'),
-              const SizedBox(height: 20),
-              _sectionTitle(theme, 'التواصل'),
-              _sectionBody(theme,
-                  'إذا كان لديك أي استفسار حول سياسة الخصوصية، يرجى التواصل معنا عبر صفحة الدعم الفني في التطبيق.'),
-              const SizedBox(height: 40),
-              Center(
-                child: Text(
-                  'آخر تحديث: 2025',
-                  style: GoogleFonts.cairo(
-                    fontSize: 12,
-                    color: theme.colorScheme.onSurface.withValues(alpha: 0.5),
-                  ),
+        body: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 28),
+          children: [
+            _heroCard().animate().fadeIn(duration: 450.ms).slideY(begin: -0.06),
+            const SizedBox(height: 14),
+            ..._policySections.asMap().entries.map((entry) {
+              final index = entry.key;
+              final section = entry.value;
+              return Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: _SectionCard(
+                  icon: section.icon,
+                  color: section.color,
+                  title: section.title,
+                  content: section.content,
+                  bullets: section.bullets,
+                ).animate().fadeIn(delay: (120 + index * 70).ms),
+              );
+            }),
+            const SizedBox(height: 14),
+            Center(
+              child: Text(
+                'آخر تحديث: مايو 2026',
+                style: GoogleFonts.cairo(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
                 ),
               ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _sectionTitle(ThemeData theme, String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Text(
-        title,
-        style: GoogleFonts.cairo(
-          fontSize: 18,
-          fontWeight: FontWeight.w700,
-          color: theme.colorScheme.primary,
-        ),
-      ),
-    );
-  }
-
-  Widget _sectionBody(ThemeData theme, String text) {
-    return Text(
-      text,
-      style: GoogleFonts.cairo(
-        fontSize: 14,
-        height: 1.8,
-        color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
-      ),
-    );
-  }
-
-  Widget _bulletPoint(ThemeData theme, String text) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6, right: 8),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(top: 8),
-            child: Container(
-              width: 6,
-              height: 6,
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primary,
-                shape: BoxShape.circle,
-              ),
             ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _heroCard() {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(18),
+        gradient: const LinearGradient(
+          colors: [Color(0xFF06B6D4), Color(0xFF2E7DFF)],
+          begin: Alignment.topRight,
+          end: Alignment.bottomLeft,
+        ),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 52,
+            height: 52,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.18),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(Icons.shield_rounded, color: Colors.white, size: 30),
           ),
-          const SizedBox(width: 10),
+          const SizedBox(width: 12),
           Expanded(
             child: Text(
-              text,
+              'خصوصيتك أولوية لدينا. نستخدم بياناتك فقط لتحسين الخدمة وتقديم تجربة آمنة.',
               style: GoogleFonts.cairo(
-                fontSize: 14,
-                height: 1.7,
-                color: theme.colorScheme.onSurface.withValues(alpha: 0.8),
+                color: Colors.white,
+                fontSize: 13.5,
+                height: 1.6,
+                fontWeight: FontWeight.w600,
               ),
             ),
           ),
@@ -125,4 +91,170 @@ class PrivacyPolicyPage extends StatelessWidget {
       ),
     );
   }
+
+  static const _policySections = <_PolicySection>[
+    _PolicySection(
+      icon: Icons.storage_rounded,
+      color: Color(0xFF2E7DFF),
+      title: 'البيانات التي نجمعها',
+      bullets: [
+        'الاسم الكامل وبيانات التواصل (البريد الإلكتروني، رقم الهاتف)',
+        'عنوان التوصيل',
+        'سجل الطلبات والفواتير',
+        'بيانات الموقع الجغرافي للسائقين أثناء التوصيل فقط',
+      ],
+    ),
+    _PolicySection(
+      icon: Icons.settings_suggest_rounded,
+      color: Color(0xFF10B981),
+      title: 'كيف نستخدم البيانات',
+      bullets: [
+        'معالجة الطلبات وتوصيلها بدقة',
+        'إرسال إشعارات حول حالة الطلب',
+        'تحسين الأداء وتجربة الاستخدام',
+        'التواصل معك بخصوص حسابك وخدماتنا',
+      ],
+    ),
+    _PolicySection(
+      icon: Icons.security_rounded,
+      color: Color(0xFF8B5CF6),
+      title: 'حماية البيانات',
+      content:
+          'نستخدم تشفيراً حديثاً لحماية البيانات الحساسة، وتخزن كلمات المرور بشكل مشفر وفق أفضل ممارسات الأمان.',
+    ),
+    _PolicySection(
+      icon: Icons.rule_rounded,
+      color: Color(0xFFFF7A00),
+      title: 'حقوقك',
+      bullets: [
+        'طلب حذف الحساب والبيانات في أي وقت',
+        'تعديل البيانات الشخصية من صفحة الملف الشخصي',
+        'إدارة الإشعارات حسب رغبتك',
+      ],
+    ),
+    _PolicySection(
+      icon: Icons.support_agent_rounded,
+      color: Color(0xFFEF4444),
+      title: 'التواصل',
+      content:
+          'لأي استفسار بخصوص سياسة الخصوصية يمكنك التواصل عبر صفحة الدعم الفني داخل التطبيق.',
+    ),
+  ];
+}
+
+class _SectionCard extends StatelessWidget {
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String? content;
+  final List<String> bullets;
+
+  const _SectionCard({
+    required this.icon,
+    required this.color,
+    required this.title,
+    this.content,
+    this.bullets = const [],
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.14),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, color: color, size: 20),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  title,
+                  style: GoogleFonts.cairo(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w800,
+                    color: color,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          if (content != null) ...[
+            const SizedBox(height: 9),
+            Text(
+              content!,
+              style: GoogleFonts.cairo(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+                height: 1.7,
+              ),
+            ),
+          ],
+          if (bullets.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            ...bullets.map(
+              (item) => Padding(
+                padding: const EdgeInsets.only(bottom: 6),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Container(
+                      margin: const EdgeInsets.only(top: 7),
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: color,
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        item,
+                        style: GoogleFonts.cairo(
+                          fontSize: 13,
+                          color: AppColors.textSecondary,
+                          height: 1.6,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _PolicySection {
+  final IconData icon;
+  final Color color;
+  final String title;
+  final String? content;
+  final List<String> bullets;
+
+  const _PolicySection({
+    required this.icon,
+    required this.color,
+    required this.title,
+    this.content,
+    this.bullets = const [],
+  });
 }
