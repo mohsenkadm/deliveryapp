@@ -10,8 +10,10 @@ enum UserKind { admin, customer, employee, unknown }
 ///
 /// متوافقة مع DeliverySystem.API:
 /// - الموظف الواحد قد يحمل عدة أدوار (مثال: Driver + Representative).
+/// - قد يُرجع الخادم وسوم نوع المندوب مع [EmployeeRoles.representative]:
+///   [Individual] (مفرد → مستودع فرعي) أو [Wholesale] (جملة → مخزون رئيسي للفواتير).
 /// - بعد تسجيل الدخول يخزّن `roles[]` كاملاً ويختار `activeRole` الذي
-///   يحدّد الـ workspace الحالي للجوّال.
+///   يحدّد الـ workspace الحالي للجوّال (دائماً دوراً له مسار، وليس الوسم فقط).
 class AuthService extends GetxService {
   final StorageService _storageService = Get.find<StorageService>();
 
@@ -49,7 +51,31 @@ class AuthService extends GetxService {
         }
       : null;
 
-  bool get isMultiRole => _userRoles.length > 1;
+  /// أكثر من مساحة عمل جوّال يمكن التبديل بينها (بدون وسوم Individual/Wholesale).
+  bool get isMultiRole =>
+      EmployeeRoles.pickableWorkspaceRoles(_userRoles).length > 1;
+
+  /// أدوار الموظف التي لها شاشة workspace في الجوال.
+  List<String> get pickableWorkspaceRoles =>
+      EmployeeRoles.pickableWorkspaceRoles(_userRoles);
+
+  /// مندوب جملة: إنشاء فواتير من مخزون المستودع الرئيسي (لا يُعرض تبويب المستودع الفرعي).
+  bool get isWholesaleRepresentative =>
+      userKind == UserKind.employee &&
+      hasRole(EmployeeRoles.representative) &&
+      hasRole(EmployeeRoles.wholesale);
+
+  /// مندوب مفرد (وسم Individual مع مندوب).
+  bool get isIndividualRepresentative =>
+      userKind == UserKind.employee &&
+      hasRole(EmployeeRoles.representative) &&
+      hasRole(EmployeeRoles.individual);
+
+  /// تبويب المستودع الفرعي وأوامر النقل — يُخفى لمندوب الجملة.
+  bool get repShowSubWarehouseTab =>
+      userKind == UserKind.employee &&
+      hasRole(EmployeeRoles.representative) &&
+      !hasRole(EmployeeRoles.wholesale);
 
   /// هل يحمل المستخدم الدور المحدّد (بأي ترتيب).
   bool hasRole(String r) =>
@@ -71,6 +97,19 @@ class AuthService extends GetxService {
     _userName.value = _storageService.userName ?? '';
     _userId.value = _storageService.userId ?? '';
     _userKind.value = _kindFromString(_storageService.userKind);
+    await _coerceEmployeeActiveRoleIfNeeded();
+  }
+
+  /// إذا كان `activeRole` المخزّن وسم Individual/Wholesale أو غير معروف،
+  /// اضبطه على أول دور له مسار (مثلاً Representative) حتى لا يُوجَّه المستخدم إلى `/login`.
+  Future<void> _coerceEmployeeActiveRoleIfNeeded() async {
+    if (_userKind.value != UserKind.employee) return;
+    if (routeForRole(_activeRole.value) != '/login') return;
+    final pickable = EmployeeRoles.pickableWorkspaceRoles(_userRoles);
+    if (pickable.isEmpty) return;
+    final fixed = pickable.first;
+    _activeRole.value = fixed;
+    await _storageService.saveActiveRole(fixed);
   }
 
   /// حفظ الجلسة بعد نجاح تسجيل الدخول.
@@ -85,8 +124,14 @@ class AuthService extends GetxService {
     required UserKind kind,
     String? activeRole,
   }) async {
-    final selected =
+    var selected =
         (activeRole != null && activeRole.isNotEmpty) ? activeRole : role;
+    if (kind == UserKind.employee && routeForRole(selected) == '/login') {
+      final pickable = EmployeeRoles.pickableWorkspaceRoles(roles);
+      if (pickable.isNotEmpty) {
+        selected = pickable.first;
+      }
+    }
 
     await _storageService.saveToken(token);
     await _storageService.saveUserRole(role);
@@ -108,6 +153,7 @@ class AuthService extends GetxService {
   /// تبديل الـ workspace النشط (للموظفين متعددي الأدوار).
   Future<void> switchActiveRole(String role) async {
     if (!hasRole(role)) return;
+    if (!EmployeeRoles.isMobileWorkspaceRole(role)) return;
     _activeRole.value = role;
     await _storageService.saveActiveRole(role);
   }

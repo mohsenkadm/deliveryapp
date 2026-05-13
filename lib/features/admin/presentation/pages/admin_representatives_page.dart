@@ -1,9 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../../core/constants/employee_roles.dart';
+import '../../../../core/routes/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/snackbar_helper.dart';
-import '../../../../core/widgets/custom_text_field.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../../../../core/widgets/loading_indicator.dart';
 import '../../../../core/network/dio_client.dart';
@@ -48,7 +49,7 @@ class _AdminRepresentativesPageState extends State<AdminRepresentativesPage> {
         actions: [
           IconButton(
             icon: const Icon(Icons.person_add_rounded),
-            onPressed: () => _showAddDialog(context),
+            onPressed: () => _openForm(),
             tooltip: 'إضافة مندوب',
           ),
         ],
@@ -100,63 +101,17 @@ class _AdminRepresentativesPageState extends State<AdminRepresentativesPage> {
     );
   }
 
-  void _showAddDialog(BuildContext context) {
-    final nameCtrl = TextEditingController();
-    final usernameCtrl = TextEditingController();
-    final passwordCtrl = TextEditingController();
-    final phoneCtrl = TextEditingController();
-    final formKey = GlobalKey<FormState>();
-    final isLoading = false.obs;
-
-    Get.dialog(
-      AlertDialog(
-        title: Text('إضافة مندوب جديد', style: GoogleFonts.cairo(fontWeight: FontWeight.w700)),
-        content: SingleChildScrollView(
-          child: Form(
-            key: formKey,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                CustomTextField(controller: nameCtrl, label: 'الاسم الكامل', prefixIcon: Icons.person, validator: (v) => v!.isEmpty ? 'مطلوب' : null),
-                const SizedBox(height: 12),
-                CustomTextField(controller: usernameCtrl, label: 'اسم المستخدم', prefixIcon: Icons.account_circle, validator: (v) => v!.isEmpty ? 'مطلوب' : null),
-                const SizedBox(height: 12),
-                CustomTextField(controller: passwordCtrl, label: 'كلمة المرور', prefixIcon: Icons.lock, obscureText: true, validator: (v) => v!.length < 6 ? 'يجب أن تكون 6 أحرف على الأقل' : null),
-                const SizedBox(height: 12),
-                CustomTextField(controller: phoneCtrl, label: 'رقم الهاتف', prefixIcon: Icons.phone, keyboardType: TextInputType.phone),
-              ],
-            ),
-          ),
-        ),
-        actions: [
-          TextButton(onPressed: Get.back, child: Text('إلغاء', style: GoogleFonts.cairo())),
-          Obx(() => ElevatedButton(
-            onPressed: isLoading.value ? null : () async {
-              if (!formKey.currentState!.validate()) return;
-              isLoading.value = true;
-              try {
-                await _ds.createEmployee({
-                  'fullName': nameCtrl.text.trim(),
-                  'username': usernameCtrl.text.trim(),
-                  'password': passwordCtrl.text,
-                  'phone': phoneCtrl.text.trim(),
-                  'role': 'Representative',
-                });
-                SnackbarHelper.showSuccess('تم إضافة المندوب');
-                Get.back();
-                _load();
-              } catch (_) {
-                SnackbarHelper.showError('فشل إضافة المندوب');
-              }
-              isLoading.value = false;
-            },
-            child: isLoading.value
-                ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                : Text('إضافة', style: GoogleFonts.cairo(fontWeight: FontWeight.w600)),
-          )),
-        ],
-      ),
-    );
+  Future<void> _openForm({Map<String, dynamic>? existing}) async {
+    final preset = existing != null
+        ? Map<String, dynamic>.from(existing)
+        : <String, dynamic>{
+            'roles': EmployeeRoles.representative,
+            'employeeType': 'Representative',
+            'representativeType': 'Individual',
+          };
+    final result =
+        await Get.toNamed(AppRoutes.adminEmployeeForm, arguments: preset);
+    if (result == true) _load();
   }
 }
 

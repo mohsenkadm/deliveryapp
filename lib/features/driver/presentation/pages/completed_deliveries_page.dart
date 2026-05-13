@@ -26,7 +26,7 @@ class CompletedDeliveriesPage extends GetView<DriverHomeController> {
         ],
       ),
       body: Obx(() {
-        if (controller.isLoading.value &&
+        if (controller.isLoadingCompleted.value &&
             controller.completedOrders.isEmpty) {
           return const LoadingIndicator();
         }

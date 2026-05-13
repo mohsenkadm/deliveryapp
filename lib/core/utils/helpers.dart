@@ -4,15 +4,39 @@ import 'package:flutter/material.dart';
 class InvoiceStatusHelper {
   InvoiceStatusHelper._();
 
+  /// التسمية العربية الأساسية لكل حالة — مطابقة لِما يعيده الباك-إند في `statusText`.
   static const Map<String, String> _arabicLabels = {
-    'Pending': 'معلق',
-    'Accepted': 'مقبول',
-    'WarehouseProcessing': 'جاري التجهيز',
-    'AwaitingDelivery': 'في التوصيل',
+    'Pending': 'قيد الانتظار',
+    'Accepted': 'مقبولة',
+    'WarehouseProcessing': 'قيد التجهيز في المستودع',
+    'AwaitingDelivery': 'في انتظار التوصيل',
     'Delivered': 'تم التسليم',
-    'Completed': 'مكتمل',
-    'Rejected': 'مرفوض',
-    'Deferred': 'مؤجل',
+    'Completed': 'مكتملة',
+    'Rejected': 'مرفوضة',
+    'Deferred': 'مؤجلة',
+  };
+
+  /// أسماء عربية بديلة شائعة (من الواجهة القديمة أو ردود مختلفة) — للمطابقة العكسية.
+  static const Map<String, String> _arabicAliases = {
+    'معلق': 'Pending',
+    'معلقة': 'Pending',
+    'قيد الانتظار': 'Pending',
+    'مقبول': 'Accepted',
+    'مقبولة': 'Accepted',
+    'جاري التجهيز': 'WarehouseProcessing',
+    'قيد التجهيز': 'WarehouseProcessing',
+    'قيد التجهيز في المستودع': 'WarehouseProcessing',
+    'في التوصيل': 'AwaitingDelivery',
+    'في انتظار التوصيل': 'AwaitingDelivery',
+    'انتظار التوصيل': 'AwaitingDelivery',
+    'تم التسليم': 'Delivered',
+    'تم التوصيل': 'Delivered',
+    'مكتمل': 'Completed',
+    'مكتملة': 'Completed',
+    'مرفوض': 'Rejected',
+    'مرفوضة': 'Rejected',
+    'مؤجل': 'Deferred',
+    'مؤجلة': 'Deferred',
   };
 
   static const Map<String, Color> _colors = {
@@ -37,40 +61,45 @@ class InvoiceStatusHelper {
   ];
 
   /// تحويل قيمة الحالة القادمة من الباك-إند (int enum أو نص) إلى نص موحَّد.
-  /// ترتيب enum InvoiceStatus في الباك-إند:
-  /// 0=Pending, 1=Accepted, 2=WarehouseProcessing, 3=AwaitingDelivery,
-  /// 4=Delivered, 5=Completed, 6=Rejected, 7=Deferred
+  /// ترتيب enum InvoiceStatus في الباك-إند (مطابق لما يعيده الخادم):
+  ///   0=Pending, 1=Deferred, 2=AwaitingDelivery, 3=Completed,
+  ///   4=Rejected, 5=Accepted, 6=WarehouseProcessing, 7=Delivered
   static const List<String> _enumOrder = [
-    'Pending',
-    'Accepted',
-    'WarehouseProcessing',
-    'AwaitingDelivery',
-    'Delivered',
-    'Completed',
-    'Rejected',
-    'Deferred',
+    'Pending',           // 0
+    'Deferred',          // 1
+    'AwaitingDelivery',  // 2
+    'Completed',         // 3
+    'Rejected',          // 4
+    'Accepted',          // 5
+    'WarehouseProcessing', // 6
+    'Delivered',         // 7
   ];
+
+  /// تحويل المفتاح الإنجليزي إلى الرقم في جسم `PATCH /api/mobile/driver/orders/{id}/status`
+  /// (أو تحديثات الحالة الموحَّدة الأخرى التي تستخدم نفس ترتيب الـ enum).
+  static int? toInt(String status) {
+    final i = _enumOrder.indexOf(status);
+    return i < 0 ? null : i;
+  }
 
   static String parse(dynamic value, {String fallback = 'Pending'}) {
     if (value == null) return fallback;
-    if (value is int) {
-      if (value >= 0 && value < _enumOrder.length) return _enumOrder[value];
-      return fallback;
-    }
     final s = value.toString().trim();
     if (s.isEmpty) return fallback;
-    // قيمة رقمية كنص
-    final asInt = int.tryParse(s);
-    if (asInt != null && asInt >= 0 && asInt < _enumOrder.length) {
-      return _enumOrder[asInt];
-    }
     // نص إنجليزي مطابق للـ enum
     if (_enumOrder.contains(s)) return s;
-    // نص عربي قادم من statusText — نعكس الخريطة
+    // نص عربي قادم من statusText — نعكس الخريطة الأساسية ثم البدائل
     for (final entry in _arabicLabels.entries) {
       if (entry.value == s) return entry.key;
     }
-    return s;
+    if (_arabicAliases.containsKey(s)) return _arabicAliases[s]!;
+    // كحلٍّ أخير: قيمة رقمية. ترتيب enum الباك-إند قد يختلف عن ترتيبنا،
+    // لذا لا نعتمد عليه إلا عند غياب statusText تماماً.
+    final asInt = value is int ? value : int.tryParse(s);
+    if (asInt != null && asInt >= 0 && asInt < _enumOrder.length) {
+      return _enumOrder[asInt];
+    }
+    return fallback;
   }
 
   static String label(String status) =>

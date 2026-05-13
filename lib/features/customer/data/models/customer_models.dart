@@ -108,7 +108,7 @@ class OrderModel extends Order {
     return OrderModel(
       id: json['id']?.toString() ?? '',
       orderNumber: json['orderNumber'] ?? json['invoiceNumber'] ?? '',
-      status: InvoiceStatusHelper.parse(json['status'] ?? json['statusText']),
+      status: InvoiceStatusHelper.parse(json['statusText'] ?? json['status']),
       totalAmount: (json['totalAmount'] ?? json['total'] ?? 0).toDouble(),
       paidAmount: (json['paidAmount'] ?? 0).toDouble(),
       remainingAmount: (json['remainingAmount'] ?? 0).toDouble(),
@@ -142,16 +142,27 @@ class OrderItemModel extends OrderItem {
     required super.productName,
     required super.quantity,
     required super.price,
+    super.discount,
     required super.total,
   });
 
   factory OrderItemModel.fromJson(Map<String, dynamic> json) {
+    final qty = (json['quantity'] ?? json['qty'] ?? 0) as num;
+    final unit = (json['unitPrice'] ?? json['price'] ?? 0).toDouble();
+    final discount = (json['discount'] ?? 0).toDouble();
+    final total = (json['subTotal'] ??
+            json['subtotal'] ??
+            json['total'] ??
+            json['lineTotal'] ??
+            (unit * qty - discount))
+        .toDouble();
     return OrderItemModel(
       productId: (json['productId'] ?? json['id'])?.toString() ?? '',
       productName: json['productName'] ?? json['name'] ?? '',
-      quantity: (json['quantity'] ?? json['qty'] ?? 0) as int,
-      price: (json['price'] ?? json['unitPrice'] ?? 0).toDouble(),
-      total: (json['total'] ?? json['subtotal'] ?? json['lineTotal'] ?? 0).toDouble(),
+      quantity: qty.toInt(),
+      price: unit,
+      discount: discount,
+      total: total,
     );
   }
 }
@@ -207,7 +218,7 @@ class DebtModel extends Debt {
       paidAmount: (json['paidAmount'] ?? 0).toDouble(),
       remainingAmount: (json['remainingAmount'] ?? 0).toDouble(),
       dueDate: DateTime.tryParse(json['dueDate'] ?? '') ?? DateTime.now(),
-      status: InvoiceStatusHelper.parse(json['status'] ?? json['statusText'], fallback: ''),
+      status: InvoiceStatusHelper.parse(json['statusText'] ?? json['status'], fallback: ''),
     );
   }
 }

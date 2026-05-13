@@ -71,16 +71,18 @@ class RepInvoiceDetailPage extends GetView<RepresentativeHomeController> {
           );
         }
 
-        final status = inv['status']?.toString() ?? '';
+        final status = InvoiceStatusHelper.parse(
+            inv['statusText'] ?? inv['status'], fallback: '');
         final statusColor = InvoiceStatusHelper.color(status);
         final statusLabel = InvoiceStatusHelper.label(status);
-        final items = (inv['items'] as List<dynamic>?)
+        final items = ((inv['details'] ?? inv['items']) as List<dynamic>?)
                 ?.cast<Map<String, dynamic>>() ??
             [];
         final totalAmount = (inv['totalAmount'] as num?)?.toDouble() ?? 0;
         final discount = (inv['discount'] as num?)?.toDouble() ?? 0;
         final paidAmount = (inv['paidAmount'] as num?)?.toDouble() ?? 0;
-        final remaining = totalAmount - paidAmount;
+        final remaining = (inv['remainingAmount'] as num?)?.toDouble() ??
+            (totalAmount - paidAmount);
 
         return SingleChildScrollView(
           padding: const EdgeInsets.all(16),
@@ -168,9 +170,17 @@ class RepInvoiceDetailPage extends GetView<RepresentativeHomeController> {
                     children: items.map((item) {
                       final qty =
                           (item['quantity'] as num?)?.toDouble() ?? 0;
-                      final price =
-                          (item['price'] as num?)?.toDouble() ?? 0;
-                      final subtotal = qty * price;
+                      final price = (item['unitPrice'] ??
+                                  item['price'] ??
+                                  0)
+                              .toDouble();
+                      final itemDiscount =
+                          (item['discount'] as num?)?.toDouble() ?? 0;
+                      final subtotal = (item['subTotal'] ??
+                                  item['subtotal'] ??
+                                  item['total'] ??
+                                  (qty * price - itemDiscount))
+                              .toDouble();
                       final isLast = items.last == item;
                       return Container(
                         padding: const EdgeInsets.symmetric(vertical: 10),
@@ -319,17 +329,23 @@ class RepInvoiceDetailPage extends GetView<RepresentativeHomeController> {
       return;
     }
     try {
-      final items = ((inv['items'] as List?) ?? const [])
+      final items = (((inv['details'] ?? inv['items']) as List?) ?? const [])
           .map<Map<String, dynamic>>((e) {
         final m = e as Map<String, dynamic>;
         final qty = (m['quantity'] as num?)?.toDouble() ?? 0;
-        final price = (m['price'] as num?)?.toDouble() ?? 0;
+        final price = (m['unitPrice'] ?? m['price'] ?? 0).toDouble();
+        final discount = (m['discount'] as num?)?.toDouble() ?? 0;
+        final total = (m['subTotal'] ??
+                m['subtotal'] ??
+                m['total'] ??
+                (qty * price - discount))
+            .toDouble();
         return {
           'name': m['productName'] ?? m['product']?['name'] ?? '',
           'quantity': qty,
           'unit': m['unit'] ?? '',
           'price': price,
-          'total': qty * price,
+          'total': total,
         };
       }).toList();
       final pdf = await PdfService.instance.buildInvoicePdf({
@@ -340,7 +356,9 @@ class RepInvoiceDetailPage extends GetView<RepresentativeHomeController> {
         'storeName': inv['storeName'] ?? inv['customer']?['storeName'] ?? '',
         'phone': inv['customerPhone'] ?? inv['customer']?['phone'] ?? '',
         'address': inv['address'] ?? inv['customer']?['address'] ?? '',
-        'status': inv['status'] ?? '',
+        'status': InvoiceStatusHelper.label(InvoiceStatusHelper.parse(
+            inv['statusText'] ?? inv['status'],
+            fallback: '')),
         'items': items,
         'subtotal': inv['totalAmount'] ?? 0,
         'discount': inv['discount'] ?? 0,

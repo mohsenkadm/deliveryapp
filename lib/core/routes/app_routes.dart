@@ -46,10 +46,12 @@ abstract class AppRoutes {
   // Supervisor
   static const supervisor = '/supervisor';
   static const supervisorRepDetail = '/supervisor/rep-detail';
+  static const supervisorNotifications = '/supervisor/notifications';
 
   // Sales Manager
   static const salesManager = '/sales-manager';
   static const salesManagerRepDetail = '/sales-manager/rep-detail';
+  static const salesManagerNotifications = '/sales-manager/notifications';
 
   // Driver extra screens
   static const driverSummary = '/driver/summary';
@@ -60,6 +62,7 @@ abstract class AppRoutes {
   // Representative extra screens
   static const repPayments = '/representative/payments';
   static const repWarehouse = '/representative/warehouse';
+  static const repTransferPicker = '/representative/transfer-picker';
   static const repCreateInvoice = '/representative/create-invoice';
   static const repDebts = '/representative/debts';
   static const repInvoiceDetail = '/representative/invoice-detail';
@@ -79,12 +82,15 @@ abstract class AppRoutes {
   static const customerStatement = '/admin/customer-statement';
   static const analytics = '/admin/analytics';
   static const debtsSettlement = '/admin/debts-settlement';
-  static const activityLogs = '/admin/activity-logs';
   static const adminNotifications = '/admin/notifications';
   static const manageBranches = '/admin/manage-branches';
   static const manageOffers = '/admin/manage-offers';
   static const systemSettings = '/admin/system-settings';
   static const adminPermissions = '/admin/permissions';
+  static const adminCustomerForm = '/admin/customer-form';
+  static const adminCreateInvoice = '/admin/create-invoice';
+  static const adminCreateAdmin = '/admin/create-admin';
+  static const adminEmployeeForm = '/admin/employee-form';
 
   // Settings (shared)
   static const settings = '/settings';

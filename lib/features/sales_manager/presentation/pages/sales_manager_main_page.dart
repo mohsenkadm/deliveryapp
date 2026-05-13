@@ -1,6 +1,7 @@
 // الصفحة الرئيسية لمدير المبيعات
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../../../core/routes/app_routes.dart';
 import '../controllers/sales_manager_controller.dart';
 import 'sales_manager_home_page.dart';
 import 'sales_manager_reps_page.dart';
@@ -19,13 +20,13 @@ class SalesManagerMainPage extends StatefulWidget {
 class _SalesManagerMainPageState extends State<SalesManagerMainPage> {
   int _currentIndex = 0;
 
-  final _pages = const [
+  static const _pages = [
     SalesManagerHomePage(),
     SalesManagerRepsPage(),
     SalesManagerPendingPage(),
     SalesManagerInvoicesPage(),
     SalesManagerReportsPage(),
-    RoleSettingsTab(),
+    RoleSettingsTab(notificationsRoute: AppRoutes.salesManagerNotifications),
   ];
 
   @override

@@ -174,7 +174,8 @@ class _InvoicesTab extends StatelessWidget {
       separatorBuilder: (_, __) => const SizedBox(height: 8),
       itemBuilder: (_, i) {
         final inv = invoices[i];
-        final status = inv['status'] ?? 'Pending';
+        final status = InvoiceStatusHelper.parse(
+            inv['statusText'] ?? inv['status'], fallback: 'Pending');
         final total = (inv['totalAmount'] ?? 0).toDouble();
         final date = inv['createdAt'] != null ? DateTime.tryParse(inv['createdAt'].toString()) : null;
         return Container(

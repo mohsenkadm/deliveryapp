@@ -48,11 +48,13 @@ import '../../features/representative/presentation/bindings/representative_bindi
 // Supervisor
 import '../../features/supervisor/presentation/pages/supervisor_main_page.dart';
 import '../../features/supervisor/presentation/pages/supervisor_rep_detail_page.dart';
+import '../../features/supervisor/presentation/pages/supervisor_notifications_page.dart';
 import '../../features/supervisor/presentation/bindings/supervisor_binding.dart';
 
 // Sales Manager
 import '../../features/sales_manager/presentation/pages/sales_manager_main_page.dart';
 import '../../features/sales_manager/presentation/pages/sales_manager_rep_detail_page.dart';
+import '../../features/sales_manager/presentation/pages/sales_manager_notifications_page.dart';
 import '../../features/sales_manager/presentation/bindings/sales_manager_binding.dart';
 
 // Driver extra
@@ -67,6 +69,7 @@ import '../../features/representative/presentation/pages/rep_warehouse_page.dart
 import '../../features/representative/presentation/pages/rep_create_invoice_page.dart';
 import '../../features/representative/presentation/pages/rep_debts_page.dart';
 import '../../features/representative/presentation/pages/rep_invoice_detail_page.dart';
+import '../../features/representative/presentation/pages/rep_transfer_product_picker_page.dart';
 
 // Representative extra (notifications)
 import '../../features/representative/presentation/pages/representative_notifications_page.dart';
@@ -83,7 +86,6 @@ import '../../features/admin/presentation/pages/admin_categories_page.dart';
 import '../../features/admin/presentation/pages/admin_warehouses_page.dart';
 import '../../features/admin/presentation/pages/admin_invoices_page.dart';
 import '../../features/admin/presentation/pages/admin_analytics_page.dart';
-import '../../features/admin/presentation/pages/admin_activity_logs_page.dart';
 import '../../features/admin/presentation/pages/admin_customer_statement_page.dart';
 import '../../features/admin/presentation/bindings/admin_binding.dart';
 import '../../features/admin/presentation/pages/admin_inventory_page.dart';
@@ -91,6 +93,10 @@ import '../../features/admin/presentation/pages/admin_branches_page.dart';
 import '../../features/admin/presentation/pages/admin_offers_page.dart';
 import '../../features/admin/presentation/pages/admin_system_settings_page.dart';
 import '../../features/admin/presentation/pages/admin_permissions_page.dart';
+import '../../features/admin/presentation/pages/admin_customer_form_page.dart';
+import '../../features/admin/presentation/pages/admin_create_invoice_page.dart';
+import '../../features/admin/presentation/pages/admin_create_admin_page.dart';
+import '../../features/admin/presentation/pages/admin_employee_form_page.dart';
 // Settings
 import '../../features/settings/presentation/pages/settings_page.dart';
 import '../../features/settings/presentation/pages/branding_settings_page.dart';
@@ -132,7 +138,7 @@ class AppPages {
 
     // Driver
     GetPage(name: AppRoutes.driver, page: () => const DriverMainPage(), binding: DriverBinding()),
-    GetPage(name: AppRoutes.assignedOrders, page: () => const AssignedOrdersPage()),
+    GetPage(name: AppRoutes.assignedOrders, page: () => const AssignedOrdersPage(), binding: DriverBinding()),
     GetPage(name: AppRoutes.orderTracking, page: () => const OrderTrackingPage()),
     GetPage(name: AppRoutes.completedDeliveries, page: () => const CompletedDeliveriesPage()),
     GetPage(name: AppRoutes.driverNotifications, page: () => const DriverNotificationsPage()),
@@ -161,6 +167,7 @@ class AppPages {
     GetPage(name: AppRoutes.repPayments, page: () => const RepPaymentsPage()),
     GetPage(name: AppRoutes.repWarehouse, page: () => const RepWarehousePage()),
     GetPage(name: AppRoutes.repCreateInvoice, page: () => const RepCreateInvoicePage()),
+    GetPage(name: AppRoutes.repTransferPicker, page: () => const RepTransferProductPickerPage()),
     GetPage(name: AppRoutes.repDebts, page: () => const RepDebtsPage()),
     GetPage(name: AppRoutes.repInvoiceDetail, page: () => const RepInvoiceDetailPage()),
 
@@ -184,7 +191,6 @@ class AppPages {
     GetPage(name: AppRoutes.manageInventory, page: () => const AdminInventoryPage(), binding: AdminBinding()),
     GetPage(name: AppRoutes.manageInvoices, page: () => const AdminInvoicesPage(), binding: AdminBinding()),
     GetPage(name: AppRoutes.analytics, page: () => const AdminAnalyticsPage(), binding: AdminBinding()),
-    GetPage(name: AppRoutes.activityLogs, page: () => const AdminActivityLogsPage(), binding: AdminBinding()),
     GetPage(name: AppRoutes.adminNotifications, page: () => const AdminMainPage(), binding: AdminBinding()),
     GetPage(name: AppRoutes.manageBranches, page: () => const AdminBranchesPage(), binding: AdminBinding()),
     GetPage(name: AppRoutes.manageOffers, page: () => const AdminOffersPage(), binding: AdminBinding()),
@@ -192,6 +198,14 @@ class AppPages {
     GetPage(name: AppRoutes.adminPermissions, page: () => const AdminPermissionsPage(), binding: AdminBinding()),
     GetPage(name: AppRoutes.customerStatement, page: () => const AdminCustomerStatementPage(), binding: AdminBinding()),
     GetPage(name: '/admin/customer-statement', page: () => const AdminCustomerStatementPage(), binding: AdminBinding()),
+    GetPage(name: AppRoutes.adminCustomerForm, page: () => const AdminCustomerFormPage(), binding: AdminBinding()),
+    GetPage(name: AppRoutes.adminCreateInvoice, page: () => const AdminCreateInvoicePage(), binding: AdminBinding()),
+    GetPage(name: AppRoutes.adminCreateAdmin, page: () => const AdminCreateAdminPage(), binding: AdminBinding()),
+    GetPage(name: AppRoutes.adminEmployeeForm, page: () => const AdminEmployeeFormPage(), binding: AdminBinding()),
+
+    // Supervisor / Sales Manager — notifications
+    GetPage(name: AppRoutes.supervisorNotifications, page: () => const SupervisorNotificationsPage()),
+    GetPage(name: AppRoutes.salesManagerNotifications, page: () => const SalesManagerNotificationsPage()),
 
     // Settings
     GetPage(name: AppRoutes.settings, page: () => const SettingsPage(), binding: SettingsBinding()),

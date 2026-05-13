@@ -21,6 +21,24 @@ class EmployeeRoles {
   static const String employee = 'Employee'; // دور احتياطي عام
   static const String customer = 'Customer';
 
+  /// وسم نوع مندوب في JWT/الخادم — ليس «مساحة عمل» منفصلة عن [representative].
+  static const String individual = 'Individual';
+  static const String wholesale = 'Wholesale';
+
+  /// أدوار/وسوم لا تملك شاشة توجيه خاصة (تُستخدم مع [representative] فقط).
+  static bool isRepresentativeKindTag(String r) {
+    final x = r.trim();
+    return x == individual || x == wholesale;
+  }
+
+  /// أدوار لها تبويب/مسار workspace في تطبيق الجوال.
+  static bool isMobileWorkspaceRole(String r) =>
+      mobileWorkspaceRoles.contains(r);
+
+  /// أدوار يمكن اختيارها من شاشة المساحة (بدون وسوم المندوب).
+  static List<String> pickableWorkspaceRoles(Iterable<String> roles) =>
+      roles.where(isMobileWorkspaceRole).toList();
+
   /// كل الأدوار المعروفة (لقوائم الاختيار في الإدارة الخلفية)
   static const List<String> all = [
     admin,
@@ -35,6 +53,8 @@ class EmployeeRoles {
     accountant,
     employee,
     customer,
+    individual,
+    wholesale,
   ];
 
   /// الأدوار التي تملك واجهة جوّال خاصة بها (workspace).

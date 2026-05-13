@@ -1,11 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../../core/network/dio_client.dart';
+import '../../../../core/routes/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/utils/helpers.dart';
+import '../../../../core/utils/snackbar_helper.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../../../../core/widgets/loading_indicator.dart';
+import '../../data/datasources/admin_remote_datasource.dart';
 import '../controllers/admin_controllers.dart';
 
 class AdminInvoicesPage extends GetView<AdminOrdersController> {
@@ -26,6 +30,16 @@ class AdminInvoicesPage extends GetView<AdminOrdersController> {
 
     return Scaffold(
       backgroundColor: AppColors.background,
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () async {
+          final result = await Get.toNamed(AppRoutes.adminCreateInvoice);
+          if (result == true) controller.loadInvoices();
+        },
+        backgroundColor: AppColors.primary,
+        icon: const Icon(Icons.add_rounded),
+        label: Text('فاتورة جديدة',
+            style: GoogleFonts.cairo(fontWeight: FontWeight.w600)),
+      ),
       appBar: AppBar(
         title: Text('الفواتير', style: GoogleFonts.cairo(fontWeight: FontWeight.w700)),
         bottom: PreferredSize(
@@ -81,7 +95,12 @@ class AdminInvoicesPage extends GetView<AdminOrdersController> {
         final all = controller.invoices;
         final filtered = current == 'الكل'
             ? all
-            : all.where((inv) => (inv['status'] ?? '') == current).toList();
+            : all.where((inv) {
+                final s = InvoiceStatusHelper.parse(
+                    inv['statusText'] ?? inv['status'],
+                    fallback: '');
+                return s == current;
+              }).toList();
         if (filtered.isEmpty) {
           return const EmptyState(
               title: 'لا توجد فواتير',
@@ -93,7 +112,10 @@ class AdminInvoicesPage extends GetView<AdminOrdersController> {
             padding: const EdgeInsets.all(16),
             itemCount: filtered.length,
             separatorBuilder: (_, __) => const SizedBox(height: 10),
-            itemBuilder: (_, i) => _InvoiceCard(invoice: filtered[i]),
+            itemBuilder: (_, i) => _InvoiceCard(
+              invoice: filtered[i],
+              onChanged: controller.loadInvoices,
+            ),
           ),
         );
       }),
@@ -103,14 +125,101 @@ class AdminInvoicesPage extends GetView<AdminOrdersController> {
 
 class _InvoiceCard extends StatelessWidget {
   final Map<String, dynamic> invoice;
-  const _InvoiceCard({required this.invoice});
+  final VoidCallback onChanged;
+  const _InvoiceCard({required this.invoice, required this.onChanged});
+
+  AdminRemoteDataSource get _ds => AdminRemoteDataSource(Get.find<DioClient>());
+
+  Future<void> _payDialog(BuildContext context, double remaining) async {
+    final ctrl = TextEditingController(
+        text: remaining > 0 ? remaining.toStringAsFixed(2) : '');
+    final ok = await Get.dialog<bool>(
+      AlertDialog(
+        title: Text('تسجيل دفعة',
+            style: GoogleFonts.cairo(fontWeight: FontWeight.w700)),
+        content: TextField(
+          controller: ctrl,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+          decoration: InputDecoration(
+            labelText: 'المبلغ',
+            labelStyle: GoogleFonts.cairo(),
+            helperText: 'المتبقي: ${Formatters.currency(remaining)}',
+            helperStyle: GoogleFonts.cairo(fontSize: 11),
+          ),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Get.back(result: false),
+              child: Text('إلغاء', style: GoogleFonts.cairo())),
+          ElevatedButton(
+              onPressed: () => Get.back(result: true),
+              child: Text('دفع', style: GoogleFonts.cairo())),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    final amount = double.tryParse(ctrl.text.trim()) ?? 0;
+    if (amount <= 0) {
+      SnackbarHelper.showError('أدخل مبلغاً صحيحاً');
+      return;
+    }
+    try {
+      await _ds.payInvoice(invoice['id'].toString(), amount);
+      SnackbarHelper.showSuccess('تم تسجيل الدفعة');
+      onChanged();
+    } catch (_) {
+      SnackbarHelper.showError('فشل الدفع');
+    }
+  }
+
+  Future<void> _statusDialog(BuildContext context) async {
+    const statuses = [
+      ('Pending', 'معلق'),
+      ('Accepted', 'مقبول'),
+      ('Rejected', 'مرفوض'),
+      ('Deferred', 'مؤجل'),
+      ('WarehouseProcessing', 'في المستودع'),
+      ('AwaitingDelivery', 'في انتظار التوصيل'),
+      ('Delivered', 'تم التوصيل'),
+      ('Completed', 'مكتمل'),
+    ];
+    final picked = await Get.dialog<String>(
+      SimpleDialog(
+        title: Text('تحديث الحالة',
+            style: GoogleFonts.cairo(fontWeight: FontWeight.w700)),
+        children: statuses
+            .map((s) => SimpleDialogOption(
+                  onPressed: () => Get.back(result: s.$1),
+                  child: Text(s.$2, style: GoogleFonts.cairo()),
+                ))
+            .toList(),
+      ),
+    );
+    if (picked == null) return;
+    try {
+      await _ds.updateInvoiceStatus(invoice['id'].toString(), picked);
+      SnackbarHelper.showSuccess('تم تحديث الحالة');
+      onChanged();
+    } catch (_) {
+      SnackbarHelper.showError('فشل تحديث الحالة');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final id = invoice['invoiceNumber'] ?? invoice['id'] ?? '';
     final customer = invoice['customerName'] ?? invoice['customer']?['fullName'] ?? 'عميل';
-    final status = invoice['status'] ?? 'Pending';
-    final total = (invoice['totalAmount'] ?? invoice['total'] ?? 0).toDouble();
+    final status = InvoiceStatusHelper.parse(
+        invoice['statusText'] ?? invoice['status'], fallback: 'Pending');
+    final totalRaw = invoice['totalAmount'] ?? invoice['total'] ?? 0;
+    final total = totalRaw is num
+        ? totalRaw.toDouble()
+        : double.tryParse(totalRaw.toString()) ?? 0.0;
+    final paidRaw = invoice['paidAmount'] ?? 0;
+    final paid = paidRaw is num
+        ? paidRaw.toDouble()
+        : double.tryParse(paidRaw.toString()) ?? 0.0;
+    final remaining = (total - paid).clamp(0.0, double.infinity);
     final createdAt = invoice['createdAt'] != null ? DateTime.tryParse(invoice['createdAt'].toString()) : null;
     final statusColor = InvoiceStatusHelper.color(status);
     final statusLabel = InvoiceStatusHelper.label(status);
@@ -142,6 +251,40 @@ class _InvoiceCard extends StatelessWidget {
                 ),
                 child: Text(statusLabel,
                     style: GoogleFonts.cairo(fontSize: 11, fontWeight: FontWeight.w700, color: statusColor)),
+              ),
+              PopupMenuButton<String>(
+                icon: const Icon(Icons.more_vert, size: 20),
+                onSelected: (v) async {
+                  switch (v) {
+                    case 'pay':
+                      await _payDialog(context, remaining);
+                      break;
+                    case 'status':
+                      await _statusDialog(context);
+                      break;
+                  }
+                },
+                itemBuilder: (_) => [
+                  PopupMenuItem(
+                    value: 'pay',
+                    child: Row(children: [
+                      Icon(Icons.payments_outlined,
+                          size: 18, color: AppColors.successLight),
+                      const SizedBox(width: 8),
+                      Text('تسجيل دفعة',
+                          style: GoogleFonts.cairo(fontSize: 13)),
+                    ]),
+                  ),
+                  PopupMenuItem(
+                    value: 'status',
+                    child: Row(children: [
+                      const Icon(Icons.swap_horiz, size: 18),
+                      const SizedBox(width: 8),
+                      Text('تحديث الحالة',
+                          style: GoogleFonts.cairo(fontSize: 13)),
+                    ]),
+                  ),
+                ],
               ),
             ],
           ),

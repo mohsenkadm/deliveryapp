@@ -13,6 +13,9 @@ class DeliveryOrder extends Equatable {
   final double? longitude;
   final String? googleMapsUrl;
   final double totalAmount;
+  final double paidAmount;
+  final double remainingAmount;
+  final String? paymentStatus; // 'Unpaid' | 'Partial' | 'Paid'
   final DateTime createdAt;
   final String? notes;
   final List<DeliveryOrderItem> items;
@@ -30,6 +33,9 @@ class DeliveryOrder extends Equatable {
     this.longitude,
     this.googleMapsUrl,
     required this.totalAmount,
+    this.paidAmount = 0,
+    this.remainingAmount = 0,
+    this.paymentStatus,
     required this.createdAt,
     this.notes,
     this.items = const [],
@@ -43,11 +49,15 @@ class DeliveryOrderItem extends Equatable {
   final String productName;
   final int quantity;
   final double price;
+  final double discount;
+  final double subTotal;
 
   const DeliveryOrderItem({
     required this.productName,
     required this.quantity,
     required this.price,
+    this.discount = 0,
+    this.subTotal = 0,
   });
 
   @override
@@ -71,5 +81,6 @@ class DriverSummary extends Equatable {
   });
 
   @override
-  List<Object?> get props => [totalAssigned, completed];
+  List<Object?> get props =>
+      [totalAssigned, completed, awaitingDelivery, rejected, completionRate];
 }

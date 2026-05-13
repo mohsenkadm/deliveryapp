@@ -127,7 +127,9 @@ class _SupervisorRepDetailPageState extends State<SupervisorRepDetailPage>
                       final inv = _ctrl.selectedRepInvoices[i];
                       final amount =
                           ((inv['totalAmount'] as num?) ?? 0).toDouble();
-                      final status = inv['status']?.toString() ?? '';
+                      final status = InvoiceStatusHelper.parse(
+                          inv['statusText'] ?? inv['status'],
+                          fallback: '');
                       final statusColor =
                           InvoiceStatusHelper.color(status);
                       final statusLabel =

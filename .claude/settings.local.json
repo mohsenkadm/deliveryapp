@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(/Applications/development/flutter/bin/flutter analyze *)"
+    ]
+  }
+}

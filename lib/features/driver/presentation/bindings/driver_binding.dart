@@ -5,6 +5,8 @@ import '../controllers/driver_controllers.dart';
 class DriverBinding extends Bindings {
   @override
   void dependencies() {
-    Get.lazyPut(() => DriverHomeController());
+    if (!Get.isRegistered<DriverHomeController>()) {
+      Get.lazyPut(() => DriverHomeController());
+    }
   }
 }

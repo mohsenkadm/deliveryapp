@@ -47,8 +47,8 @@ class CustomerLoginPage extends GetView<AuthController> {
                 Column(
                   children: [
                     CustomTextField(
-                      label: 'رقم الهاتف أو اسم المستخدم',
-                      hint: '07XXXXXXXX أو username',
+                      label: 'اسم المستخدم',
+                      hint: 'أدخل اسم المستخدم',
                       controller: controller.phoneController,
                       validator: Validators.required,
                       keyboardType: TextInputType.text,

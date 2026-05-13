@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/routes/app_routes.dart';
+import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/snackbar_helper.dart';
 import '../../data/datasources/admin_remote_datasource.dart';
 
@@ -42,12 +44,62 @@ class _AdminPermissionsPageState extends State<AdminPermissionsPage> {
     Get.to(() => _PermissionsEditor(admin: admin, ds: _ds));
   }
 
+  Future<void> _toggleActive(Map<String, dynamic> admin) async {
+    try {
+      await _ds.toggleAdminActive(admin['id'].toString());
+      SnackbarHelper.showSuccess('تم تحديث حالة المسؤول');
+      _loadAdmins();
+    } catch (_) {
+      SnackbarHelper.showError('فشل تحديث الحالة');
+    }
+  }
+
+  Future<void> _confirmDelete(Map<String, dynamic> admin) async {
+    final name =
+        (admin['fullName'] ?? admin['username'] ?? 'المسؤول').toString();
+    final ok = await Get.dialog<bool>(
+      AlertDialog(
+        title: Text('تأكيد الحذف',
+            style: GoogleFonts.cairo(fontWeight: FontWeight.w700)),
+        content: Text('هل تريد حذف "$name"؟', style: GoogleFonts.cairo()),
+        actions: [
+          TextButton(
+              onPressed: () => Get.back(result: false),
+              child: Text('إلغاء', style: GoogleFonts.cairo())),
+          TextButton(
+              onPressed: () => Get.back(result: true),
+              style: TextButton.styleFrom(
+                  foregroundColor: AppColors.errorLight),
+              child: Text('حذف', style: GoogleFonts.cairo())),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await _ds.deleteAdmin(admin['id'].toString());
+      SnackbarHelper.showSuccess('تم حذف المسؤول');
+      _loadAdmins();
+    } catch (_) {
+      SnackbarHelper.showError('فشل الحذف');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
         title: Text('صلاحيات المسؤولين',
             style: GoogleFonts.cairo(fontWeight: FontWeight.w700)),
+      ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () async {
+          final result = await Get.toNamed(AppRoutes.adminCreateAdmin);
+          if (result == true) _loadAdmins();
+        },
+        backgroundColor: AppColors.primary,
+        icon: const Icon(Icons.person_add_alt_1),
+        label:
+            Text('مسؤول جديد', style: GoogleFonts.cairo()),
       ),
       body: _loadingAdmins
           ? const Center(child: CircularProgressIndicator())
@@ -81,7 +133,21 @@ class _AdminPermissionsPageState extends State<AdminPermissionsPage> {
                           title: Text(name.isEmpty ? username : name,
                               style: GoogleFonts.cairo(fontWeight: FontWeight.w700)),
                           subtitle: Text(username, style: GoogleFonts.cairo(fontSize: 12)),
-                          trailing: const Icon(Icons.chevron_right),
+                          trailing: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Switch(
+                                value: isActive,
+                                onChanged: (_) => _toggleActive(a),
+                              ),
+                              IconButton(
+                                icon: Icon(Icons.delete_outline,
+                                    color: AppColors.errorLight),
+                                onPressed: () => _confirmDelete(a),
+                              ),
+                              const Icon(Icons.chevron_right),
+                            ],
+                          ),
                           onTap: () => _openEditor(a),
                         ),
                       );

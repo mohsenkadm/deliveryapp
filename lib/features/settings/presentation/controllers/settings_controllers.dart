@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../../core/theme/theme_controller.dart';
 import '../../../../core/services/auth_service.dart';
+import '../../../../core/utils/snackbar_helper.dart';
 
 class SettingsController extends GetxController {
   final themeController = Get.find<ThemeController>();
@@ -39,8 +40,15 @@ class ProfileController extends GetxController {
     }
   }
 
+  /// تحديث الملف الشخصي.
+  ///
+  /// ملاحظة: واجهة الـ Backend الحالية لا توفّر نقطة لتحديث الملف الشخصي
+  /// للمستخدم النهائي (راجع الوثيقة — `/api/me` هو GET فقط، ولا يوجد
+  /// PUT/PATCH مرافق). يجب على الأدمن تعديل الملف عبر
+  /// `/api/customers/{id}` أو `/api/employees/{id}`.
   Future<void> updateProfile() async {
-    // TODO: API call
+    SnackbarHelper.showInfo(
+        'تعديل الملف الشخصي يتم حالياً عبر إدارة النظام. تواصل مع المسؤول.');
     isEditing.value = false;
   }
 }

@@ -11,6 +11,34 @@ import '../controllers/admin_controllers.dart';
 class AdminCustomersPage extends GetView<AdminCustomersController> {
   const AdminCustomersPage({super.key});
 
+  Future<void> _confirmDelete(
+      BuildContext context, Map<String, dynamic> c) async {
+    final name = (c['fullName'] ?? c['name'] ?? 'العميل').toString();
+    final confirmed = await Get.dialog<bool>(
+      AlertDialog(
+        title: Text('تأكيد الحذف',
+            style: GoogleFonts.cairo(fontWeight: FontWeight.w700)),
+        content: Text('هل تريد حذف "$name"؟ لا يمكن التراجع عن هذه العملية.',
+            style: GoogleFonts.cairo()),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(result: false),
+            child: Text('إلغاء', style: GoogleFonts.cairo()),
+          ),
+          TextButton(
+            onPressed: () => Get.back(result: true),
+            style:
+                TextButton.styleFrom(foregroundColor: AppColors.errorLight),
+            child: Text('حذف', style: GoogleFonts.cairo()),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      controller.deleteCustomer(c['id'].toString());
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final search = ''.obs;
@@ -34,6 +62,18 @@ class AdminCustomersPage extends GetView<AdminCustomersController> {
             ],
           ),
         ),
+        floatingActionButton: Obx(() => tabIndex.value == 0
+            ? FloatingActionButton.extended(
+                onPressed: () async {
+                  final result =
+                      await Get.toNamed(AppRoutes.adminCustomerForm);
+                  if (result == true) controller.loadCustomers();
+                },
+                backgroundColor: AppColors.primary,
+                icon: const Icon(Icons.person_add_alt_1),
+                label: Text('عميل جديد', style: GoogleFonts.cairo()),
+              )
+            : const SizedBox.shrink()),
         body: Column(
           children: [
             // ── شريط البحث ──
@@ -88,6 +128,13 @@ class AdminCustomersPage extends GetView<AdminCustomersController> {
                       onStatement: (c) => Get.toNamed(
                           AppRoutes.customerStatement,
                           arguments: c),
+                      onEdit: (c) async {
+                        final result = await Get.toNamed(
+                            AppRoutes.adminCustomerForm,
+                            arguments: c);
+                        if (result == true) controller.loadCustomers();
+                      },
+                      onDelete: (c) => _confirmDelete(context, c),
                     ),
 
                     // ── تبويب طلبات الموافقة ──
@@ -125,11 +172,15 @@ class _CustomersList extends StatelessWidget {
   final List<Map<String, dynamic>> customers;
   final Future<void> Function() onRefresh;
   final void Function(Map<String, dynamic>) onStatement;
+  final void Function(Map<String, dynamic>) onEdit;
+  final void Function(Map<String, dynamic>) onDelete;
 
   const _CustomersList({
     required this.customers,
     required this.onRefresh,
     required this.onStatement,
+    required this.onEdit,
+    required this.onDelete,
   });
 
   @override
@@ -147,6 +198,8 @@ class _CustomersList extends StatelessWidget {
         itemBuilder: (_, i) => _CustomerCard(
           customer: customers[i],
           onStatement: () => onStatement(customers[i]),
+          onEdit: () => onEdit(customers[i]),
+          onDelete: () => onDelete(customers[i]),
         ),
       ),
     );
@@ -199,8 +252,15 @@ class _PendingList extends StatelessWidget {
 class _CustomerCard extends StatelessWidget {
   final Map<String, dynamic> customer;
   final VoidCallback onStatement;
+  final VoidCallback onEdit;
+  final VoidCallback onDelete;
 
-  const _CustomerCard({required this.customer, required this.onStatement});
+  const _CustomerCard({
+    required this.customer,
+    required this.onStatement,
+    required this.onEdit,
+    required this.onDelete,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -281,14 +341,48 @@ class _CustomerCard extends StatelessWidget {
               ],
             ),
           ),
-          TextButton.icon(
-            onPressed: onStatement,
-            icon: const Icon(Icons.receipt_long_outlined, size: 16),
-            label: Text('كشف حساب', style: GoogleFonts.cairo(fontSize: 12)),
-            style: TextButton.styleFrom(
-                foregroundColor: AppColors.primary,
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 8, vertical: 4)),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, size: 20),
+            onSelected: (v) {
+              switch (v) {
+                case 'statement':
+                  onStatement();
+                  break;
+                case 'edit':
+                  onEdit();
+                  break;
+                case 'delete':
+                  onDelete();
+                  break;
+              }
+            },
+            itemBuilder: (_) => [
+              PopupMenuItem(
+                  value: 'statement',
+                  child: Row(children: [
+                    Icon(Icons.receipt_long_outlined,
+                        size: 18, color: AppColors.primary),
+                    const SizedBox(width: 8),
+                    Text('كشف حساب', style: GoogleFonts.cairo(fontSize: 13)),
+                  ])),
+              PopupMenuItem(
+                  value: 'edit',
+                  child: Row(children: [
+                    const Icon(Icons.edit_outlined, size: 18),
+                    const SizedBox(width: 8),
+                    Text('تعديل', style: GoogleFonts.cairo(fontSize: 13)),
+                  ])),
+              PopupMenuItem(
+                  value: 'delete',
+                  child: Row(children: [
+                    Icon(Icons.delete_outline,
+                        size: 18, color: AppColors.errorLight),
+                    const SizedBox(width: 8),
+                    Text('حذف',
+                        style: GoogleFonts.cairo(
+                            fontSize: 13, color: AppColors.errorLight)),
+                  ])),
+            ],
           ),
         ],
       ),

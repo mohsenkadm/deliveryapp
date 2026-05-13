@@ -16,6 +16,16 @@ class RepCreateInvoicePage extends GetView<RepresentativeHomeController> {
 
   // قراءة آمنة للسعر/الكمية من بيانات صنف المستودع.
   double _price(Map<String, dynamic> item) {
+    if (controller.preferWholesaleUnitPrices) {
+      final w = item['wholesalePrice'] ??
+          item['bulkPrice'] ??
+          item['tradePrice'] ??
+          item['wholesaleUnitPrice'];
+      if (w != null) {
+        final d = (w is num) ? w.toDouble() : double.tryParse(w.toString());
+        if (d != null && d > 0) return d;
+      }
+    }
     final p = item['retailPrice'] ??
         item['price'] ??
         item['unitPrice'] ??
@@ -25,17 +35,27 @@ class RepCreateInvoicePage extends GetView<RepresentativeHomeController> {
   }
 
   int _stock(Map<String, dynamic> item) {
-    final q = item['quantity'] ?? item['stockQuantity'] ?? 0;
-    return (q is num) ? q.toInt() : int.tryParse(q.toString()) ?? 0;
+    final q = item['quantity'] ??
+        item['mainWarehouseStock'] ??
+        item['stockQuantity'] ??
+        0;
+    if (q is num) return q.toInt();
+    return int.tryParse(q.toString()) ?? 0;
   }
 
   @override
   Widget build(BuildContext context) {
     final search = ''.obs;
 
-    // تأكد من تحميل المستودع والعملاء.
+    // تحميل المنتجات: جملة من المستودعات الرئيسية، مفرد من المستودع الفرعي.
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (controller.warehouseItems.isEmpty &&
+      if (controller.preferWholesaleUnitPrices) {
+        if (!controller.isLoadingMainProducts.value &&
+            controller.mainWarehouses.isEmpty &&
+            controller.mainWarehouseProducts.isEmpty) {
+          controller.loadMainWarehousesAndProductsForInvoice();
+        }
+      } else if (controller.warehouseItems.isEmpty &&
           !controller.isLoadingWarehouse.value) {
         controller.loadWarehouse();
       }
@@ -47,7 +67,17 @@ class RepCreateInvoicePage extends GetView<RepresentativeHomeController> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('إنشاء فاتورة'),
+        title: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text('إنشاء فاتورة'),
+            if (controller.preferWholesaleUnitPrices)
+              Text(
+                'منتجات المستودعات الرئيسية — اختر المستودع ثم أضف للسلة',
+                style: GoogleFonts.cairo(fontSize: 11, fontWeight: FontWeight.w500),
+              ),
+          ],
+        ),
         actions: [
           Obx(() {
             final count = controller.invoiceCartCount;
@@ -88,6 +118,54 @@ class RepCreateInvoicePage extends GetView<RepresentativeHomeController> {
       ),
       body: Column(
         children: [
+          Obx(() {
+            if (!controller.preferWholesaleUnitPrices) {
+              return const SizedBox.shrink();
+            }
+            if (controller.mainWarehouses.isEmpty) {
+              return const SizedBox.shrink();
+            }
+            final ids = controller.mainWarehouses
+                .map((w) => w['id']?.toString())
+                .whereType<String>()
+                .where((e) => e.isNotEmpty)
+                .toList();
+            final current = controller.selectedMainWarehouseIdForInvoice.value;
+            final effective =
+                (current != null && ids.contains(current)) ? current : ids.first;
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+              child: DropdownButtonFormField<String>(
+                isExpanded: true,
+                decoration: InputDecoration(
+                  labelText: 'المستودع الرئيسي',
+                  filled: true,
+                  fillColor: Theme.of(context).cardTheme.color,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: BorderSide.none,
+                  ),
+                ),
+                value: effective,
+                items: controller.mainWarehouses
+                    .map((w) => DropdownMenuItem<String>(
+                          value: w['id']?.toString(),
+                          child: Text(
+                            (w['name'] ?? w['id'] ?? '').toString(),
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ))
+                    .where((e) => e.value != null && e.value!.isNotEmpty)
+                    .cast<DropdownMenuItem<String>>()
+                    .toList(),
+                onChanged: (v) {
+                  if (v == null) return;
+                  controller.selectedMainWarehouseIdForInvoice.value = v;
+                  controller.refreshMainWarehouseProductsForInvoice();
+                },
+              ),
+            );
+          }),
           // ── شريط البحث ──
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
@@ -111,13 +189,21 @@ class RepCreateInvoicePage extends GetView<RepresentativeHomeController> {
           // ── قائمة المنتجات ──
           Expanded(
             child: Obx(() {
-              if (controller.isLoadingWarehouse.value) {
+              final wholesale = controller.preferWholesaleUnitPrices;
+              final loading = wholesale
+                  ? controller.isLoadingMainProducts.value
+                  : controller.isLoadingWarehouse.value;
+              if (loading) {
                 return const LoadingIndicator();
               }
               final q = search.value.toLowerCase();
-              final items = controller.warehouseItems.where((it) {
+              final source = wholesale
+                  ? controller.mainWarehouseProducts
+                  : controller.warehouseItems;
+              final items = source.where((it) {
                 if (q.isEmpty) return true;
-                final name = (it['productName'] ?? '').toString().toLowerCase();
+                final name =
+                    (it['productName'] ?? '').toString().toLowerCase();
                 final code = (it['productCode'] ?? it['code'] ?? '')
                     .toString()
                     .toLowerCase();
@@ -125,11 +211,12 @@ class RepCreateInvoicePage extends GetView<RepresentativeHomeController> {
               }).toList();
 
               if (items.isEmpty) {
-                return const EmptyState(
+                return EmptyState(
                   icon: Icons.inventory_2_outlined,
                   title: 'لا توجد منتجات',
-                  subtitle:
-                      'لم يتم العثور على منتجات في مستودعك. اطلب نقل مخزون أولاً.',
+                  subtitle: wholesale
+                      ? 'لا يوجد مخزون في المستودع الرئيسي المحدد لهذا البحث.'
+                      : 'لم يتم العثور على منتجات في مستودعك. اطلب نقل مخزون أولاً.',
                 );
               }
 
@@ -141,7 +228,8 @@ class RepCreateInvoicePage extends GetView<RepresentativeHomeController> {
                   final item = items[i];
                   final productId =
                       (item['productId'] ?? item['id'] ?? '').toString();
-                  final name = (item['productName'] ?? '').toString();
+                  final name =
+                      (item['productName'] ?? item['name'] ?? '').toString();
                   final stock = _stock(item);
                   final price = _price(item);
 
@@ -375,6 +463,68 @@ class _CartSheet extends StatelessWidget {
                 onChanged: (v) =>
                     controller.selectedInvoiceCustomerId.value = v,
               )),
+
+          const SizedBox(height: 12),
+
+          // ── جدولة التسليم ──
+          Text('نوع التسليم',
+              style: GoogleFonts.cairo(
+                  fontSize: 14, fontWeight: FontWeight.w700)),
+          const SizedBox(height: 6),
+          Obx(() => Wrap(spacing: 6, children: [
+                ChoiceChip(
+                  label: const Text('فوري'),
+                  selected: controller.invoiceScheduleType.value == 0,
+                  onSelected: (_) => controller.invoiceScheduleType.value = 0,
+                ),
+                ChoiceChip(
+                  label: const Text('مجدول'),
+                  selected: controller.invoiceScheduleType.value == 1,
+                  onSelected: (_) => controller.invoiceScheduleType.value = 1,
+                ),
+                if (controller.invoiceScheduleType.value == 1)
+                  OutlinedButton.icon(
+                    onPressed: () async {
+                      final now = DateTime.now();
+                      final picked = await showDatePicker(
+                        context: context,
+                        initialDate:
+                            controller.invoiceScheduledDate.value ??
+                                now.add(const Duration(days: 1)),
+                        firstDate: now,
+                        lastDate: now.add(const Duration(days: 365)),
+                      );
+                      if (picked != null) {
+                        controller.invoiceScheduledDate.value = picked;
+                      }
+                    },
+                    icon: const Icon(Icons.event, size: 16),
+                    label: Text(
+                        controller.invoiceScheduledDate.value == null
+                            ? 'اختر التاريخ'
+                            : controller.invoiceScheduledDate.value!
+                                .toIso8601String()
+                                .split('T')
+                                .first,
+                        style: GoogleFonts.cairo(fontSize: 12)),
+                  ),
+              ])),
+          const SizedBox(height: 12),
+
+          // ── كود ترويجي ──
+          TextField(
+            decoration: InputDecoration(
+              hintText: 'كود ترويجي (اختياري)',
+              hintStyle: GoogleFonts.cairo(),
+              prefixIcon: const Icon(Icons.local_offer_outlined),
+              border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12)),
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                  horizontal: 12, vertical: 10),
+            ),
+            onChanged: (v) => controller.invoicePromoCode.value = v,
+          ),
 
           const SizedBox(height: 16),
 

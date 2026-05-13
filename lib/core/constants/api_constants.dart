@@ -12,8 +12,13 @@ class ApiConstants {
   /// رابط الخادم الأساسي
   static const String baseUrl = 'https://floppya918-003-site2.mtempurl.com';
 
-  /// معرّف تطبيق OneSignal
-  static const String oneSignalAppId = 'YOUR_ONESIGNAL_APP_ID';
+  /// معرّف تطبيق OneSignal — يُحقن وقت البناء عبر:
+  ///   `flutter run --dart-define=ONESIGNAL_APP_ID=xxxx`
+  /// أو يُترك على القيمة الافتراضية (placeholder) أثناء التطوير المحلي.
+  static const String oneSignalAppId = String.fromEnvironment(
+    'ONESIGNAL_APP_ID',
+    defaultValue: 'YOUR_ONESIGNAL_APP_ID',
+  );
 
   /// مسار هاب SignalR للإشعارات الفورية
   static const String signalRHub = '/hubs/notifications';
@@ -97,18 +102,27 @@ class ApiConstants {
   /// GET تفاصيل طلب السائق
   static String driverOrderDetail(String id) => '/api/mobile/driver/orders/$id';
 
-  /// POST تأكيد التوصيل (السائق)
-  static String driverConfirmDelivery(String id) =>
-      '/api/mobile/driver/orders/$id/confirm-delivery';
+  /// POST تأكيد استلام الشحنة من المستودع (WarehouseProcessing → AwaitingDelivery)
+  static String driverOrderPickup(String id) =>
+      '/api/mobile/driver/orders/$id/pickup';
 
-  /// alias قديم — يشير إلى نفس endpoint الجديد لأن `/deliver` لم يعد مدعوماً.
-  @Deprecated('استخدم driverConfirmDelivery — endpoint /deliver لم يعد متاحاً')
-  static String driverDeliver(String id) => driverConfirmDelivery(id);
+  /// POST تأكيد التسليم للعميل (AwaitingDelivery → Delivered)
+  static String driverOrderDeliver(String id) =>
+      '/api/mobile/driver/orders/$id/deliver';
 
-  // ❌ حُذفت نقاط تحصيل وتسليم النقد من السائق — السائق لا يتعامل مع المدفوعات.
+  /// POST تحصيل نقدي اختياري من العميل — body: DriverCollectPaymentDto
+  static String driverOrderCollect(String id) =>
+      '/api/mobile/driver/orders/$id/collect';
 
-  /// POST تحديث حالة طلب السائق — body: { status }
-  static String driverOrderStatus(String id) => '/api/mobile/driver/orders/$id/status';
+  /// PATCH تحديث حالة الفاتورة — أهداف مسموحة: Delivered, Completed, Rejected (وغيرها حسب الخادم)
+  static String driverOrderStatus(String id) =>
+      '/api/mobile/driver/orders/$id/status';
+
+  @Deprecated('استخدم driverOrderDeliver — التسليم عبر POST /deliver')
+  static String driverConfirmDelivery(String id) => driverOrderDeliver(id);
+
+  @Deprecated('استخدم driverOrderDeliver')
+  static String driverDeliver(String id) => driverOrderDeliver(id);
 
   /// GET ملخص أداء السائق
   static const String driverSummary = '/api/mobile/driver/summary';
@@ -144,8 +158,15 @@ class ApiConstants {
   /// GET ديون عملاء المندوب
   static const String repDebts = '/api/mobile/rep/debts';
 
-  /// GET مخزون المستودع الفرعي
+  /// GET مخزون المستودع الفرعي (RepWarehouseDto — أسعار جملة/تجزئة وخصم لكل بند)
   static const String repWarehouse = '/api/mobile/rep/warehouse';
+
+  /// GET منتجات برصيد في المستودعات الرئيسية فقط (?search=&categoryId=&warehouseId=&nearExpiryDays=)
+  static const String repProductsMainWarehouses =
+      '/api/mobile/rep/products/main-warehouses';
+
+  /// GET قائمة المستودعات الرئيسية (id, name, branchId)
+  static const String repWarehousesMain = '/api/mobile/rep/warehouses/main';
 
   /// POST طلب نقل مخزون (رئيسي → فرعي)
   static const String repTransferOrders = '/api/mobile/rep/transfer-orders';
@@ -400,9 +421,13 @@ class ApiConstants {
   static String offerById(String id) => '/api/offers/$id';
 
   // ══════════════════════════════════════════════════════════════
-  // الإدارة الخلفية — الإعدادات (Admin only)
+  // الإعدادات — شركة / إدارة
   // ══════════════════════════════════════════════════════════════
 
+  /// GET إعدادات الشركة (SystemSettingsDto) — أي مستخدم مصدَّق (شعار، اسم، إلخ)
+  static const String settingsCompany = '/api/settings/company';
+
+  /// GET/PUT إعدادات النظام — Admin فقط
   static const String settings = '/api/settings';
 
   // ══════════════════════════════════════════════════════════════

@@ -1,6 +1,7 @@
 import '../../../../core/network/dio_client.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/constants/employee_roles.dart';
+import '../../../../core/utils/helpers.dart';
 
 /// مصدر بيانات الإدارة الخلفية — متوافق مع الواجهة الموحّدة الجديدة.
 ///
@@ -32,6 +33,32 @@ class AdminRemoteDataSource {
     final res = await _dio.get(ApiConstants.customers,
         queryParameters: {'page': page});
     return _list(res.data);
+  }
+
+  Future<Map<String, dynamic>> getCustomer(String id) async {
+    final res = await _dio.get(ApiConstants.customerById(id));
+    final body = res.data;
+    if (body is Map && body['data'] is Map) {
+      return Map<String, dynamic>.from(body['data'] as Map);
+    }
+    return Map<String, dynamic>.from(body is Map ? body : <String, dynamic>{});
+  }
+
+  Future<Map<String, dynamic>> createCustomer(Map<String, dynamic> data) async {
+    final res = await _dio.post(ApiConstants.customers, data: data);
+    final body = res.data;
+    if (body is Map && body['data'] is Map) {
+      return Map<String, dynamic>.from(body['data'] as Map);
+    }
+    return Map<String, dynamic>.from(body is Map ? body : <String, dynamic>{});
+  }
+
+  Future<void> updateCustomer(String id, Map<String, dynamic> data) async {
+    await _dio.put(ApiConstants.customerById(id), data: data);
+  }
+
+  Future<void> deleteCustomer(String id) async {
+    await _dio.delete(ApiConstants.customerById(id));
   }
 
   /// PATCH الموافقة على عميل — متوافق مع الواجهة الجديدة
@@ -98,6 +125,10 @@ class AdminRemoteDataSource {
     await _dio.put(ApiConstants.warehouseById(id), data: data);
   }
 
+  Future<void> deleteWarehouse(String id) async {
+    await _dio.delete(ApiConstants.warehouseById(id));
+  }
+
   // ── المخزون ──
 
   Future<List<Map<String, dynamic>>> getInventory(
@@ -148,9 +179,32 @@ class AdminRemoteDataSource {
     return _list(res.data);
   }
 
-  /// PATCH تحديث حالة فاتورة — body: { status }
+  /// POST إنشاء فاتورة — body: CreateInvoiceDto
+  Future<Map<String, dynamic>> createInvoice(Map<String, dynamic> data) async {
+    final res = await _dio.post(ApiConstants.invoices, data: data);
+    final body = res.data;
+    if (body is Map && body['data'] is Map) {
+      return Map<String, dynamic>.from(body['data'] as Map);
+    }
+    return Map<String, dynamic>.from(body is Map ? body : <String, dynamic>{});
+  }
+
+  /// POST دفع فاتورة (جزئي أو كامل) — body: { amount }
+  Future<void> payInvoice(String id, num amount) async {
+    await _dio.post(ApiConstants.invoicePay(id), data: {'amount': amount});
+  }
+
+  /// PATCH تحديث حالة فاتورة — body: { status: int }
+  ///
+  /// تَقبل [status] إما المفتاح الإنجليزي (مثل `Delivered`) أو رقم enum
+  /// مباشرةً كنص (`"7"`). يتم تحويل كل شيء إلى int قبل الإرسال.
   Future<void> updateInvoiceStatus(String id, String status) async {
-    await _dio.patch(ApiConstants.invoiceStatus(id), data: {'status': status});
+    final code = InvoiceStatusHelper.toInt(status) ??
+        int.tryParse(status);
+    if (code == null) {
+      throw ArgumentError('قيمة الحالة غير معروفة: $status');
+    }
+    await _dio.patch(ApiConstants.invoiceStatus(id), data: {'status': code});
   }
 
   // ── الموظفون (يحلّ محلّ "المندوبون" و"السائقون" المنفصلَين) ──
@@ -196,13 +250,10 @@ class AdminRemoteDataSource {
     return _list(res.data);
   }
 
-  /// تسوية دين — غير موجود في الواجهة الحالية. أُبقي على الاسم لتوافق الواجهة.
-  @Deprecated('غير مدعوم في الواجهة الحالية')
-  Future<void> settleDebt(String id, Map<String, dynamic> data) async {
-    // يمكن استبدالها بدفع جزئي/كامل عبر POST /api/invoices/{id}/pay عند الحاجة.
-    await _dio.post(ApiConstants.invoicePay(id),
-        data: {'amount': data['amount'] ?? 0});
-  }
+  /// تسوية دين عبر دفع جزئي/كامل على فاتورة.
+  @Deprecated('استخدم payInvoice مباشرةً')
+  Future<void> settleDebt(String id, Map<String, dynamic> data) =>
+      payInvoice(id, (data['amount'] as num?) ?? 0);
 
   // ── كشف حساب العميل ──
   // ملاحظة: الواجهة الحالية لا تحتوي على endpoint مخصّص لكشف الحساب.
@@ -221,13 +272,6 @@ class AdminRemoteDataSource {
   Future<List<Map<String, dynamic>>> getPendingApprovals() async {
     final res = await _dio.get(ApiConstants.adminPendingApprovals);
     return _list(res.data);
-  }
-
-  // ── سجل النشاط ──
-  // غير موجود رسمياً في الواجهة. يبقى placeholder لاحتمال إضافته لاحقاً.
-  @Deprecated('غير موجود في الواجهة الحالية')
-  Future<List<Map<String, dynamic>>> getActivityLogs() async {
-    return const [];
   }
 
   // ── الفروع ──
@@ -289,6 +333,16 @@ class AdminRemoteDataSource {
 
   // ── إعدادات النظام ──
 
+  /// إعدادات الشركة للعرض في التطبيق — أي مستخدم مصدَّق.
+  Future<Map<String, dynamic>> getCompanySettings() async {
+    final res = await _dio.get(ApiConstants.settingsCompany);
+    final body = res.data;
+    if (body is Map && body['data'] is Map) {
+      return Map<String, dynamic>.from(body['data'] as Map);
+    }
+    return Map<String, dynamic>.from(body is Map ? body : <String, dynamic>{});
+  }
+
   Future<Map<String, dynamic>> getSystemSettings() async {
     final res = await _dio.get(ApiConstants.settings);
     final body = res.data;
@@ -307,6 +361,26 @@ class AdminRemoteDataSource {
   Future<List<Map<String, dynamic>>> getAdmins() async {
     final res = await _dio.get(ApiConstants.admins);
     return _list(res.data);
+  }
+
+  /// POST إنشاء أدمن جديد — body: { fullName, username, password }
+  Future<Map<String, dynamic>> createAdmin(Map<String, dynamic> data) async {
+    final res = await _dio.post(ApiConstants.addAdmin, data: data);
+    final body = res.data;
+    if (body is Map && body['data'] is Map) {
+      return Map<String, dynamic>.from(body['data'] as Map);
+    }
+    return Map<String, dynamic>.from(body is Map ? body : <String, dynamic>{});
+  }
+
+  /// DELETE حذف أدمن
+  Future<void> deleteAdmin(String adminId) async {
+    await _dio.delete(ApiConstants.adminById(adminId));
+  }
+
+  /// PATCH تفعيل/تعطيل أدمن
+  Future<void> toggleAdminActive(String adminId) async {
+    await _dio.patch(ApiConstants.adminToggleActive(adminId));
   }
 
   Future<List<Map<String, dynamic>>> getAdminPermissions(String adminId) async {

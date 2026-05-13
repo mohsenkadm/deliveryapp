@@ -124,13 +124,26 @@ class _OrderCard extends StatelessWidget {
           // ── الإجمالي + الوقت ──
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(Formatters.currency(order.totalAmount),
-                    style: GoogleFonts.cairo(fontSize: 16, fontWeight: FontWeight.w800, color: AppColors.primary)),
-                Text(Formatters.timeAgo(order.createdAt),
-                    style: GoogleFonts.cairo(fontSize: 12, color: Colors.grey)),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(Formatters.currency(order.totalAmount),
+                        style: GoogleFonts.cairo(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.primary)),
+                    Text(Formatters.timeAgo(order.createdAt),
+                        style: GoogleFonts.cairo(fontSize: 12, color: Colors.grey)),
+                  ],
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'مدفوع: ${Formatters.currency(order.paidAmount)} • متبقي: ${Formatters.currency(order.remainingAmount)}',
+                  style: GoogleFonts.cairo(fontSize: 12, color: Colors.grey[700]),
+                ),
               ],
             ),
           ),
@@ -172,8 +185,19 @@ class _ActionButtons extends StatelessWidget {
             },
           ),
 
-        // بدء التوصيل
-        if (status == 'AwaitingDelivery' || status == 'Accepted') ...[
+        // استلام من المستودع
+        if (status == 'WarehouseProcessing') ...[
+          const SizedBox(height: 8),
+          Obx(() => _btn(
+                label: 'تأكيد الاستلام من المستودع',
+                icon: Icons.inventory_2_rounded,
+                color: AppColors.primary,
+                loading: ctrl.isActing.value,
+                onTap: () => ctrl.confirmPickup(order.id),
+              )),
+        ],
+
+        if (status == 'Accepted') ...[
           const SizedBox(height: 8),
           Obx(() => _btn(
                 label: 'بدء التوصيل',
@@ -184,15 +208,46 @@ class _ActionButtons extends StatelessWidget {
               )),
         ],
 
-        // تأكيد التسليم
+        // تم التسليم
         if (status == 'AwaitingDelivery') ...[
           const SizedBox(height: 8),
           Obx(() => _btn(
-                label: 'تأكيد التسليم',
+                label: 'تم التسليم',
                 icon: Icons.check_circle_rounded,
                 color: AppColors.success,
                 loading: ctrl.isActing.value,
                 onTap: () => _confirmDelivery(context),
+              )),
+        ],
+
+        if ((status == 'AwaitingDelivery' || status == 'Delivered') &&
+            order.remainingAmount > 0) ...[
+          const SizedBox(height: 8),
+          Obx(() => OutlinedButton.icon(
+                onPressed: ctrl.isActing.value
+                    ? null
+                    : () => ctrl.offerOptionalCashCollection(
+                          orderId: order.id,
+                          orderNumber: order.orderNumber.toString(),
+                          remainingAmount: order.remainingAmount,
+                        ),
+                icon: const Icon(Icons.payments_outlined, size: 18),
+                label: Text(
+                  'تحصيل نقدي (${Formatters.currency(order.remainingAmount)})',
+                  style: GoogleFonts.cairo(fontWeight: FontWeight.w600),
+                ),
+              )),
+        ],
+
+        // تأجيل
+        if (status == 'AwaitingDelivery' || status == 'Delivered') ...[
+          const SizedBox(height: 8),
+          Obx(() => _btn(
+                label: 'تأجيل الطلب',
+                icon: Icons.schedule_rounded,
+                color: const Color(0xFF9CA3AF),
+                loading: ctrl.isActing.value,
+                onTap: () => _confirmDefer(context),
               )),
         ],
       ],
@@ -208,7 +263,7 @@ class _ActionButtons extends StatelessWidget {
   }) {
     return SizedBox(
       width: double.infinity,
-      height: 44,
+      height: 54,
       child: ElevatedButton.icon(
         onPressed: loading ? null : onTap,
         icon: loading
@@ -236,7 +291,30 @@ class _ActionButtons extends StatelessWidget {
         ],
       ),
     );
-    if (ok == true) await ctrl.confirmDelivery(order.id);
+    if (ok == true) {
+      await ctrl.markDelivered(order.id);
+      if (!ctx.mounted) return;
+      await ctrl.offerOptionalCashCollection(
+        orderId: order.id,
+        orderNumber: order.orderNumber.toString(),
+        remainingAmount: order.remainingAmount,
+      );
+    }
+  }
+
+  Future<void> _confirmDefer(BuildContext ctx) async {
+    final ok = await showDialog<bool>(
+      context: ctx,
+      builder: (_) => AlertDialog(
+        title: const Text('تأجيل الطلب'),
+        content: Text('هل تريد تأجيل طلب #${order.orderNumber}؟'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('إلغاء')),
+          FilledButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('تأكيد')),
+        ],
+      ),
+    );
+    if (ok == true) await ctrl.updateStatus(order.id, 'Deferred');
   }
 }
 

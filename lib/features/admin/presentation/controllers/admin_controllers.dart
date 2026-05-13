@@ -79,6 +79,40 @@ class AdminCustomersController extends GetxController {
       SnackbarHelper.showError('فشلت العملية');
     }
   }
+
+  Future<bool> createCustomer(Map<String, dynamic> data) async {
+    try {
+      await _ds.createCustomer(data);
+      SnackbarHelper.showSuccess('تم إضافة العميل');
+      loadCustomers();
+      return true;
+    } catch (_) {
+      SnackbarHelper.showError('فشل إضافة العميل');
+      return false;
+    }
+  }
+
+  Future<bool> updateCustomer(String id, Map<String, dynamic> data) async {
+    try {
+      await _ds.updateCustomer(id, data);
+      SnackbarHelper.showSuccess('تم تحديث بيانات العميل');
+      loadCustomers();
+      return true;
+    } catch (_) {
+      SnackbarHelper.showError('فشل التحديث');
+      return false;
+    }
+  }
+
+  Future<void> deleteCustomer(String id) async {
+    try {
+      await _ds.deleteCustomer(id);
+      SnackbarHelper.showSuccess('تم حذف العميل');
+      loadCustomers();
+    } catch (_) {
+      SnackbarHelper.showError('فشل الحذف');
+    }
+  }
 }
 
 class AdminProductsController extends GetxController {

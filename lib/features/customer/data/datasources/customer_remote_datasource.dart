@@ -80,14 +80,10 @@ class CustomerRemoteDataSource {
     return OrderModel.fromJson(response.data['data'] ?? response.data);
   }
 
-  /// POST إنشاء طلب — يستخدم `CreateInvoiceDto`.
-  /// يقوم الخادم تلقائياً بحقن `customerId` من توكن JWT.
+  /// POST إنشاء طلب — نفس شكل فاتورة العميل على الخادم (جسم مسطح).
   ///
-  /// شكل عنصر `details`:
-  ///   { productId, quantity, unitPrice?, discount? }
-  ///
-  /// [deliveryScheduleType]: 'Immediate' أو 'Scheduled'.
-  /// [scheduledDeliveryDate]: مطلوب عندما يكون النوع 'Scheduled'.
+  /// يُرسل جسم CreateInvoiceDto؛ الخادم يضبط `customerId` من JWT و`employeeId` = null
+  /// و`invoiceSource` = عميل (0). يمكن إرسال `customerId: 0` — يُتجاهل.
   Future<OrderModel> createOrder({
     required List<Map<String, dynamic>> items,
     String? notes,
@@ -96,32 +92,46 @@ class CustomerRemoteDataSource {
     String deliveryScheduleType = 'Immediate',
     DateTime? scheduledDeliveryDate,
   }) async {
-    // قبول كلا الشكلين {productId, quantity, ...} و{id, qty} لأقصى توافق.
+    int toInt(dynamic v) {
+      if (v is int) return v;
+      if (v is num) return v.toInt();
+      return int.tryParse(v?.toString() ?? '') ?? 0;
+    }
+
+    num toNum(dynamic v) {
+      if (v is num) return v;
+      return num.tryParse(v?.toString() ?? '') ?? 0;
+    }
+
     final details = items.map((m) {
-      final productId = m['productId'] ?? m['product_id'] ?? m['id'];
-      final quantity = m['quantity'] ?? m['qty'] ?? 1;
       return <String, dynamic>{
-        'productId': productId,
-        'quantity': quantity,
-        if (m['unitPrice'] != null) 'unitPrice': m['unitPrice'],
-        if (m['discount'] != null) 'discount': m['discount'],
+        'productId': toInt(m['productId'] ?? m['product_id'] ?? m['id']),
+        'quantity': toInt(m['quantity'] ?? m['qty'] ?? 1),
+        'unitPrice': toNum(m['unitPrice'] ?? m['price'] ?? 0),
+        'discount': toNum(m['discount'] ?? 0),
       };
     }).toList();
 
+    final scheduleInt =
+        deliveryScheduleType.toLowerCase() == 'scheduled' ? 1 : 0;
+
+    final body = <String, dynamic>{
+      'customerId': 0,
+      'employeeId': null,
+      'invoiceSource': 0,
+      'promoCode': promoCode?.trim() ?? '',
+      'branchId': 0,
+      'deliveryScheduleType': scheduleInt,
+      if (scheduleInt == 1 && scheduledDeliveryDate != null)
+        'scheduledDeliveryDate':
+            scheduledDeliveryDate.toUtc().toIso8601String(),
+      'details': details,
+      if (notes != null && notes.isNotEmpty) 'notes': notes,
+    };
+
     final response = await _dioClient.post(
       ApiConstants.customerCreateOrder,
-      data: {
-        'dto': {
-          'invoiceSource': 2, // Customer (enum int)
-          'details': details,
-          if (notes != null) 'notes': notes,
-          if (promoCode != null) 'promoCode': promoCode,
-          'deliveryScheduleType': deliveryScheduleType,
-          if (scheduledDeliveryDate != null)
-            'scheduledDeliveryDate':
-                scheduledDeliveryDate.toUtc().toIso8601String(),
-        },
-      },
+      data: body,
     );
     return OrderModel.fromJson(response.data['data'] ?? response.data);
   }
@@ -174,6 +184,30 @@ class CustomerRemoteDataSource {
   Future<void> markNotificationRead(String id) async {
     await _dioClient.patch(
         ApiConstants.customerMarkNotificationRead(id));
+  }
+
+  /// GET فحص العروض الفعّالة على منتج أو كود ترويجي
+  /// `productId`/`promoCode` كلاهما اختياري — أحدهما على الأقل مطلوب
+  Future<List<Map<String, dynamic>>> checkOffers({
+    String? productId,
+    String? promoCode,
+  }) async {
+    final params = <String, dynamic>{};
+    if (productId != null) params['productId'] = productId;
+    if (promoCode != null) params['promoCode'] = promoCode;
+    if (params.isEmpty) return const [];
+    final response = await _dioClient.get(
+      ApiConstants.offersCheck,
+      queryParameters: params,
+    );
+    final raw = response.data['data'] ?? response.data;
+    if (raw is List) {
+      return raw
+          .whereType<Map>()
+          .map((e) => Map<String, dynamic>.from(e))
+          .toList();
+    }
+    return const [];
   }
 }
 

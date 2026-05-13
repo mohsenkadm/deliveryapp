@@ -1,6 +1,7 @@
 // الصفحة الرئيسية للمشرف — bottom navigation
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
+import '../../../../core/routes/app_routes.dart';
 import '../controllers/supervisor_controller.dart';
 import 'supervisor_reps_page.dart';
 import 'supervisor_pending_customers_page.dart';
@@ -17,11 +18,11 @@ class SupervisorMainPage extends StatefulWidget {
 class _SupervisorMainPageState extends State<SupervisorMainPage> {
   int _currentIndex = 0;
 
-  final _pages = const [
+  static const _pages = [
     SupervisorRepsPage(),
     SupervisorPendingCustomersPage(),
     SupervisorSalesReportPage(),
-    RoleSettingsTab(),
+    RoleSettingsTab(notificationsRoute: AppRoutes.supervisorNotifications),
   ];
 
   @override

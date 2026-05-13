@@ -19,34 +19,44 @@ class RepresentativeMainPage extends GetView<RepresentativeHomeController> {
 
   @override
   Widget build(BuildContext context) {
-    final currentIndex = 0.obs;
-    final pages = [
+    final auth = Get.find<AuthService>();
+    final showWarehouse = auth.repShowSubWarehouseTab;
+
+    final pages = <Widget>[
       const _RepHomeTab(),
       const _MyCustomersTab(),
       const CustomerInvoicesPage(),
       const RepDebtsPage(),
-      const RepWarehousePage(),
+      if (showWarehouse) const RepWarehousePage(),
       const RepPaymentsPage(),
       const RoleSettingsTab(notificationsRoute: AppRoutes.representativeNotifications),
     ];
 
-    return Obx(() => Scaffold(
-          body: pages[currentIndex.value],
-          bottomNavigationBar: NavigationBar(
-            selectedIndex: currentIndex.value,
-            onDestinationSelected: (i) => currentIndex.value = i,
-            labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
-            destinations: const [
-              NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home_rounded), label: 'الرئيسية'),
-              NavigationDestination(icon: Icon(Icons.people_outlined), selectedIcon: Icon(Icons.people_rounded), label: 'عملائي'),
-              NavigationDestination(icon: Icon(Icons.receipt_long_outlined), selectedIcon: Icon(Icons.receipt_long_rounded), label: 'الفواتير'),
-              NavigationDestination(icon: Icon(Icons.money_off_csred_outlined), selectedIcon: Icon(Icons.money_off_csred_rounded), label: 'الديون'),
-              NavigationDestination(icon: Icon(Icons.warehouse_outlined), selectedIcon: Icon(Icons.warehouse_rounded), label: 'المستودع'),
-              NavigationDestination(icon: Icon(Icons.account_balance_wallet_outlined), selectedIcon: Icon(Icons.account_balance_wallet_rounded), label: 'السجلات'),
-              NavigationDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings_rounded), label: 'الإعدادات'),
-            ],
-          ),
-        ));
+    final destinations = <NavigationDestination>[
+      const NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home_rounded), label: 'الرئيسية'),
+      const NavigationDestination(icon: Icon(Icons.people_outlined), selectedIcon: Icon(Icons.people_rounded), label: 'عملائي'),
+      const NavigationDestination(icon: Icon(Icons.receipt_long_outlined), selectedIcon: Icon(Icons.receipt_long_rounded), label: 'الفواتير'),
+      const NavigationDestination(icon: Icon(Icons.money_off_csred_outlined), selectedIcon: Icon(Icons.money_off_csred_rounded), label: 'الديون'),
+      if (showWarehouse)
+        const NavigationDestination(icon: Icon(Icons.warehouse_outlined), selectedIcon: Icon(Icons.warehouse_rounded), label: 'المستودع'),
+      const NavigationDestination(icon: Icon(Icons.account_balance_wallet_outlined), selectedIcon: Icon(Icons.account_balance_wallet_rounded), label: 'السجلات'),
+      const NavigationDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings_rounded), label: 'الإعدادات'),
+    ];
+
+    return Obx(() {
+      var idx = controller.repBottomNavIndex.value;
+      if (idx >= pages.length) idx = pages.length - 1;
+      if (idx < 0) idx = 0;
+      return Scaffold(
+        body: pages[idx],
+        bottomNavigationBar: NavigationBar(
+          selectedIndex: idx,
+          onDestinationSelected: (i) => controller.repBottomNavIndex.value = i,
+          labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
+          destinations: destinations,
+        ),
+      );
+    });
   }
 }
 
@@ -74,6 +84,25 @@ class _RepHomeTab extends GetView<RepresentativeHomeController> {
                 children: [
                   Text('مرحباً 👋', style: GoogleFonts.cairo(fontSize: 12, color: AppColors.textSecondary)),
                   Text(authService.userName, style: GoogleFonts.cairo(fontSize: 15, fontWeight: FontWeight.w700), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  if (authService.isWholesaleRepresentative)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: AppColors.secondaryLight.withValues(alpha: 0.2),
+                            borderRadius: BorderRadius.circular(8),
+                          ),
+                          child: Text(
+                            'جملة — فواتير من المستودعات الرئيسية',
+                            style: GoogleFonts.cairo(
+                                fontSize: 10, fontWeight: FontWeight.w600, color: AppColors.secondaryLight),
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               ),
             ),

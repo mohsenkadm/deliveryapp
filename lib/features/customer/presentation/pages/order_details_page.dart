@@ -138,16 +138,33 @@ class _OrderBody extends StatelessWidget {
                   color: Theme.of(context).cardTheme.color,
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Row(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Expanded(
-                        child: Text(item.productName,
-                            style: GoogleFonts.cairo(fontSize: 14, fontWeight: FontWeight.w600))),
-                    Text('× ${item.quantity}',
-                        style: GoogleFonts.cairo(fontSize: 13, color: Colors.grey)),
-                    const SizedBox(width: 16),
-                    Text(Formatters.currency(item.total),
-                        style: GoogleFonts.cairo(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primary)),
+                    Row(
+                      children: [
+                        Expanded(
+                            child: Text(item.productName,
+                                style: GoogleFonts.cairo(fontSize: 14, fontWeight: FontWeight.w600))),
+                        Text('× ${item.quantity}',
+                            style: GoogleFonts.cairo(fontSize: 13, color: Colors.grey)),
+                        const SizedBox(width: 16),
+                        Text(Formatters.currency(item.total),
+                            style: GoogleFonts.cairo(fontSize: 14, fontWeight: FontWeight.w700, color: AppColors.primary)),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Row(
+                      children: [
+                        Text('سعر الوحدة: ${Formatters.currency(item.price)}',
+                            style: GoogleFonts.cairo(fontSize: 12, color: Colors.grey)),
+                        if (item.discount > 0) ...[
+                          const SizedBox(width: 12),
+                          Text('خصم: ${Formatters.currency(item.discount)}',
+                              style: GoogleFonts.cairo(fontSize: 12, color: AppColors.error)),
+                        ],
+                      ],
+                    ),
                   ],
                 ),
               )),
@@ -157,6 +174,15 @@ class _OrderBody extends StatelessWidget {
           if (order.deliveryFee != null)
             _row('رسوم التوصيل', Formatters.currency(order.deliveryFee!)),
           _row('الإجمالي', Formatters.currency(order.totalAmount), isBold: true),
+          if (order.paidAmount > 0 || order.remainingAmount > 0) ...[
+            _row('المدفوع', Formatters.currency(order.paidAmount)),
+            _row('المتبقي', Formatters.currency(order.remainingAmount),
+                isBold: true,
+                valueColor: order.remainingAmount > 0 ? AppColors.error : AppColors.success),
+          ],
+          if (order.paymentStatus != null)
+            _row('حالة الدفع', _paymentLabel(order.paymentStatus!),
+                valueColor: _paymentColor(order.paymentStatus!)),
 
           // ── ملاحظات ──
           if (order.notes != null && order.notes!.isNotEmpty) ...[
@@ -246,17 +272,48 @@ class _OrderBody extends StatelessWidget {
     );
   }
 
-  Widget _row(String label, String value, {bool isBold = false}) {
+  Widget _row(String label, String value, {bool isBold = false, Color? valueColor}) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
           Text(label, style: GoogleFonts.cairo(fontSize: isBold ? 16 : 14, fontWeight: isBold ? FontWeight.w700 : FontWeight.normal)),
-          Text(value, style: GoogleFonts.cairo(fontSize: isBold ? 16 : 14, fontWeight: isBold ? FontWeight.w700 : FontWeight.w600)),
+          Text(value,
+              style: GoogleFonts.cairo(
+                fontSize: isBold ? 16 : 14,
+                fontWeight: isBold ? FontWeight.w700 : FontWeight.w600,
+                color: valueColor,
+              )),
         ],
       ),
     );
+  }
+
+  String _paymentLabel(String s) {
+    switch (s) {
+      case 'Paid':
+        return 'مدفوعة';
+      case 'Partial':
+        return 'دفعة جزئية';
+      case 'Unpaid':
+        return 'غير مدفوعة';
+      default:
+        return s;
+    }
+  }
+
+  Color _paymentColor(String s) {
+    switch (s) {
+      case 'Paid':
+        return AppColors.success;
+      case 'Partial':
+        return const Color(0xFFF59E0B);
+      case 'Unpaid':
+        return AppColors.error;
+      default:
+        return Colors.grey;
+    }
   }
 
   Future<void> _confirmCancel(BuildContext ctx) async {

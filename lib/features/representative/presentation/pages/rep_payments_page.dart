@@ -59,26 +59,71 @@ class _RepPaymentsPageState extends State<RepPaymentsPage> {
             final p = ctrl.payments[i];
             final amount =
                 ((p['amount'] as num?) ?? 0).toDouble();
-            final date = p['createdAt'] != null
+            final rawDate =
+                p['paidAt'] ?? p['createdAt'];
+            final date = rawDate != null
                 ? Formatters.formatDate(
-                    DateTime.tryParse(p['createdAt']) ?? DateTime.now())
+                    DateTime.tryParse(rawDate.toString()) ?? DateTime.now())
                 : '';
-            final type = p['paymentType'] ?? p['type'] ?? '';
+            // النص العربي يأتي من الباك-إند مباشرة في `typeText` (مثل "مندوب → شركة").
+            final typeText = (p['typeText'] ??
+                    p['paymentTypeText'] ??
+                    p['paymentType'] ??
+                    p['type'] ??
+                    '')
+                .toString();
+            final invoiceNo = p['invoiceNumber']?.toString();
+            final customerName = p['customerName']?.toString();
+            final receivedBy = p['receivedByEmployeeName']?.toString();
+            final isVerified = p['isVerified'] == true;
             return Card(
               child: ListTile(
                 leading: CircleAvatar(
                   backgroundColor: AppColors.success.withValues(alpha: 0.15),
                   child: Icon(Icons.payments, color: AppColors.success),
                 ),
-                title: Text(
-                  Formatters.formatCurrency(amount),
-                  style: AppTextStyles.titleSmall
-                      .copyWith(color: AppColors.success),
+                title: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        Formatters.formatCurrency(amount),
+                        style: AppTextStyles.titleSmall
+                            .copyWith(color: AppColors.success),
+                      ),
+                    ),
+                    Container(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 8, vertical: 2),
+                      decoration: BoxDecoration(
+                        color: (isVerified ? AppColors.success : AppColors.warning)
+                            .withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: Text(
+                        isVerified ? 'مؤكَّد' : 'قيد التحقق',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: isVerified
+                              ? AppColors.success
+                              : AppColors.warning,
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
                 subtitle: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    if (type.isNotEmpty) Text(type, style: AppTextStyles.bodySmall),
+                    if (typeText.isNotEmpty)
+                      Text(typeText, style: AppTextStyles.bodySmall),
+                    if (invoiceNo != null && invoiceNo.isNotEmpty)
+                      Text('فاتورة #$invoiceNo',
+                          style: AppTextStyles.bodySmall),
+                    if (customerName != null && customerName.isNotEmpty)
+                      Text('العميل: $customerName',
+                          style: AppTextStyles.bodySmall),
+                    if (receivedBy != null && receivedBy.isNotEmpty)
+                      Text('المستلم: $receivedBy',
+                          style: AppTextStyles.bodySmall),
                     if (date.isNotEmpty) Text(date, style: AppTextStyles.bodySmall),
                     if (p['notes'] != null && p['notes'].toString().isNotEmpty)
                       Text(p['notes'], style: AppTextStyles.bodySmall),

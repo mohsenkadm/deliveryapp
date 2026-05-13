@@ -2,6 +2,10 @@
 //
 // تتصل بـ /hubs/notifications من DeliverySystem.API. يتم إرسال JWT عبر
 // `accessTokenFactory` (الطريقة الموصى بها في الوثائق).
+import 'dart:async';
+import 'dart:math' as math;
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:get/get.dart';
 import 'package:signalr_netcore/signalr_client.dart';
@@ -21,11 +25,21 @@ class SignalRService extends GetxService {
   final notifications = <Map<String, dynamic>>[].obs;
   final unreadCount = 0.obs;
 
+  // Manual capped retry — exponential backoff capped at 30s, max 5 attempts.
+  static const _maxRetries = 5;
+  int _retryCount = 0;
+  Timer? _retryTimer;
+  bool _disposed = false;
+
   /// تهيئة الاتصال بـ SignalR — يجب استدعاؤها بعد نجاح تسجيل الدخول.
   Future<void> connect() async {
+    if (_disposed) return;
     try {
       final token = await _storage.read(key: StorageKeys.accessToken);
-      if (token == null || token.isEmpty) return;
+      if (token == null || token.isEmpty) {
+        debugPrint('[SignalR] no token — skipping connect');
+        return;
+      }
 
       final hubUrl = '${ApiConstants.baseUrl}${ApiConstants.signalRHub}';
 
@@ -44,20 +58,43 @@ class SignalRService extends GetxService {
       _connection!.on('ReceiveNotification', _onNotification);
 
       _connection!.onclose(({error}) {
+        debugPrint('[SignalR] closed: $error');
         isConnected.value = false;
+        _scheduleReconnect();
       });
       _connection!.onreconnecting(({error}) {
+        debugPrint('[SignalR] reconnecting: $error');
         isConnected.value = false;
       });
       _connection!.onreconnected(({connectionId}) {
+        debugPrint('[SignalR] reconnected: $connectionId');
         isConnected.value = true;
+        _retryCount = 0;
       });
 
       await _connection!.start();
       isConnected.value = true;
-    } catch (_) {
-      // تجاهل أخطاء الاتصال بصمت
+      _retryCount = 0;
+      debugPrint('[SignalR] connected');
+    } catch (e, st) {
+      debugPrint('[SignalR] connect failed: $e');
+      debugPrintStack(stackTrace: st);
+      _scheduleReconnect();
     }
+  }
+
+  void _scheduleReconnect() {
+    if (_disposed) return;
+    if (_retryCount >= _maxRetries) {
+      debugPrint('[SignalR] giving up after $_maxRetries attempts');
+      return;
+    }
+    final delaySeconds = math.min(30, math.pow(2, _retryCount).toInt());
+    _retryCount++;
+    debugPrint(
+        '[SignalR] reconnecting in ${delaySeconds}s (attempt $_retryCount/$_maxRetries)');
+    _retryTimer?.cancel();
+    _retryTimer = Timer(Duration(seconds: delaySeconds), connect);
   }
 
   void _onNotification(List<Object?>? args) {
@@ -79,14 +116,19 @@ class SignalRService extends GetxService {
   }
 
   Future<void> disconnect() async {
+    _retryTimer?.cancel();
+    _retryTimer = null;
     try {
       await _connection?.stop();
-    } catch (_) {}
+    } catch (e) {
+      debugPrint('[SignalR] disconnect error: $e');
+    }
     isConnected.value = false;
   }
 
   @override
   void onClose() {
+    _disposed = true;
     disconnect();
     super.onClose();
   }

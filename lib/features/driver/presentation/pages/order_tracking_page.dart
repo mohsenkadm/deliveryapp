@@ -119,13 +119,13 @@ class OrderTrackingPage extends StatelessWidget {
 
             // ── تفاصيل الطلب ──
             _SectionCard(
-              title: 'تفاصيل الطلب',
+              title: 'تفاصيل الفاتورة',
               icon: Icons.receipt_long_outlined,
               child: Column(
                 children: [
                   _InfoRow(
                     icon: Icons.tag_rounded,
-                    label: 'رقم الطلب',
+                    label: 'رقم الفاتورة',
                     value: '#${order.orderNumber}',
                   ),
                   _InfoRow(
@@ -135,11 +135,32 @@ class OrderTrackingPage extends StatelessWidget {
                   ),
                   _InfoRow(
                     icon: Icons.payments_outlined,
-                    label: 'إجمالي الطلب',
+                    label: 'الإجمالي',
                     value: Formatters.currency(order.totalAmount),
                     isBold: true,
                     valueColor: AppColors.primary,
                   ),
+                  _InfoRow(
+                    icon: Icons.check_circle_outline,
+                    label: 'المدفوع',
+                    value: Formatters.currency(order.paidAmount),
+                  ),
+                  _InfoRow(
+                    icon: Icons.account_balance_wallet_outlined,
+                    label: 'المتبقي',
+                    value: Formatters.currency(order.remainingAmount),
+                    isBold: true,
+                    valueColor: order.remainingAmount > 0
+                        ? AppColors.error
+                        : AppColors.success,
+                  ),
+                  if (order.paymentStatus != null)
+                    _InfoRow(
+                      icon: Icons.credit_card_outlined,
+                      label: 'حالة الدفع',
+                      value: _paymentLabel(order.paymentStatus!),
+                      valueColor: _paymentColor(order.paymentStatus!),
+                    ),
                   if (order.notes != null && order.notes!.isNotEmpty)
                     _InfoRow(
                       icon: Icons.note_outlined,
@@ -197,12 +218,18 @@ class OrderTrackingPage extends StatelessWidget {
                                           fontSize: 13,
                                           color: AppColors.textSecondary)),
                                   Text(
-                                      Formatters.currency(
-                                          item.price * item.quantity),
+                                      Formatters.currency(item.subTotal > 0
+                                          ? item.subTotal
+                                          : item.price * item.quantity),
                                       style: GoogleFonts.cairo(
                                           fontSize: 13,
                                           fontWeight: FontWeight.w600,
                                           color: AppColors.primary)),
+                                  Text(
+                                      'الوحدة: ${Formatters.currency(item.price)}',
+                                      style: GoogleFonts.cairo(
+                                          fontSize: 11,
+                                          color: AppColors.textSecondary)),
                                 ],
                               ),
                             ],
@@ -242,6 +269,32 @@ class OrderTrackingPage extends StatelessWidget {
       await launchUrl(uri, mode: LaunchMode.externalApplication);
     }
   }
+
+  String _paymentLabel(String s) {
+    switch (s) {
+      case 'Paid':
+        return 'مدفوعة';
+      case 'Partial':
+        return 'دفعة جزئية';
+      case 'Unpaid':
+        return 'غير مدفوعة';
+      default:
+        return s;
+    }
+  }
+
+  Color _paymentColor(String s) {
+    switch (s) {
+      case 'Paid':
+        return AppColors.success;
+      case 'Partial':
+        return const Color(0xFFF59E0B);
+      case 'Unpaid':
+        return AppColors.error;
+      default:
+        return Colors.grey;
+    }
+  }
 }
 
 // ─────────────────────────────────────────────
@@ -259,27 +312,84 @@ class _ActionSection extends StatelessWidget {
 
     return Column(
       children: [
-        // تأكيد التسليم
-        if (status == 'AwaitingDelivery')
+        // استلام من المستودع
+        if (status == 'WarehouseProcessing')
           Obx(() => CustomButton(
-                text: 'تأكيد التسليم',
+                text: 'تأكيد الاستلام من المستودع',
+                icon: Icons.inventory_2_rounded,
+                isLoading: ctrl.isActing.value,
+                onPressed: () =>
+                    ctrl.confirmPickup(order.id),
+              )),
+
+        // بدء التوصيل — حالات ما قبل «قيد التجهيز» قد تظهر للسائق؛ يُترك للخادم رفض PATCH إن لم يُسمح
+        if (status == 'Accepted')
+          Obx(() => CustomButton(
+                text: 'بدء التوصيل',
+                icon: Icons.local_shipping_rounded,
+                isLoading: ctrl.isActing.value,
+                onPressed: () =>
+                    ctrl.updateStatus(order.id, 'AwaitingDelivery'),
+              )),
+
+        // تم التسليم — POST /deliver
+        if (status == 'AwaitingDelivery') ...[
+          Obx(() => CustomButton(
+                text: 'تم التسليم',
                 icon: Icons.check_circle_outline_rounded,
                 isLoading: ctrl.isActing.value,
                 backgroundColor: AppColors.success,
-                onPressed: () => _confirmDelivery(context),
+                onPressed: () => _confirmDelivered(
+                    context, ctrl),
               )),
+          const SizedBox(height: 12),
+        ],
 
-        if (status == 'AwaitingDelivery') const SizedBox(height: 12),
+        // تحصيل نقدي (اختياري) — عند وجود متبقي
+        if ((status == 'AwaitingDelivery' || status == 'Delivered') &&
+            order.remainingAmount > 0) ...[
+          const SizedBox(height: 12),
+          Obx(() => OutlinedButton.icon(
+                onPressed: ctrl.isActing.value
+                    ? null
+                    : () => ctrl.offerOptionalCashCollection(
+                          orderId: order.id,
+                          orderNumber: order.orderNumber.toString(),
+                          remainingAmount: order.remainingAmount,
+                        ),
+                icon: const Icon(Icons.payments_outlined, size: 18),
+                label: Text(
+                  'تسجيل تحصيل نقدي (${Formatters.currency(order.remainingAmount)} متبقي)',
+                  style: GoogleFonts.cairo(fontWeight: FontWeight.w600),
+                  textAlign: TextAlign.center,
+                ),
+              )),
+        ],
+
+        // تأجيل الطلب
+        if (status == 'AwaitingDelivery' || status == 'Delivered')
+          Obx(() => CustomButton(
+                text: 'تأجيل الطلب',
+                icon: Icons.schedule_rounded,
+                isLoading: ctrl.isActing.value,
+                backgroundColor: const Color(0xFF9CA3AF),
+                onPressed: () => _changeStatus(
+                    context,
+                    'Deferred',
+                    'تأجيل الطلب',
+                    'هل تريد تأجيل طلب #${order.orderNumber}؟'),
+              )),
       ],
     );
   }
 
-  Future<void> _confirmDelivery(BuildContext ctx) async {
+  Future<void> _confirmDelivered(
+      BuildContext ctx, DriverHomeController ctrl) async {
     final ok = await showDialog<bool>(
       context: ctx,
       builder: (_) => AlertDialog(
-        title: Text('تأكيد التسليم',
-            style: GoogleFonts.cairo(fontWeight: FontWeight.w700)),
+        title:
+            Text('تأكيد التسليم', style: GoogleFonts.cairo(fontWeight: FontWeight.w700)),
         content: Text(
             'هل تم تسليم طلب #${order.orderNumber} للعميل فعلاً؟',
             style: GoogleFonts.cairo()),
@@ -294,7 +404,37 @@ class _ActionSection extends StatelessWidget {
       ),
     );
     if (ok == true) {
-      await ctrl.confirmDelivery(order.id);
+      await ctrl.markDelivered(order.id);
+      if (!ctx.mounted) return;
+      await ctrl.offerOptionalCashCollection(
+        orderId: order.id,
+        orderNumber: order.orderNumber.toString(),
+        remainingAmount: order.remainingAmount,
+      );
+      if (ctx.mounted) Get.back();
+    }
+  }
+
+  Future<void> _changeStatus(
+      BuildContext ctx, String status, String title, String message) async {
+    final ok = await showDialog<bool>(
+      context: ctx,
+      builder: (_) => AlertDialog(
+        title:
+            Text(title, style: GoogleFonts.cairo(fontWeight: FontWeight.w700)),
+        content: Text(message, style: GoogleFonts.cairo()),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text('إلغاء', style: GoogleFonts.cairo())),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              child: Text('تأكيد', style: GoogleFonts.cairo())),
+        ],
+      ),
+    );
+    if (ok == true) {
+      await ctrl.updateStatus(order.id, status);
       Get.back();
     }
   }

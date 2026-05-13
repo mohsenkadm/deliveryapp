@@ -6,6 +6,7 @@ import '../../../../core/routes/app_routes.dart';
 import '../../../../core/services/auth_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/helpers.dart';
+import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/loading_indicator.dart';
 import '../controllers/driver_controllers.dart';
 
@@ -114,36 +115,107 @@ class DriverHomePage extends GetView<DriverHomeController> {
                         _infoRow(Icons.phone_outlined, order.customerPhone, context),
                         const SizedBox(height: 4),
                         _infoRow(Icons.location_on_outlined, order.customerAddress, context),
-                        // No amount displayed per spec
-                        if (order.status == 'AwaitingDelivery' || order.status == 'Accepted') ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          'الإجمالي: ${Formatters.currency(order.totalAmount)} • المدفوع: ${Formatters.currency(order.paidAmount)} • المتبقي: ${Formatters.currency(order.remainingAmount)}',
+                          style: GoogleFonts.cairo(
+                            fontSize: 12,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textSecondary,
+                          ),
+                          maxLines: 2,
+                        ),
+                        if (order.status == 'WarehouseProcessing' ||
+                            order.status == 'AwaitingDelivery' ||
+                            order.status == 'Accepted') ...[
                           const SizedBox(height: 12),
-                          SizedBox(
+                          Obx(() => SizedBox(
                             width: double.infinity,
                             child: ElevatedButton.icon(
-                              onPressed: controller.isUpdating.value
+                              onPressed: controller.isActing.value
                                   ? null
-                                  : () {
-                                      final nextStatus = order.status == 'AwaitingDelivery'
-                                          ? 'Delivered'
-                                          : 'AwaitingDelivery';
-                                      controller.updateStatus(order.id, nextStatus);
+                                  : () async {
+                                      if (order.status ==
+                                          'WarehouseProcessing') {
+                                        await controller
+                                            .confirmPickup(order.id);
+                                      } else if (order.status ==
+                                          'Accepted') {
+                                        await controller.updateStatus(
+                                            order.id, 'AwaitingDelivery');
+                                      } else {
+                                        await controller
+                                            .markDelivered(order.id);
+                                        await controller
+                                            .offerOptionalCashCollection(
+                                          orderId: order.id,
+                                          orderNumber:
+                                              order.orderNumber.toString(),
+                                          remainingAmount:
+                                              order.remainingAmount,
+                                        );
+                                      }
                                     },
                               icon: Icon(
-                                order.status == 'AwaitingDelivery' ? Icons.check_circle : Icons.local_shipping,
+                                order.status == 'AwaitingDelivery'
+                                    ? Icons.check_circle
+                                    : order.status ==
+                                            'WarehouseProcessing'
+                                        ? Icons.inventory_2_outlined
+                                        : Icons.local_shipping,
                                 size: 18,
                               ),
                               label: Text(
-                                order.status == 'AwaitingDelivery' ? 'تم التوصيل' : 'بدء التوصيل',
-                                style: GoogleFonts.cairo(fontSize: 13, fontWeight: FontWeight.w600),
+                                order.status == 'AwaitingDelivery'
+                                    ? 'تم التسليم'
+                                    : order.status == 'WarehouseProcessing'
+                                        ? 'استلام من المستودع'
+                                        : 'بدء التوصيل',
+                                style: GoogleFonts.cairo(
+                                    fontSize: 13,
+                                    fontWeight: FontWeight.w600),
                               ),
                               style: ElevatedButton.styleFrom(
-                                backgroundColor: order.status == 'AwaitingDelivery' ? AppColors.successLight : AppColors.primaryLight,
+                                backgroundColor:
+                                    order.status == 'AwaitingDelivery'
+                                        ? AppColors.successLight
+                                        : AppColors.primaryLight,
                                 foregroundColor: Colors.white,
-                                padding: const EdgeInsets.symmetric(vertical: 10),
-                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                                padding: const EdgeInsets.symmetric(
+                                    vertical: 10),
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(12)),
                               ),
                             ),
-                          ),
+                          )),
+                        ],
+                        if ((order.status == 'AwaitingDelivery' ||
+                                order.status == 'Delivered') &&
+                            order.remainingAmount > 0) ...[
+                          const SizedBox(height: 8),
+                          Obx(() => SizedBox(
+                                width: double.infinity,
+                                child: OutlinedButton.icon(
+                                  onPressed: controller.isActing.value
+                                      ? null
+                                      : () => controller
+                                          .offerOptionalCashCollection(
+                                            orderId: order.id,
+                                            orderNumber: order.orderNumber
+                                                .toString(),
+                                            remainingAmount:
+                                                order.remainingAmount,
+                                          ),
+                                  icon: const Icon(Icons.payments_outlined,
+                                      size: 18),
+                                  label: Text(
+                                    'تحصيل نقدي',
+                                    style: GoogleFonts.cairo(
+                                        fontSize: 13,
+                                        fontWeight: FontWeight.w600),
+                                  ),
+                                ),
+                              )),
                         ],
                       ],
                     ),

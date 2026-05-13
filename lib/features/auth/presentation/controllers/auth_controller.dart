@@ -96,6 +96,7 @@ class AuthController extends GetxController {
       (user) {
         _clearFields();
         _linkOneSignal();
+        _syncSystemSettings();
         try {
           Get.find<SignalRService>().connect();
         } catch (_) {}
@@ -125,10 +126,11 @@ class AuthController extends GetxController {
           Get.find<SignalRService>().connect();
         } catch (_) {}
 
-        if (user.isMultiRole) {
-          Get.offAllNamed(AppRoutes.roleSelection, arguments: user.roles);
+        final auth = Get.find<AuthService>();
+        if (auth.pickableWorkspaceRoles.length > 1) {
+          Get.offAllNamed(AppRoutes.roleSelection, arguments: auth.userRoles);
         } else {
-          _routeByRole(user.role);
+          _routeByRole(auth.activeRole);
         }
       },
     );
@@ -139,13 +141,13 @@ class AuthController extends GetxController {
     Get.offAllNamed(AuthService.routeForRole(role));
   }
 
-  /// مزامنة إعدادات النظام الخارجية (الشعار/الألوان/الاسم) بعد التسجيل.
-  /// تتم بصمت دون إيقاف التدفق إذا فشلت (لأن الصلاحيات قد لا تسمح للعميل).
+  /// مزامنة إعدادات الشركة (الشعار/الألوان/الاسم) بعد تسجيل الدخول.
+  /// تستخدم GET /api/settings/company لأي دور مصدَّق.
   void _syncSystemSettings() {
     try {
       final ds = AdminRemoteDataSource(Get.find<DioClient>());
       final branding = Get.find<BrandingService>();
-      ds.getSystemSettings().then(branding.syncFromServer).catchError((_) {});
+      ds.getCompanySettings().then(branding.syncFromServer).catchError((_) {});
     } catch (_) {}
   }
 

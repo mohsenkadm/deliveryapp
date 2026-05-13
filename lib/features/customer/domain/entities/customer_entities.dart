@@ -120,6 +120,7 @@ class OrderItem {
   final String productName;
   final int quantity;
   final double price;
+  final double discount;
   final double total;
 
   const OrderItem({
@@ -127,6 +128,7 @@ class OrderItem {
     required this.productName,
     required this.quantity,
     required this.price,
+    this.discount = 0,
     required this.total,
   });
 }

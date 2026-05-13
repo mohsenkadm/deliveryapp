@@ -38,6 +38,35 @@ class _AdminWarehousesPageState extends State<AdminWarehousesPage> {
     _isLoading.value = false;
   }
 
+  Future<void> _confirmDelete(Map<String, dynamic> w) async {
+    final name = (w['name'] ?? 'المخزن').toString();
+    final ok = await Get.dialog<bool>(
+      AlertDialog(
+        title: Text('تأكيد الحذف',
+            style: GoogleFonts.cairo(fontWeight: FontWeight.w700)),
+        content: Text('هل تريد حذف "$name"؟', style: GoogleFonts.cairo()),
+        actions: [
+          TextButton(
+              onPressed: () => Get.back(result: false),
+              child: Text('إلغاء', style: GoogleFonts.cairo())),
+          TextButton(
+              onPressed: () => Get.back(result: true),
+              style: TextButton.styleFrom(
+                  foregroundColor: AppColors.errorLight),
+              child: Text('حذف', style: GoogleFonts.cairo())),
+        ],
+      ),
+    );
+    if (ok != true) return;
+    try {
+      await _ds.deleteWarehouse(w['id'].toString());
+      SnackbarHelper.showSuccess('تم حذف المخزن');
+      _load();
+    } catch (_) {
+      SnackbarHelper.showError('فشل حذف المخزن');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -70,6 +99,7 @@ class _AdminWarehousesPageState extends State<AdminWarehousesPage> {
             itemBuilder: (_, i) => _WarehouseCard(
               warehouse: _warehouses[i],
               onEdit: () => _showWarehouseDialog(context, existing: _warehouses[i]),
+              onDelete: () => _confirmDelete(_warehouses[i]),
             ),
           ),
         );
@@ -158,7 +188,11 @@ class _AdminWarehousesPageState extends State<AdminWarehousesPage> {
 class _WarehouseCard extends StatelessWidget {
   final Map<String, dynamic> warehouse;
   final VoidCallback onEdit;
-  const _WarehouseCard({required this.warehouse, required this.onEdit});
+  final VoidCallback onDelete;
+  const _WarehouseCard(
+      {required this.warehouse,
+      required this.onEdit,
+      required this.onDelete});
 
   @override
   Widget build(BuildContext context) {
@@ -205,6 +239,10 @@ class _WarehouseCard extends StatelessWidget {
                 ),
               ),
               IconButton(icon: const Icon(Icons.edit_outlined), onPressed: onEdit, color: AppColors.primary),
+              IconButton(
+                  icon: const Icon(Icons.delete_outline),
+                  onPressed: onDelete,
+                  color: AppColors.errorLight),
             ],
           ),
           if (capacity != null) ...[

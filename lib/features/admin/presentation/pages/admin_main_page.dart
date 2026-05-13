@@ -304,7 +304,6 @@ class _AdminDrawer extends StatelessWidget {
           const Divider(),
           _drawerTile(Icons.pending_actions_rounded, 'طلبات الموافقة', () { Get.back(); Get.toNamed(AppRoutes.pendingApprovals); }),
           _drawerTile(Icons.analytics_rounded, 'التحليلات', () { Get.back(); Get.toNamed(AppRoutes.analytics); }),
-          _drawerTile(Icons.history_rounded, 'سجل النشاط', () { Get.back(); Get.toNamed(AppRoutes.activityLogs); }),
           _drawerTile(Icons.tune_rounded, 'إعدادات النظام', () { Get.back(); Get.toNamed(AppRoutes.systemSettings); }),
           _drawerTile(Icons.admin_panel_settings_rounded, 'صلاحيات المسؤولين', () { Get.back(); Get.toNamed(AppRoutes.adminPermissions); }),
           const Divider(),
