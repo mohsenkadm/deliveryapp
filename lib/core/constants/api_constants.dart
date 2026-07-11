@@ -12,12 +12,10 @@ class ApiConstants {
   /// رابط الخادم الأساسي
   static const String baseUrl = 'https://floppya918-003-site2.mtempurl.com';
 
-  /// معرّف تطبيق OneSignal — يُحقن وقت البناء عبر:
-  ///   `flutter run --dart-define=ONESIGNAL_APP_ID=xxxx`
-  /// أو يُترك على القيمة الافتراضية (placeholder) أثناء التطوير المحلي.
+  /// معرّف تطبيق OneSignal
   static const String oneSignalAppId = String.fromEnvironment(
     'ONESIGNAL_APP_ID',
-    defaultValue: 'YOUR_ONESIGNAL_APP_ID',
+    defaultValue: '67d9dc8c-ac07-40b5-9333-3d841c854a9b',
   );
 
   /// مسار هاب SignalR للإشعارات الفورية
@@ -127,6 +125,13 @@ class ApiConstants {
   /// GET ملخص أداء السائق
   static const String driverSummary = '/api/mobile/driver/summary';
 
+  /// GET مدفوعات السائق ?isVerified=
+  static const String driverPayments = '/api/mobile/driver/payments';
+
+  /// POST تسليم مبالغ محصّلة للشركة
+  static const String driverPaymentsSubmit =
+      '/api/mobile/driver/payments/submit';
+
   // ══════════════════════════════════════════════════════════════
   // تطبيق المندوب  →  /api/mobile/rep  [Bearer: Representative,Employee]
   // ══════════════════════════════════════════════════════════════
@@ -176,6 +181,20 @@ class ApiConstants {
 
   /// GET قائمة أوامر النقل ?status=
   static const String repTransferOrdersList = '/api/mobile/rep/transfer-orders';
+
+  /// GET ذمة المندوب المفرد
+  static const String repLiability = '/api/mobile/rep/liability';
+
+  /// GET فواتير بانتظار تسليم المحاسب (Delivered)
+  static const String repInvoicesPendingSettlement =
+      '/api/mobile/rep/invoices/pending-settlement';
+
+  /// GET مخازن النقل/الإرجاع (فرعي + رئيسية)
+  static const String repWarehousesTransfer =
+      '/api/mobile/rep/warehouses/transfer';
+
+  /// GET سائقو الفرع (للفلترة)
+  static const String repDrivers = '/api/mobile/rep/drivers';
 
   // ══════════════════════════════════════════════════════════════
   // تطبيق المشرف  →  /api/mobile/supervisor  [Bearer: Supervisor,Employee]
@@ -254,6 +273,18 @@ class ApiConstants {
 
   /// GET تقرير المدفوعات ?verified=true|false
   static const String managerPaymentsReport = '/api/mobile/manager/reports/payments';
+
+  /// GET دفعات بانتظار التحقق (محاسب/مدير)
+  static const String managerPaymentsPending =
+      '/api/mobile/manager/payments/pending';
+
+  /// POST تحقق واعتماد دفعة
+  static String managerPaymentVerify(String id) =>
+      '/api/mobile/manager/payments/$id/verify';
+
+  /// GET ذمة مندوب محدد
+  static String managerRepLiability(String repId) =>
+      '/api/mobile/manager/reps/$repId/liability';
 
   // ══════════════════════════════════════════════════════════════
   // نقاط مشتركة

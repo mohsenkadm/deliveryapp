@@ -1,7 +1,7 @@
 name: deliveryapp
-description: "Delivery App - Multi-role mobile application"
+description: "كرزات تاج بغداد - تطبيق متعدد الأدوار"
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.1.4+4
 
 environment:
   sdk: ^3.11.0
@@ -80,3 +80,4 @@ flutter:
     - assets/images/
     - assets/animations/
     - assets/icons/
+    - assets/ca/

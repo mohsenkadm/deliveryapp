@@ -148,6 +148,20 @@ class _OrderCard extends StatelessWidget {
             ),
           ),
 
+          // ── عرض التفاصيل ──
+          Padding(
+            padding: const EdgeInsets.fromLTRB(12, 0, 12, 0),
+            child: SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: () => ctrl.openOrderDetail(order),
+                icon: const Icon(Icons.visibility_outlined, size: 18),
+                label: Text('عرض التفاصيل الكاملة',
+                    style: GoogleFonts.cairo(fontWeight: FontWeight.w600)),
+              ),
+            ),
+          ),
+
           // ── أزرار الإجراءات ──
           Padding(
             padding: const EdgeInsets.all(12),

@@ -135,11 +135,8 @@ class SalesManagerPendingPage extends StatelessWidget {
                                   color: AppColors.errorLight),
                               padding: const EdgeInsets.symmetric(
                                   vertical: 10)),
-                          onPressed: () => _confirm(
-                              context,
-                              'تأكيد الرفض',
-                              'هل تريد رفض طلب $name؟',
-                              () => ctrl.rejectCustomer(id)),
+                          onPressed: () =>
+                              _rejectWithReason(context, name, id, ctrl),
                         ),
                       ),
                     ]),
@@ -151,6 +148,47 @@ class SalesManagerPendingPage extends StatelessWidget {
         );
       }),
     );
+  }
+
+  Future<void> _rejectWithReason(BuildContext ctx, String name, String id,
+      SalesManagerController ctrl) async {
+    final reasonCtrl = TextEditingController();
+    final ok = await showDialog<bool>(
+      context: ctx,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text('رفض طلب $name',
+            style: GoogleFonts.cairo(fontWeight: FontWeight.w700),
+            textAlign: TextAlign.center),
+        content: TextField(
+          controller: reasonCtrl,
+          decoration: InputDecoration(
+            labelText: 'سبب الرفض (اختياري)',
+            labelStyle: GoogleFonts.cairo(),
+            border: const OutlineInputBorder(),
+          ),
+          maxLines: 2,
+        ),
+        actionsAlignment: MainAxisAlignment.center,
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, false),
+              child: Text('إلغاء',
+                  style: GoogleFonts.cairo(color: AppColors.textSecondary))),
+          FilledButton(
+              onPressed: () => Navigator.pop(ctx, true),
+              style: FilledButton.styleFrom(
+                  backgroundColor: AppColors.errorLight),
+              child: Text('رفض', style: GoogleFonts.cairo())),
+        ],
+      ),
+    );
+    if (ok == true) {
+      final reason = reasonCtrl.text.trim();
+      await ctrl.rejectCustomer(id,
+          reason: reason.isEmpty ? null : reason);
+    }
+    reasonCtrl.dispose();
   }
 
   Future<void> _confirm(BuildContext ctx, String title, String msg,

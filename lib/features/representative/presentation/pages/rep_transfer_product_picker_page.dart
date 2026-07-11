@@ -68,6 +68,7 @@ class _RepTransferProductPickerPageState
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
+      await _ctrl.loadTransferWarehouses();
       await _ctrl.ensureWarehouseRoutingIds();
       final list = await _ctrl.fetchInventoryLinesForTransfer(_isReturn);
       setState(() => _items = list);
@@ -75,6 +76,21 @@ class _RepTransferProductPickerPageState
       setState(() => _items = const []);
     }
     if (mounted) setState(() => _loading = false);
+  }
+
+  Future<void> _onMainWarehouseChanged(String? id) async {
+    if (id == null) return;
+    _ctrl.selectedMainWarehouseIdForTransfer.value = id;
+    if (!_isReturn) {
+      setState(() => _loading = true);
+      try {
+        final list = await _ctrl.fetchInventoryLinesForTransfer(false);
+        setState(() => _items = list);
+      } catch (_) {
+        setState(() => _items = const []);
+      }
+      if (mounted) setState(() => _loading = false);
+    }
   }
 
   String _pid(Map<String, dynamic> it) =>
@@ -231,20 +247,41 @@ class _RepTransferProductPickerPageState
                     ),
                   ),
                 ),
-                if (Get.find<AuthService>().isIndividualRepresentative) ...[
-                  const SizedBox(height: 8),
-                  Padding(
-                    padding: const EdgeInsets.only(left: 12, right: 8),
-                    child: Text(
-                      'المندوب المفرد: يحدّد الخادم مستودعات النقل تلقائياً من قاعدة البيانات عند الإرسال.',
-                      style: GoogleFonts.cairo(
-                        fontSize: 11,
-                        color: Colors.white.withValues(alpha: 0.88),
-                        height: 1.35,
+                if (Get.find<AuthService>().isIndividualRepresentative)
+                  Obx(() {
+                    final dto = _ctrl.transferWarehouses.value;
+                    final mains = dto?.mainWarehouses ?? const [];
+                    if (mains.isEmpty) return const SizedBox.shrink();
+                    return Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 8, 8, 0),
+                      child: DropdownButtonFormField<String>(
+                        value: _ctrl.selectedMainWarehouseIdForTransfer.value ??
+                            mains.first.id.toString(),
+                        dropdownColor: theme.cardTheme.color,
+                        decoration: InputDecoration(
+                          labelText: _isReturn
+                              ? 'المستودع الرئيسي (الوجهة)'
+                              : 'المستودع الرئيسي (المصدر)',
+                          labelStyle: GoogleFonts.cairo(
+                              color: Colors.white70, fontSize: 12),
+                          filled: true,
+                          fillColor: Colors.white.withValues(alpha: 0.12),
+                          border: OutlineInputBorder(
+                            borderRadius: BorderRadius.circular(12),
+                            borderSide: BorderSide.none,
+                          ),
+                        ),
+                        items: mains
+                            .map((w) => DropdownMenuItem(
+                                  value: w.id.toString(),
+                                  child: Text(w.name,
+                                      style: GoogleFonts.cairo(fontSize: 13)),
+                                ))
+                            .toList(),
+                        onChanged: _onMainWarehouseChanged,
                       ),
-                    ),
-                  ),
-                ],
+                    );
+                  }),
               ],
             ),
           ),

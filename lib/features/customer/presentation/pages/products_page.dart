@@ -170,8 +170,9 @@ class ProductsPage extends GetView<ProductsController> {
                       final product = controller.products[index];
                       return ProductCard(
                         product: product,
-                        onTap: () => Get.toNamed(AppRoutes.productDetails, arguments: {'product': product}),
-                        onAddToCart: () => cartController.addToCart(product),
+                        onTap: () => Get.toNamed(AppRoutes.productDetails,
+                            arguments: {'product': product}),
+                        cartController: cartController,
                       );
                     },
                   ),

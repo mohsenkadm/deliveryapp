@@ -7,6 +7,7 @@ import '../constants/api_constants.dart';
 import '../constants/app_constants.dart';
 import '../constants/storage_keys.dart';
 import '../utils/snackbar_helper.dart';
+import '../network/network_error_message.dart';
 import 'api_exception.dart';
 
 /// عميل Dio المركزي — يُدير التوكن واعتراضات المصادقة وأخطاء الشبكة.
@@ -160,7 +161,9 @@ class DioClient {
       case DioExceptionType.receiveTimeout:
         return ConnectionException(message: 'انتهت مهلة الاتصال');
       case DioExceptionType.connectionError:
-        return ConnectionException();
+        return ConnectionException(
+          message: connectionErrorMessage(error.error),
+        );
       case DioExceptionType.badResponse:
         return _handleResponseError(error.response);
       default:
@@ -200,7 +203,8 @@ class DioClient {
         return ApiException(
             message: message, statusCode: 422, data: response?.data);
       case 500:
-        return ServerException();
+        return ServerException(
+            message: message.isNotEmpty ? message : 'خطأ في الخادم');
       default:
         return ApiException(message: message, statusCode: statusCode);
     }

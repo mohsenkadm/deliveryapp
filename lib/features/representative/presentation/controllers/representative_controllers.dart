@@ -2,9 +2,12 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/routes/app_routes.dart';
 import '../../../../core/services/auth_service.dart';
+import '../../../../core/services/signalr_service.dart';
 import '../../../../core/utils/snackbar_helper.dart';
 import '../../data/datasources/representative_remote_datasource.dart';
+import '../../data/models/rep_models.dart';
 
 class RepresentativeHomeController extends GetxController {
   late final RepresentativeRemoteDataSource _ds;
@@ -15,6 +18,12 @@ class RepresentativeHomeController extends GetxController {
   /// فهرس تبويب «الفواتير» في [RepresentativeMainPage] — يجب أن يطابق ترتيب عناصر `pages`.
   static const int repInvoicesNavIndex = 2;
 
+  /// فهرس تبويب «ذمتي» للمندوب المفرد (بعد الديون).
+  static const int repLiabilityNavIndex = 4;
+
+  bool get showLiabilityTab =>
+      Get.find<AuthService>().isIndividualRepresentative;
+
   // ── العملاء ──
   final customers = <Map<String, dynamic>>[].obs;
   final pendingCustomers = <Map<String, dynamic>>[].obs;
@@ -23,7 +32,19 @@ class RepresentativeHomeController extends GetxController {
   // ── الفواتير ──
   final invoices = <Map<String, dynamic>>[].obs;
   final selectedInvoiceStatus = Rxn<String>();
+  final selectedDriverId = Rxn<int>();
+  final branchDrivers = <Map<String, dynamic>>[].obs;
   final isLoadingInvoices = false.obs;
+
+  // ── ذمة المندوب المفرد ──
+  final liability = Rxn<RepLiabilityDto>();
+  final pendingSettlementInvoices = <Map<String, dynamic>>[].obs;
+  final isLoadingLiability = false.obs;
+
+  /// مخازن النقل/الإرجاع من GET warehouses/transfer
+  final transferWarehouses = Rxn<RepTransferWarehousesDto>();
+  final selectedMainWarehouseIdForTransfer = Rxn<String>();
+  final isLoadingTransferWarehouses = false.obs;
 
   // ── المدفوعات ──
   final payments = <Map<String, dynamic>>[].obs;
@@ -85,16 +106,23 @@ class RepresentativeHomeController extends GetxController {
   /// نوع العميل: Retail (مفرد) أو Wholesale (جملة)
   final clientType = 'Retail'.obs;
 
+  Future<void> _refreshOnNotification() async {
+    await loadInvoices();
+    if (showLiabilityTab) await loadLiability();
+  }
+
   @override
   void onInit() {
     super.onInit();
     _ds = RepresentativeRemoteDataSource(Get.find<DioClient>());
+    SignalRService.to.registerRefresh(_refreshOnNotification);
     loadCustomers();
     loadInvoices();
   }
 
   @override
   void onClose() {
+    SignalRService.to.unregisterRefresh(_refreshOnNotification);
     nameController.dispose();
     storeNameController.dispose();
     phoneController.dispose();
@@ -163,19 +191,8 @@ class RepresentativeHomeController extends GetxController {
   Future<void> loadCustomerInvoices(String customerId) async {
     isLoadingInvoices.value = true;
     try {
-      final auth = Get.find<AuthService>();
-      if (auth.isWholesaleRepresentative) {
-        final all = await _ds.getInvoices();
-        customerInvoices.value = all.where((i) {
-          final c = i['customer'];
-          final nested = c is Map ? (c['id'] ?? c['Id']) : null;
-          final cid = i['customerId'] ?? nested;
-          return cid?.toString() == customerId;
-        }).toList();
-      } else {
-        final data = await _ds.getInvoices(customerId: customerId);
-        customerInvoices.value = data;
-      }
+      final data = await _ds.getInvoices(customerId: customerId);
+      customerInvoices.value = data;
     } catch (e) {
       customerInvoices.clear();
       SnackbarHelper.handleApiError(e, 'فشل تحميل فواتير العميل');
@@ -193,18 +210,94 @@ class RepresentativeHomeController extends GetxController {
     isLoadingDetail.value = false;
   }
 
-  Future<void> loadInvoices({String? status}) async {
+  Future<void> loadInvoices({String? status, int? driverId}) async {
     isLoadingInvoices.value = true;
     if (status != null) {
       selectedInvoiceStatus.value = status.isEmpty ? null : status;
     }
+    if (driverId != null) {
+      selectedDriverId.value = driverId == 0 ? null : driverId;
+    }
     try {
-      invoices.value =
-          await _ds.getInvoices(status: selectedInvoiceStatus.value);
+      invoices.value = await _ds.getInvoices(
+        status: selectedInvoiceStatus.value,
+        driverId: selectedDriverId.value,
+      );
     } catch (e) {
       SnackbarHelper.handleApiError(e, 'فشل تحميل الفواتير');
     }
     isLoadingInvoices.value = false;
+  }
+
+  Future<void> loadBranchDrivers() async {
+    try {
+      branchDrivers.value = await _ds.getDrivers();
+    } catch (e) {
+      branchDrivers.clear();
+    }
+  }
+
+  Future<void> loadLiability() async {
+    if (!showLiabilityTab) return;
+    isLoadingLiability.value = true;
+    try {
+      liability.value = await _ds.getLiability();
+      pendingSettlementInvoices.value =
+          await _ds.getPendingSettlementInvoices();
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشل تحميل الذمة');
+    }
+    isLoadingLiability.value = false;
+  }
+
+  Future<void> loadTransferWarehouses() async {
+    isLoadingTransferWarehouses.value = true;
+    try {
+      final dto = await _ds.getTransferWarehouses();
+      transferWarehouses.value = dto;
+      if (dto.subWarehouse != null) {
+        repSubWarehouseId.value = dto.subWarehouse!.id;
+      }
+      if (dto.mainWarehouses.isNotEmpty &&
+          selectedMainWarehouseIdForTransfer.value == null) {
+        selectedMainWarehouseIdForTransfer.value =
+            dto.mainWarehouses.first.id.toString();
+      }
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشل تحميل مخازن النقل');
+    }
+    isLoadingTransferWarehouses.value = false;
+  }
+
+  /// تسليم فاتورة للمحاسب (مندوب مفرد — invoiceId مطلوب).
+  Future<void> submitSettlementForInvoice(
+    Map<String, dynamic> invoice, {
+    String? notes,
+  }) async {
+    final invoiceId = invoice['id']?.toString();
+    if (invoiceId == null || invoiceId.isEmpty) {
+      SnackbarHelper.showError('معرف الفاتورة غير صالح');
+      return;
+    }
+    final amount = (invoice['totalAmount'] as num?)?.toDouble() ?? 0;
+    if (amount <= 0) {
+      SnackbarHelper.showError('مبلغ الفاتورة غير صالح');
+      return;
+    }
+    isActing.value = true;
+    try {
+      await _ds.submitPayment(
+        invoiceId: invoiceId,
+        amount: amount,
+        notes: notes,
+      );
+      SnackbarHelper.showSuccess('تم تسجيل التسليم للمحاسب');
+      await loadPayments();
+      await loadLiability();
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشل تسليم المحاسب');
+    }
+    isActing.value = false;
   }
 
   Future<void> createInvoice(Map<String, dynamic> data) async {
@@ -229,6 +322,11 @@ class RepresentativeHomeController extends GetxController {
     int quantity = 1,
     int? maxStock,
   }) {
+    if (price <= 0) {
+      SnackbarHelper.showError(
+          'سعر المنتج غير متوفر — تحقق من سعر الجملة في المستودع');
+      return;
+    }
     final i = invoiceCart.indexWhere((e) => e.productId == productId);
     if (i != -1) {
       final next = invoiceCart[i].quantity + quantity;
@@ -263,6 +361,11 @@ class RepresentativeHomeController extends GetxController {
     }
     item.quantity = quantity;
     invoiceCart.refresh();
+  }
+
+  int cartQuantityFor(String productId) {
+    final i = invoiceCart.indexWhere((e) => e.productId == productId);
+    return i == -1 ? 0 : invoiceCart[i].quantity;
   }
 
   void updateCartPrice(String productId, double price) {
@@ -358,23 +461,42 @@ class RepresentativeHomeController extends GetxController {
       SnackbarHelper.showError('معرّف أحد المنتجات غير صالح');
       return;
     }
+    if (details.any((d) => (d['quantity'] as int) <= 0)) {
+      SnackbarHelper.showError('الكمية يجب أن تكون أكبر من صفر');
+      return;
+    }
+    if (details.any((d) => (d['unitPrice'] as num) <= 0)) {
+      SnackbarHelper.showError('سعر البيع يجب أن يكون أكبر من صفر');
+      return;
+    }
 
+    final auth = Get.find<AuthService>();
     final body = <String, dynamic>{
       'customerId': customerId,
-      'employeeId': 0,
-      'invoiceSource': 1,
-      'promoCode': invoicePromoCode.value.trim(),
-      'branchId': invoiceBranchId.value != null
-          ? (int.tryParse(invoiceBranchId.value!) ?? 0)
-          : 0,
+      if (invoicePromoCode.value.trim().isNotEmpty)
+        'promoCode': invoicePromoCode.value.trim(),
+      if (invoiceBranchId.value != null &&
+          int.tryParse(invoiceBranchId.value!) != null)
+        'branchId': int.parse(invoiceBranchId.value!),
       'deliveryScheduleType': invoiceScheduleType.value,
       if (invoiceScheduleType.value == 1 &&
           invoiceScheduledDate.value != null)
         'scheduledDeliveryDate':
-            invoiceScheduledDate.value!.toIso8601String(),
+            invoiceScheduledDate.value!.toUtc().toIso8601String(),
       if (notes != null && notes.trim().isNotEmpty) 'notes': notes.trim(),
       'details': details,
     };
+
+    // مندوب الجملة: يحدد المستودع الرئيسي لخصم المخزون والتحقق منه
+    if (auth.isWholesaleRepresentative) {
+      final whId =
+          int.tryParse(selectedMainWarehouseIdForInvoice.value ?? '');
+      if (whId == null || whId <= 0) {
+        SnackbarHelper.showError('اختر المستودع الرئيسي أولاً');
+        return;
+      }
+      body['warehouseId'] = whId;
+    }
 
     isActing.value = true;
     try {
@@ -382,10 +504,17 @@ class RepresentativeHomeController extends GetxController {
       clearInvoiceCart();
       await loadInvoices();
       Get.back();
-      // بعد إغلاق شاشة الإنشاء: العودة للرئيسية + تبويب الفواتير، وإظهار النجاح فوق الواجهة الرئيسية
       WidgetsBinding.instance.addPostFrameCallback((_) {
-        repBottomNavIndex.value = repInvoicesNavIndex;
-        SnackbarHelper.showSuccess('تم إنشاء الفاتورة بنجاح');
+        final auth = Get.find<AuthService>();
+        if (auth.isIndividualRepresentative) {
+          loadLiability();
+          repBottomNavIndex.value = repLiabilityNavIndex;
+          SnackbarHelper.showSuccess(
+              'تم البيع — بانتظار تسليم المحاسب');
+        } else {
+          repBottomNavIndex.value = repInvoicesNavIndex;
+          SnackbarHelper.showSuccess('تم إنشاء الفاتورة بنجاح');
+        }
       });
     } catch (e) {
       SnackbarHelper.handleApiError(e, 'فشل إنشاء الفاتورة');
@@ -420,7 +549,11 @@ class RepresentativeHomeController extends GetxController {
         notes: notes,
       );
       SnackbarHelper.showSuccess('تم تحصيل الدفعة بنجاح');
-      loadPayments();
+      await loadPayments();
+      await loadDebts();
+      if (Get.currentRoute == AppRoutes.collectPayment) {
+        Get.back();
+      }
     } catch (e) {
       SnackbarHelper.handleApiError(e, 'فشل تحصيل الدفعة');
     }
@@ -432,11 +565,19 @@ class RepresentativeHomeController extends GetxController {
     required double amount,
     String? notes,
   }) async {
+    if (showLiabilityTab &&
+        (invoiceId == null || invoiceId.isEmpty)) {
+      SnackbarHelper.showError(
+          'معرف الفاتورة مطلوب لتسليم المبلغ للمحاسب');
+      return;
+    }
     isActing.value = true;
     try {
       await _ds.submitPayment(
           invoiceId: invoiceId, amount: amount, notes: notes);
       SnackbarHelper.showSuccess('تم تسليم المبلغ للمحاسب بنجاح');
+      await loadPayments();
+      if (showLiabilityTab) await loadLiability();
     } catch (e) {
       SnackbarHelper.handleApiError(e, 'فشل تسليم المبلغ');
     }
@@ -497,7 +638,8 @@ class RepresentativeHomeController extends GetxController {
       return result.items;
     }
     return _ds.getMainWarehouseProducts(
-      warehouseId: repMainWarehouseId.value?.toString(),
+      warehouseId: selectedMainWarehouseIdForTransfer.value ??
+          repMainWarehouseId.value?.toString(),
     );
   }
 
@@ -511,24 +653,36 @@ class RepresentativeHomeController extends GetxController {
     try {
       await ensureWarehouseRoutingIds();
       final auth = Get.find<AuthService>();
-      var mainId = repMainWarehouseId.value ?? 0;
-      var subId = repSubWarehouseId.value ?? 0;
+      final mainWhId = int.tryParse(
+              selectedMainWarehouseIdForTransfer.value ?? '') ??
+          repMainWarehouseId.value ??
+          0;
+      final subId = repSubWarehouseId.value ?? 0;
+
       if (auth.isIndividualRepresentative) {
-        mainId = 0;
-        subId = 0;
-      } else if (mainId == 0 || subId == 0) {
+        if (mainWhId <= 0) {
+          SnackbarHelper.showError('اختر المستودع الرئيسي أولاً');
+          isActing.value = false;
+          return;
+        }
+      } else if (mainWhId == 0 || subId == 0) {
         SnackbarHelper.showError(
             'تعذر تحديد المستودعات. تأكد من أن الخادم يُرجع معرف المستودع في بيانات المخزون.');
         isActing.value = false;
         return;
       }
+
       final body = <String, dynamic>{
-        'fromWarehouseId': isReturn ? subId : mainId,
-        'toWarehouseId': isReturn ? mainId : subId,
+        'fromWarehouseId': isReturn ? 0 : mainWhId,
+        'toWarehouseId': isReturn ? mainWhId : 0,
         'orderType': 0,
         'notes': notes ?? '',
         'details': details,
       };
+      if (!auth.isIndividualRepresentative) {
+        body['fromWarehouseId'] = isReturn ? subId : mainWhId;
+        body['toWarehouseId'] = isReturn ? mainWhId : subId;
+      }
       if (isReturn) {
         await _ds.returnTransfer(body);
       } else {

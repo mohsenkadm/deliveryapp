@@ -7,6 +7,9 @@ class DeliveryOrderModel extends DeliveryOrder {
     required super.id,
     required super.orderNumber,
     required super.status,
+    super.statusText,
+    super.warehouseName,
+    super.itemCount,
     required super.customerName,
     required super.customerPhone,
     required super.customerAddress,
@@ -26,6 +29,12 @@ class DeliveryOrderModel extends DeliveryOrder {
 
   static const List<String> _paymentStatuses = ['Unpaid', 'Partial', 'Paid'];
 
+  static double? _toDouble(dynamic v) {
+    if (v == null) return null;
+    if (v is num) return v.toDouble();
+    return double.tryParse(v.toString());
+  }
+
   static String? _enumStr(dynamic v, List<String> values) {
     if (v == null) return null;
     if (v is int && v >= 0 && v < values.length) return values[v];
@@ -36,28 +45,48 @@ class DeliveryOrderModel extends DeliveryOrder {
   }
 
   factory DeliveryOrderModel.fromJson(Map<String, dynamic> json) {
-    final customer = json['customer'] as Map<String, dynamic>? ?? json;
+    final customer = json['customer'] is Map
+        ? Map<String, dynamic>.from(json['customer'] as Map)
+        : json;
     final detailsList =
         (json['details'] ?? json['items']) as List<dynamic>? ?? const [];
+    final statusTextRaw = json['statusText']?.toString();
     return DeliveryOrderModel(
       id: json['id']?.toString() ?? '',
       orderNumber:
           json['invoiceNumber'] ?? json['orderNumber'] ?? '',
-      status: InvoiceStatusHelper.parse(json['statusText'] ?? json['status'], fallback: ''),
-      customerName: customer['fullName'] ?? customer['customerName'] ?? '',
-      customerPhone: customer['phone'] ?? customer['customerPhone'] ?? '',
-      customerAddress: customer['address'] ?? customer['customerAddress'] ?? '',
-      customerRegion: customer['region'],
-      storeName: customer['storeName'],
-      latitude: (customer['latitude'] ?? json['latitude'])?.toDouble(),
-      longitude: (customer['longitude'] ?? json['longitude'])?.toDouble(),
+      status: InvoiceStatusHelper.parse(
+          statusTextRaw ?? json['status'],
+          fallback: ''),
+      statusText: statusTextRaw,
+      warehouseName: json['warehouseName']?.toString(),
+      itemCount: (json['itemCount'] as num?)?.toInt(),
+      customerName: (json['customerName'] ??
+              customer['fullName'] ??
+              customer['customerName'] ??
+              '')
+          .toString(),
+      customerPhone: (json['customerPhone'] ??
+              customer['phone'] ??
+              customer['customerPhone'] ??
+              '')
+          .toString(),
+      customerAddress: (json['customerAddress'] ??
+              customer['address'] ??
+              customer['customerAddress'] ??
+              '')
+          .toString(),
+      customerRegion: customer['region']?.toString(),
+      storeName: customer['storeName']?.toString(),
+      latitude: _toDouble(customer['latitude'] ?? json['latitude']),
+      longitude: _toDouble(customer['longitude'] ?? json['longitude']),
       googleMapsUrl:
-          customer['googleMapsUrl'] ?? json['googleMapsUrl'],
+          (customer['googleMapsUrl'] ?? json['googleMapsUrl'])?.toString(),
       totalAmount: (json['totalAmount'] ?? json['total'] ?? 0).toDouble(),
       paidAmount: (json['paidAmount'] ?? 0).toDouble(),
       remainingAmount: (json['remainingAmount'] ?? 0).toDouble(),
-      paymentStatus: _enumStr(
-          json['paymentStatus'] ?? json['paymentStatusText'], _paymentStatuses),
+      paymentStatus: json['paymentStatusText']?.toString() ??
+          _enumStr(json['paymentStatus'], _paymentStatuses),
       createdAt: DateTime.tryParse(
               (json['createdAt'] ?? json['orderDate'] ?? '').toString()) ??
           DateTime.now(),
@@ -85,7 +114,8 @@ class DeliveryOrderItemModel extends DeliveryOrderItem {
     final sub = (json['subTotal'] ?? json['subtotal'] ?? json['total'] ?? (unit * qty - discount))
         .toDouble();
     return DeliveryOrderItemModel(
-      productName: json['productName'] ?? '',
+      productName: (json['productName'] ?? json['product']?['name'] ?? '')
+          .toString(),
       quantity: qty.toInt(),
       price: unit,
       discount: discount,

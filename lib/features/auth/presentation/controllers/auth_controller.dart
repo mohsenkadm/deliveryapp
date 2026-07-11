@@ -76,7 +76,10 @@ class AuthController extends GetxController {
   void _linkOneSignal() {
     final authService = Get.find<AuthService>();
     if (authService.userId.isNotEmpty) {
-      Get.find<OneSignalService>().setExternalUserId(authService.userId);
+      Get.find<OneSignalService>().setExternalUserId(
+        authService.userId,
+        role: authService.activeRole,
+      );
     }
   }
 
@@ -219,5 +222,30 @@ class AuthController extends GetxController {
     isLoading.value = false;
     _clearFields();
     Get.offAllNamed(AppRoutes.login);
+  }
+
+  /// حذف حساب العميل نهائياً عبر API ثم تسجيل الخروج
+  Future<void> deleteMyAccount() async {
+    final authService = Get.find<AuthService>();
+    if (authService.userKind != UserKind.customer ||
+        authService.userId.isEmpty) {
+      SnackbarHelper.showError('حذف الحساب متاح للعملاء فقط');
+      return;
+    }
+
+    isLoading.value = true;
+    final result = await _repository.deleteMyAccount(authService.userId);
+    isLoading.value = false;
+
+    result.fold(
+      (failure) => SnackbarHelper.showError(failure.message),
+      (_) async {
+        SnackbarHelper.showSuccess('تم حذف حسابك بنجاح');
+        Get.find<OneSignalService>().removeExternalUserId();
+        await _repository.logout();
+        _clearFields();
+        Get.offAllNamed(AppRoutes.login);
+      },
+    );
   }
 }

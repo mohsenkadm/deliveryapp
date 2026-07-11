@@ -1,6 +1,7 @@
 import 'package:get/get.dart';
 import '../constants/storage_keys.dart';
 import '../constants/employee_roles.dart';
+import '../utils/role_normalizer.dart';
 import 'storage_service.dart';
 
 /// نوع المستخدم المسجَّل دخوله — يساعد على اختيار شاشة البداية وملف الإعدادات.
@@ -62,14 +63,16 @@ class AuthService extends GetxService {
   /// مندوب جملة: إنشاء فواتير من مخزون المستودع الرئيسي (لا يُعرض تبويب المستودع الفرعي).
   bool get isWholesaleRepresentative =>
       userKind == UserKind.employee &&
-      hasRole(EmployeeRoles.representative) &&
-      hasRole(EmployeeRoles.wholesale);
+      (hasRole(RoleNormalizer.wholesaleRepresentative) ||
+          (hasRole(EmployeeRoles.representative) &&
+              hasRole(EmployeeRoles.wholesale)));
 
-  /// مندوب مفرد (وسم Individual مع مندوب).
+  /// مندوب مفرد (وسم Individual مع مندوب أو دور IndividualRepresentative).
   bool get isIndividualRepresentative =>
       userKind == UserKind.employee &&
-      hasRole(EmployeeRoles.representative) &&
-      hasRole(EmployeeRoles.individual);
+      (hasRole(RoleNormalizer.individualRepresentative) ||
+          (hasRole(EmployeeRoles.representative) &&
+              hasRole(EmployeeRoles.individual)));
 
   /// تبويب المستودع الفرعي وأوامر النقل — يُخفى لمندوب الجملة.
   bool get repShowSubWarehouseTab =>
@@ -91,12 +94,18 @@ class AuthService extends GetxService {
     final token = await _storageService.getToken();
     _isLoggedIn.value = token != null && token.isNotEmpty;
     _userRole.value = _storageService.userRole ?? '';
-    _userRoles.value = _storageService.userRoles;
+    _userKind.value = _kindFromString(_storageService.userKind);
+    final storedRoles = _storageService.userRoles;
+    final normalized = RoleNormalizer.normalize(storedRoles);
+    _userRoles.value = normalized;
+    if (_userKind.value == UserKind.employee &&
+        normalized.length != storedRoles.length) {
+      await _storageService.saveUserRoles(normalized);
+    }
     _activeRole.value =
         _storageService.activeRole ?? _userRole.value;
     _userName.value = _storageService.userName ?? '';
     _userId.value = _storageService.userId ?? '';
-    _userKind.value = _kindFromString(_storageService.userKind);
     await _coerceEmployeeActiveRoleIfNeeded();
   }
 
@@ -187,6 +196,8 @@ class AuthService extends GetxService {
       case EmployeeRoles.driver:
         return '/driver';
       case EmployeeRoles.representative:
+      case RoleNormalizer.individualRepresentative:
+      case RoleNormalizer.wholesaleRepresentative:
         return '/representative';
       case EmployeeRoles.supervisor:
         return '/supervisor';
@@ -195,9 +206,10 @@ class AuthService extends GetxService {
         return '/sales-manager';
       case EmployeeRoles.admin:
       case EmployeeRoles.systemManager:
+      case EmployeeRoles.accountant:
+        return '/sales-manager';
       case EmployeeRoles.warehouseKeeper:
       case EmployeeRoles.cashier:
-      case EmployeeRoles.accountant:
         return '/admin';
       default:
         return '/login';

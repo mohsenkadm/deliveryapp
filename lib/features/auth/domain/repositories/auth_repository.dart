@@ -20,5 +20,6 @@ abstract class AuthRepository {
   });
   Future<Either<Failure, User>> getProfile();
   Future<Either<Failure, void>> changePassword({required String oldPassword, required String newPassword});
+  Future<Either<Failure, void>> deleteMyAccount(String id);
   Future<void> logout();
 }

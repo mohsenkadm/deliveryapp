@@ -9,6 +9,7 @@ import 'package:get/get.dart' hide Response;
 import '../../../../core/errors/failures.dart';
 import '../../../../core/network/api_exception.dart';
 import '../../../../core/services/auth_service.dart';
+import '../../../../core/utils/role_normalizer.dart';
 import '../../domain/entities/user.dart';
 import '../../domain/repositories/auth_repository.dart';
 import '../datasources/auth_remote_datasource.dart';
@@ -84,13 +85,17 @@ class AuthRepositoryImpl implements AuthRepository {
       final UserModel user = authResponse.user as UserModel;
 
       final authService = Get.find<AuthService>();
+      final rawRoles =
+          user.roles.isNotEmpty ? user.roles : [user.role];
+      final normalized = RoleNormalizer.normalize(rawRoles);
       await authService.saveSession(
         token: authResponse.accessToken,
         role: user.role,
-        roles: user.roles.isNotEmpty ? user.roles : [user.role],
+        roles: normalized,
         userId: user.id,
         userName: user.fullName,
         kind: kind,
+        activeRole: RoleNormalizer.pickActiveRole(normalized, user.role),
       );
       return Right(user);
     } on UnauthorizedException {
@@ -149,6 +154,18 @@ class AuthRepositoryImpl implements AuthRepository {
     // غير مدعوم في الواجهة الحالية — يُعاد فشل واضح حتى لا يكسر الواجهة.
     return const Left(
         ServerFailure('تغيير كلمة المرور غير مدعوم في هذه النسخة من الخادم'));
+  }
+
+  @override
+  Future<Either<Failure, void>> deleteMyAccount(String id) async {
+    try {
+      await _remoteDataSource.deleteMyAccount(id);
+      return const Right(null);
+    } on ApiException catch (e) {
+      return Left(ServerFailure(e.message));
+    } catch (_) {
+      return const Left(UnknownFailure());
+    }
   }
 
   @override

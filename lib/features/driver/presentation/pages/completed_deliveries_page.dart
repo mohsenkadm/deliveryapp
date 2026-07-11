@@ -131,7 +131,11 @@ class _CompletedOrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    final ctrl = Get.find<DriverHomeController>();
+    return InkWell(
+      onTap: () => ctrl.openOrderDetail(order),
+      borderRadius: BorderRadius.circular(14),
+      child: Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -229,6 +233,7 @@ class _CompletedOrderCard extends StatelessWidget {
           ),
         ],
       ),
+    ),
     );
   }
 }

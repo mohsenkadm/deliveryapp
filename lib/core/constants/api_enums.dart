@@ -1,78 +1,97 @@
 // Enums مرجعية تطابق الأنواع المعرّفة على جانب الخادم في DeliverySystem.API.
-// تُستخدم لقراءة القيم من الردود وإرسالها في الطلبات.
+// أرقام InvoiceStatus تُستمد من InvoiceStatusHelper — المصدر الوحيد للترتيب.
 
-/// حالة الفاتورة — نسخة مطابقة لـ `InvoiceStatus`
+import '../utils/helpers.dart';
+
+/// حالة الفاتورة — أسماء نصية (الأرقام عبر [InvoiceStatusHelper.toInt]).
 class InvoiceStatus {
   InvoiceStatus._();
 
-  static const String pending = 'Pending';                   // 0 — معلق
-  static const String accepted = 'Accepted';                 // 1 — مقبول
-  static const String warehouseProcessing = 'WarehouseProcessing'; // 2 — جاري التجهيز
-  static const String awaitingDelivery = 'AwaitingDelivery'; // 3 — في التوصيل
-  static const String delivered = 'Delivered';               // 4 — تم التسليم
-  static const String completed = 'Completed';               // 5 — مكتمل
-  static const String rejected = 'Rejected';                 // 6 — مرفوض
-  static const String deferred = 'Deferred';                 // 7 — مؤجل
+  static const String pending = 'Pending'; // 0
+  static const String deferred = 'Deferred'; // 1
+  static const String awaitingDelivery = 'AwaitingDelivery'; // 2
+  static const String completed = 'Completed'; // 3
+  static const String rejected = 'Rejected'; // 4
+  static const String accepted = 'Accepted'; // 5
+  static const String warehouseProcessing = 'WarehouseProcessing'; // 6
+  static const String delivered = 'Delivered'; // 7
 
   static const List<String> all = [
     pending,
-    accepted,
-    warehouseProcessing,
+    deferred,
     awaitingDelivery,
-    delivered,
     completed,
     rejected,
-    deferred,
+    accepted,
+    warehouseProcessing,
+    delivered,
   ];
 
-  /// تسمية عربية مختصرة
-  static String labelAr(String status) {
-    switch (status) {
-      case pending:
-        return 'معلق';
-      case accepted:
-        return 'مقبول';
-      case warehouseProcessing:
-        return 'جاري التجهيز';
-      case awaitingDelivery:
-        return 'في التوصيل';
-      case delivered:
-        return 'تم التسليم';
-      case completed:
-        return 'مكتمل';
-      case rejected:
-        return 'مرفوض';
-      case deferred:
-        return 'مؤجل';
+  static int? toInt(String status) => InvoiceStatusHelper.toInt(status);
+
+  static String labelAr(String status) =>
+      InvoiceStatusHelper.label(status);
+}
+
+/// حالة الدفع — PaymentStatus enum على الخادم.
+class PaymentStatus {
+  PaymentStatus._();
+
+  static const int unpaid = 0;
+  static const int partialPaid = 1;
+  static const int fullPaid = 2;
+
+  static const List<String> labels = ['Unpaid', 'PartialPaid', 'FullPaid'];
+
+  static String fromInt(int? value) {
+    if (value == null || value < 0 || value >= labels.length) {
+      return 'Unpaid';
+    }
+    return labels[value];
+  }
+
+  static String labelAr(int? value) {
+    switch (value) {
+      case partialPaid:
+        return 'مدفوع جزئياً';
+      case fullPaid:
+        return 'مدفوع بالكامل';
       default:
-        return status;
+        return 'غير مدفوع';
     }
   }
 }
 
-/// نوع الدفعة
+/// نوع الدفعة — PaymentType enum (int على الخادم).
 class PaymentType {
   PaymentType._();
-  static const String customerToRepresentative = 'CustomerToRepresentative';
-  static const String customerToDriver = 'CustomerToDriver';
-  static const String representativeToCompany = 'RepresentativeToCompany';
-  static const String driverToCompany = 'DriverToCompany';
+
+  static const int customerToDriver = 0;
+  static const int customerToRepresentative = 1;
+  static const int driverToCompany = 2;
+  static const int representativeToCompany = 3;
 }
 
 /// نوع أمر النقل بين المستودعات
 class TransferOrderType {
   TransferOrderType._();
-  static const String outboundToRepWarehouse = 'OutboundToRepWarehouse';
-  static const String returnToMainWarehouse = 'ReturnToMainWarehouse';
+
+  static const int outboundToRepWarehouse = 0;
+  static const int returnToMainWarehouse = 1;
 }
 
-/// حالة أمر النقل
+/// حالة أمر النقل — TransferOrderStatus enum على الخادم.
 class TransferOrderStatus {
   TransferOrderStatus._();
-  static const String pending = 'Pending';
-  static const String approved = 'Approved';
-  static const String rejected = 'Rejected';
-  static const String completed = 'Completed';
+
+  static const int pending = 0;
+  static const int accountantApproved = 1;
+  static const int warehouseProcessing = 2;
+  static const int completed = 3;
+  static const int rejected = 4;
+  static const int returnPending = 5;
+  static const int returnApproved = 6;
+  static const int returnCompleted = 7;
 }
 
 /// الجهة المستهدفة من الإشعار
@@ -90,7 +109,6 @@ class NotificationTarget {
 /// مصدر الفاتورة
 class InvoiceSource {
   InvoiceSource._();
-  static const String customer = 'Customer';
-  static const String representative = 'Representative';
-  static const String admin = 'Admin';
+  static const int customer = 0;
+  static const int representative = 1;
 }

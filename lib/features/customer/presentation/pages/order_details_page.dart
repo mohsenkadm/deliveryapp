@@ -62,8 +62,7 @@ class _OrderBody extends StatelessWidget {
 
   const _OrderBody({required this.order, required this.controller});
 
-  bool get _canCancel =>
-      order.status == 'Pending' || order.status == 'Accepted';
+  bool get _canCancel => order.status == 'Pending';
 
   bool get _hasInvoice =>
       order.status == 'Delivered' ||
@@ -333,7 +332,7 @@ class _OrderBody extends StatelessWidget {
       ),
     );
     if (ok == true) {
-      await controller.cancelOrder(order.id);
+      await controller.cancelOrder(order.id, currentStatus: order.status);
       Get.back();
     }
   }

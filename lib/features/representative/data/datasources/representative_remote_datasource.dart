@@ -1,5 +1,8 @@
 import '../../../../core/constants/api_constants.dart';
+import '../../../../core/network/api_parser.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/utils/helpers.dart';
+import '../models/rep_models.dart';
 import '../models/rep_warehouse_inventory_result.dart';
 
 // مصدر بيانات المندوب عن بُعد
@@ -7,9 +10,6 @@ class RepresentativeRemoteDataSource {
   final DioClient _dioClient;
   RepresentativeRemoteDataSource(this._dioClient);
 
-  // ── العملاء ──
-
-  /// GET عملاء المندوب ?pendingApproval=true|false
   Future<List<Map<String, dynamic>>> getCustomers(
       {bool? pendingApproval}) async {
     final params = <String, dynamic>{};
@@ -17,99 +17,105 @@ class RepresentativeRemoteDataSource {
       params['pendingApproval'] = pendingApproval;
     }
     final response = await _dioClient.get(ApiConstants.repCustomers,
-        queryParameters: params);
-    final List data = response.data['data'] ?? response.data;
-    return data.cast<Map<String, dynamic>>();
+        queryParameters: params.isEmpty ? null : params);
+    return parseApiList(response);
   }
 
-  /// POST إضافة عميل جديد عبر المندوب
   Future<void> addCustomer(Map<String, dynamic> data) async {
-    await _dioClient.post(ApiConstants.repAddCustomer, data: data);
+    parseApiVoid(
+        await _dioClient.post(ApiConstants.repAddCustomer, data: data));
   }
 
-  // ── الفواتير ──
-
-  /// GET فواتير المندوب ?status=
-  Future<List<Map<String, dynamic>>> getInvoices({String? status, String? customerId}) async {
+  Future<List<Map<String, dynamic>>> getInvoices({
+    String? status,
+    String? customerId,
+    int? driverId,
+  }) async {
     final params = <String, dynamic>{};
-    if (status != null && status.isNotEmpty) params['status'] = status;
-    if (customerId != null) params['customerId'] = customerId;
+    final code = InvoiceStatusHelper.statusQueryParam(status);
+    if (code != null) params['status'] = code;
+    if (customerId != null && customerId.isNotEmpty) {
+      params['customerId'] = customerId;
+    }
+    if (driverId != null) params['driverId'] = driverId;
     final response = await _dioClient.get(ApiConstants.repInvoices,
-        queryParameters: params);
-    final raw = response.data['data'] ?? response.data;
-    if (raw is! List) return const [];
-    return raw
-        .whereType<Map>()
-        .map((e) => Map<String, dynamic>.from(e))
-        .toList();
+        queryParameters: params.isEmpty ? null : params);
+    return parseApiList(response);
   }
 
-  /// GET تفاصيل فاتورة
   Future<Map<String, dynamic>> getInvoiceDetail(String id) async {
     final response =
         await _dioClient.get(ApiConstants.repInvoiceDetail(id));
-    return (response.data['data'] ?? response.data)
-        as Map<String, dynamic>;
+    return parseApiMap(response);
   }
 
-  /// POST إنشاء فاتورة للعميل
   Future<Map<String, dynamic>> createInvoice(
       Map<String, dynamic> data) async {
     final response = await _dioClient.post(
         ApiConstants.repCreateInvoice, data: data);
-    return (response.data['data'] ?? response.data)
-        as Map<String, dynamic>;
+    return parseApiMap(response);
   }
 
-  // ── المدفوعات ──
-
-  /// POST تحصيل دفعة من عميل
   Future<void> collectPayment({
     String? invoiceId,
     String? customerId,
     required double amount,
     String? notes,
   }) async {
-    await _dioClient.post(ApiConstants.repCollectPayment, data: {
+    parseApiVoid(await _dioClient.post(ApiConstants.repCollectPayment, data: {
       if (invoiceId != null) 'invoiceId': invoiceId,
       if (customerId != null) 'customerId': customerId,
       'amount': amount,
       if (notes != null) 'notes': notes,
-    });
+    }));
   }
 
-  /// POST تسليم نقدية للمحاسب
   Future<void> submitPayment({
     String? invoiceId,
     required double amount,
     String? notes,
   }) async {
-    await _dioClient.post(ApiConstants.repSubmitPayment, data: {
+    parseApiVoid(await _dioClient.post(ApiConstants.repSubmitPayment, data: {
       if (invoiceId != null) 'invoiceId': invoiceId,
       'amount': amount,
       if (notes != null) 'notes': notes,
-    });
+    }));
   }
 
-  /// GET سجل المدفوعات
   Future<List<Map<String, dynamic>>> getPayments() async {
     final response = await _dioClient.get(ApiConstants.repPayments);
-    final List data = response.data['data'] ?? response.data;
-    return data.cast<Map<String, dynamic>>();
+    return parseApiList(response);
   }
 
-  // ── الديون ──
-
-  /// GET ديون العملاء
   Future<List<Map<String, dynamic>>> getDebts() async {
     final response = await _dioClient.get(ApiConstants.repDebts);
-    final List data = response.data['data'] ?? response.data;
-    return data.cast<Map<String, dynamic>>();
+    return parseApiList(response);
   }
 
-  // ── المستودع ──
+  Future<RepLiabilityDto> getLiability() async {
+    final response = await _dioClient.get(ApiConstants.repLiability);
+    return parseApi(response, (data) => RepLiabilityDto.fromJson(
+        data is Map ? Map<String, dynamic>.from(data) : const {}));
+  }
 
-  /// GET مخزون المستودع الفرعي للمندوب (بدون استعلام قديم).
+  Future<List<Map<String, dynamic>>> getPendingSettlementInvoices() async {
+    final response =
+        await _dioClient.get(ApiConstants.repInvoicesPendingSettlement);
+    return parseApiList(response);
+  }
+
+  Future<RepTransferWarehousesDto> getTransferWarehouses() async {
+    final response =
+        await _dioClient.get(ApiConstants.repWarehousesTransfer);
+    return parseApi(response, (data) => RepTransferWarehousesDto.fromJson(
+        data is Map ? Map<String, dynamic>.from(data) : const {}));
+  }
+
+  Future<List<Map<String, dynamic>>> getDrivers() async {
+    final response = await _dioClient.get(ApiConstants.repDrivers);
+    return parseApiList(response);
+  }
+
   Future<RepWarehouseInventoryResult> getWarehouseInventory() async {
     final response = await _dioClient.get(ApiConstants.repWarehouse);
     return RepWarehouseInventoryResult.fromResponse(
@@ -118,24 +124,28 @@ class RepresentativeRemoteDataSource {
     );
   }
 
-  /// GET المستودعات الرئيسية (id, name, branchId)
   Future<List<Map<String, dynamic>>> getMainWarehouses() async {
     final response = await _dioClient.get(ApiConstants.repWarehousesMain);
-    final raw = response.data['data'] ?? response.data;
-    if (raw is! List) return const [];
-    return raw
-        .whereType<Map>()
-        .map((e) => Map<String, dynamic>.from(e))
-        .toList();
+    return parseApiList(response);
   }
 
-  /// يوحّد حقول واجهة المنتج من ردّ `main-warehouses` (id/name/mainWarehouseStock/…).
   static Map<String, dynamic> _normalizeMainWarehouseProductRow(
       Map<String, dynamic> raw) {
     final m = Map<String, dynamic>.from(raw);
     m['productId'] ??= m['id'];
     m['productName'] ??= m['name'];
     m['productCode'] ??= m['code'];
+    final nested = m['product'];
+    if (nested is Map) {
+      final p = Map<String, dynamic>.from(nested);
+      m['productId'] ??= p['id'];
+      m['productName'] ??= p['name'];
+      m['wholesalePrice'] ??= p['wholesalePrice'];
+      m['retailPrice'] ??= p['retailPrice'];
+      m['unitPrice'] ??= p['unitPrice'] ?? p['price'];
+    }
+    m['wholesalePrice'] ??= m['wholesaleUnitPrice'];
+    m['retailPrice'] ??= m['price'] ?? m['unitPrice'];
 
     if (m['quantity'] == null) {
       int stock = 0;
@@ -161,7 +171,6 @@ class RepresentativeRemoteDataSource {
     return m;
   }
 
-  /// GET منتجات برصيد في المستودعات الرئيسية فقط.
   Future<List<Map<String, dynamic>>> getMainWarehouseProducts({
     String? search,
     String? categoryId,
@@ -178,57 +187,48 @@ class RepresentativeRemoteDataSource {
       ApiConstants.repProductsMainWarehouses,
       queryParameters: params.isEmpty ? null : params,
     );
-    final envelope = response.data['data'] ?? response.data;
-    if (envelope is List) {
-      return envelope
+    return parseApi<List<Map<String, dynamic>>>(response, (data) {
+      List raw;
+      if (data is List) {
+        raw = data;
+      } else if (data is Map) {
+        raw = data['products'] ?? data['data'] ?? data['items'] ?? [];
+      } else {
+        return const [];
+      }
+      return raw
           .whereType<Map>()
           .map((e) => _normalizeMainWarehouseProductRow(
               Map<String, dynamic>.from(e)))
           .toList();
-    }
-    if (envelope is Map) {
-      final inner = envelope['data'] ?? envelope['items'];
-      if (inner is List) {
-        return inner
-            .whereType<Map>()
-            .map((e) => _normalizeMainWarehouseProductRow(
-                Map<String, dynamic>.from(e)))
-            .toList();
-      }
-    }
-    return const [];
+    });
   }
 
-  // ── أوامر النقل ──
-
-  /// POST طلب نقل مخزون (رئيسي → فرعي) — نفس شكل الـ API:
-  /// `fromWarehouseId`, `toWarehouseId`, `orderType`, `notes`, `details[]`.
   Future<void> requestTransfer(Map<String, dynamic> body) async {
-    await _dioClient.post(ApiConstants.repTransferOrders, data: body);
+    parseApiVoid(await _dioClient.post(
+        ApiConstants.repTransferOrders, data: body));
   }
 
-  /// POST إرجاع مخزون (فرعي → رئيسي).
   Future<void> returnTransfer(Map<String, dynamic> body) async {
-    await _dioClient.post(ApiConstants.repReturnTransfer, data: body);
+    parseApiVoid(
+        await _dioClient.post(ApiConstants.repReturnTransfer, data: body));
   }
 
-  /// GET قائمة أوامر النقل ?status=
   Future<List<Map<String, dynamic>>> getTransferOrders(
       {String? status}) async {
     final params = <String, dynamic>{};
-    if (status != null) params['status'] = status;
+    if (status != null) {
+      final code = int.tryParse(status) ??
+          InvoiceStatusHelper.statusQueryParam(status);
+      if (code != null) params['status'] = code;
+    }
     final response = await _dioClient.get(
-        ApiConstants.repTransferOrdersList,
-        queryParameters: params.isEmpty ? null : params);
-    final raw = response.data['data'] ?? response.data;
-    if (raw is! List) return const [];
-    return raw
-        .map((e) => e is Map ? Map<String, dynamic>.from(e) : null)
-        .whereType<Map<String, dynamic>>()
-        .toList();
+      ApiConstants.repTransferOrdersList,
+      queryParameters: params.isEmpty ? null : params,
+    );
+    return parseApiList(response);
   }
 
-  /// GET فحص العروض الفعّالة (?productId=&promoCode=)
   Future<List<Map<String, dynamic>>> checkOffers({
     String? productId,
     String? promoCode,
@@ -239,13 +239,14 @@ class RepresentativeRemoteDataSource {
     if (params.isEmpty) return const [];
     final response = await _dioClient
         .get(ApiConstants.offersCheck, queryParameters: params);
-    final raw = response.data['data'] ?? response.data;
-    if (raw is List) {
-      return raw
-          .whereType<Map>()
-          .map((e) => Map<String, dynamic>.from(e))
-          .toList();
-    }
-    return const [];
+    return parseApi<List<Map<String, dynamic>>>(response, (data) {
+      if (data is List) {
+        return data
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList();
+      }
+      return const [];
+    });
   }
 }

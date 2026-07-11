@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/services/pdf_service.dart';
+import '../../../../core/services/auth_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/utils/helpers.dart';
@@ -73,8 +74,13 @@ class RepInvoiceDetailPage extends GetView<RepresentativeHomeController> {
 
         final status = InvoiceStatusHelper.parse(
             inv['statusText'] ?? inv['status'], fallback: '');
-        final statusColor = InvoiceStatusHelper.color(status);
-        final statusLabel = InvoiceStatusHelper.label(status);
+        final statusColor = InvoiceStatusHelper.displayColor(inv);
+        final statusLabel = InvoiceStatusHelper.displayLabel(inv);
+        final driverName = invoiceDriverName(inv);
+        final warehouseName = inv['warehouseName']?.toString();
+        final auth = Get.find<AuthService>();
+        final isPendingSettlement = status == 'Delivered' &&
+            auth.isIndividualRepresentative;
         final items = ((inv['details'] ?? inv['items']) as List<dynamic>?)
                 ?.cast<Map<String, dynamic>>() ??
             [];
@@ -129,6 +135,10 @@ class RepInvoiceDetailPage extends GetView<RepresentativeHomeController> {
                         inv['notes'].toString().isNotEmpty)
                       _InfoRow(
                           label: 'ملاحظات', value: inv['notes'].toString()),
+                    if (warehouseName != null && warehouseName.isNotEmpty)
+                      _InfoRow(label: 'المخزن', value: warehouseName),
+                    if (driverName != null)
+                      _InfoRow(label: 'السائق', value: driverName),
                   ],
                 ),
               ),
@@ -264,8 +274,27 @@ class RepInvoiceDetailPage extends GetView<RepresentativeHomeController> {
                 ),
               ),
 
-              // ── زر تحصيل دفعة ──
-              if (remaining > 0) ...[
+              // ── زر تحصيل / تسليم ──
+              if (isPendingSettlement) ...[
+                const SizedBox(height: 20),
+                ElevatedButton.icon(
+                  onPressed: () =>
+                      controller.submitSettlementForInvoice(inv),
+                  icon: const Icon(Icons.send_rounded),
+                  label: Text(
+                    'تسليم للمحاسب — ${Formatters.currency(totalAmount)}',
+                    style: GoogleFonts.cairo(fontWeight: FontWeight.w700),
+                  ),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFF3949AB),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              ] else if (remaining > 0 &&
+                  !auth.isIndividualRepresentative) ...[
                 const SizedBox(height: 20),
                 ElevatedButton.icon(
                   onPressed: () =>

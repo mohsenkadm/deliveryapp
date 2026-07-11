@@ -7,6 +7,7 @@ import '../../../../core/network/dio_client.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/widgets/custom_button.dart';
+import '../../../../core/widgets/product_quantity_stepper.dart';
 import '../../data/datasources/customer_remote_datasource.dart';
 import '../../domain/entities/customer_entities.dart';
 import '../controllers/customer_controllers.dart';
@@ -115,11 +116,39 @@ class _ProductDetailsPageState extends State<ProductDetailsPage> {
                     style: GoogleFonts.cairo(fontSize: 14, color: Colors.grey[600], height: 1.6),
                   ).animate().fadeIn(delay: 300.ms),
                   const SizedBox(height: 32),
-                  CustomButton(
-                    text: 'أضف إلى السلة',
-                    icon: Icons.add_shopping_cart,
-                    onPressed: _product.isAvailable ? () => _cartController.addToCart(_product) : null,
-                  ).animate().fadeIn(delay: 400.ms),
+                  Obx(() {
+                    final qty = _cartController.quantityOf(_product.id);
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (qty > 0)
+                          Center(
+                            child: ProductQuantityStepper(
+                              quantity: qty,
+                              enabled: _product.isAvailable,
+                              maxQuantity: _product.stockQuantity > 0
+                                  ? _product.stockQuantity
+                                  : null,
+                              onAdd: () => _cartController
+                                  .incrementProduct(_product),
+                              onIncrement: () => _cartController
+                                  .incrementProduct(_product),
+                              onDecrement: () => _cartController
+                                  .decrementProduct(_product.id),
+                            ),
+                          )
+                        else
+                          CustomButton(
+                            text: 'أضف إلى السلة',
+                            icon: Icons.add_shopping_cart,
+                            onPressed: _product.isAvailable
+                                ? () => _cartController
+                                    .incrementProduct(_product)
+                                : null,
+                          ),
+                      ],
+                    );
+                  }).animate().fadeIn(delay: 400.ms),
                 ],
               ),
             ),

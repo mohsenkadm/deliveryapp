@@ -31,6 +31,8 @@ class InvoiceStatusHelper {
     'انتظار التوصيل': 'AwaitingDelivery',
     'تم التسليم': 'Delivered',
     'تم التوصيل': 'Delivered',
+    'تم البيع — بانتظار تسليم المحاسب': 'Delivered',
+    'بانتظار تسليم المحاسب': 'Delivered',
     'مكتمل': 'Completed',
     'مكتملة': 'Completed',
     'مرفوض': 'Rejected',
@@ -82,6 +84,14 @@ class InvoiceStatusHelper {
     return i < 0 ? null : i;
   }
 
+  /// يحوّل اسم الحالة أو رقمها إلى int لاستخدامه في `?status=` query param.
+  static int? statusQueryParam(String? status) {
+    if (status == null || status.isEmpty) return null;
+    final asInt = int.tryParse(status);
+    if (asInt != null) return asInt;
+    return toInt(status);
+  }
+
   static String parse(dynamic value, {String fallback = 'Pending'}) {
     if (value == null) return fallback;
     final s = value.toString().trim();
@@ -105,6 +115,32 @@ class InvoiceStatusHelper {
   static String label(String status) =>
       _arabicLabels[status] ?? status;
 
+  /// تسمية للعرض — تفضّل `statusText` من الـ API عند توفره.
+  static String displayLabel(dynamic invoiceOrStatus, {String? statusText}) {
+    if (statusText != null && statusText.trim().isNotEmpty) {
+      return statusText;
+    }
+    if (invoiceOrStatus is Map) {
+      final st = invoiceOrStatus['statusText'];
+      if (st != null && st.toString().trim().isNotEmpty) {
+        return st.toString();
+      }
+      return label(parse(
+          invoiceOrStatus['statusText'] ?? invoiceOrStatus['status'],
+          fallback: ''));
+    }
+    return label(parse(invoiceOrStatus, fallback: ''));
+  }
+
+  /// لون الحالة — يعتمد على المفتاح الإنجليزي الموحّد.
+  static Color displayColor(dynamic invoiceOrStatus) =>
+      color(parse(
+          invoiceOrStatus is Map
+              ? (invoiceOrStatus['statusText'] ??
+                  invoiceOrStatus['status'])
+              : invoiceOrStatus,
+          fallback: 'Pending'));
+
   static Color color(String status) =>
       _colors[status] ?? const Color(0xFF6B7280);
 
@@ -114,6 +150,42 @@ class InvoiceStatusHelper {
 
   /// فهرس الحالة في المخطط الزمني (-1 إذا لم تكن ضمن السلسلة)
   static int timelineIndex(String status) => timeline.indexOf(status);
+}
+
+/// استخراج اسم السائق من بيانات الفاتورة/الطلب.
+String? invoiceDriverName(Map<String, dynamic> inv) {
+  for (final key in [
+    'driverName',
+    'assignedDriverName',
+    'deliveryDriverName',
+  ]) {
+    final v = inv[key];
+    if (v != null && v.toString().trim().isNotEmpty) return v.toString();
+  }
+  for (final nested in ['driver', 'assignedDriver', 'deliveryDriver']) {
+    final obj = inv[nested];
+    if (obj is Map) {
+      final n = obj['fullName'] ?? obj['name'];
+      if (n != null && n.toString().trim().isNotEmpty) {
+        return n.toString();
+      }
+    }
+  }
+  final employee = inv['employee'];
+  if (employee is Map) {
+    final role = (employee['role'] ?? employee['roles'] ?? '')
+        .toString()
+        .toLowerCase();
+    if (role.contains('driver')) {
+      final n = employee['fullName'] ?? employee['name'];
+      if (n != null && n.toString().trim().isNotEmpty) return n.toString();
+    }
+  }
+  final empName = inv['employeeName'];
+  if (empName != null && empName.toString().trim().isNotEmpty) {
+    return empName.toString();
+  }
+  return null;
 }
 
 class Helpers {

@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../../core/routes/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/theme/app_text_styles.dart';
 import '../../../../core/utils/formatters.dart';
@@ -193,11 +194,41 @@ class _RepDebtsPageState extends State<RepDebtsPage> {
                                     style: AppTextStyles.bodySmall),
                               ],
                             ),
-                            trailing: Text(
-                              Formatters.formatCurrency(debt),
-                              style: TextStyle(
-                                  color: AppColors.error,
-                                  fontWeight: FontWeight.bold),
+                            trailing: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.end,
+                              children: [
+                                Text(
+                                  Formatters.formatCurrency(debt),
+                                  style: TextStyle(
+                                      color: AppColors.error,
+                                      fontWeight: FontWeight.bold),
+                                ),
+                                TextButton.icon(
+                                  onPressed: () => Get.toNamed(
+                                    AppRoutes.collectPayment,
+                                    arguments: {
+                                      'id': d['customerId'] ?? d['id'],
+                                      'fullName': d['fullName'],
+                                      'phone': d['phone'],
+                                      'storeName': d['storeName'],
+                                      'totalDebt': debt,
+                                    },
+                                  ),
+                                  icon: const Icon(Icons.payment, size: 16),
+                                  label: Text('تحصيل',
+                                      style: GoogleFonts.cairo(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w700)),
+                                  style: TextButton.styleFrom(
+                                    foregroundColor: AppColors.primary,
+                                    padding: EdgeInsets.zero,
+                                    minimumSize: Size.zero,
+                                    tapTargetSize:
+                                        MaterialTapTargetSize.shrinkWrap,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
                         );

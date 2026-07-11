@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/routes/app_routes.dart';
+import '../../../../core/services/signalr_service.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/utils/snackbar_helper.dart';
 import '../../data/datasources/driver_remote_datasource.dart';
@@ -29,10 +31,21 @@ class DriverHomeController extends GetxController {
     {'label': 'مرفوض', 'value': 'Rejected'},
   ];
 
+  Future<void> _refreshOnNotification() async {
+    await loadData();
+  }
+
   @override
   void onInit() {
     super.onInit();
     _ds = DriverRemoteDataSource(Get.find<DioClient>());
+    SignalRService.to.registerRefresh(_refreshOnNotification);
+  }
+
+  @override
+  void onClose() {
+    SignalRService.to.unregisterRefresh(_refreshOnNotification);
+    super.onClose();
   }
 
   @override
@@ -77,8 +90,15 @@ class DriverHomeController extends GetxController {
   Future<void> loadCompletedDeliveries() async {
     isLoadingCompleted.value = true;
     try {
-      final orders = await _ds.getOrders(status: 'Completed');
-      completedOrders.value = orders;
+      final delivered = await _ds.getOrders(status: 'Delivered');
+      final completed = await _ds.getOrders(status: 'Completed');
+      final seen = <String>{};
+      final merged = <DeliveryOrder>[];
+      for (final o in [...delivered, ...completed]) {
+        if (seen.add(o.id)) merged.add(o);
+      }
+      merged.sort((a, b) => b.createdAt.compareTo(a.createdAt));
+      completedOrders.value = merged;
     } catch (e) {
       SnackbarHelper.handleApiError(e, 'فشل تحميل التوصيلات المكتملة');
     }
@@ -96,6 +116,18 @@ class DriverHomeController extends GetxController {
 
   Future<void> refreshSummary() async {
     await _loadSummary();
+  }
+
+  /// GET تفاصيل الطلب الكاملة (أصناف + موقع العميل + المبالغ).
+  Future<DeliveryOrder> fetchOrderDetail(String orderId) async {
+    return _ds.getOrderDetail(orderId);
+  }
+
+  void openOrderDetail(DeliveryOrder order) {
+    Get.toNamed(
+      AppRoutes.orderTracking,
+      arguments: {'orderId': order.id},
+    );
   }
 
   /// تأكيد الاستلام من المستودع (قبل التوصيل)
@@ -259,5 +291,34 @@ class DriverHomeController extends GetxController {
     }
     isActing.value = false;
     isUpdating.value = false;
+  }
+
+  // ── مدفوعات السائق ──
+  final driverPayments = <Map<String, dynamic>>[].obs;
+  final isLoadingDriverPayments = false.obs;
+
+  Future<void> loadDriverPayments({bool? isVerified}) async {
+    isLoadingDriverPayments.value = true;
+    try {
+      driverPayments.value = await _ds.getPayments(isVerified: isVerified);
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشل تحميل المدفوعات');
+    }
+    isLoadingDriverPayments.value = false;
+  }
+
+  Future<void> submitDriverPayments({
+    required double amount,
+    String? notes,
+  }) async {
+    isActing.value = true;
+    try {
+      await _ds.submitPayments(amount: amount, notes: notes);
+      SnackbarHelper.showSuccess('تم تسليم المبلغ للشركة');
+      await loadDriverPayments();
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشل تسليم المبلغ');
+    }
+    isActing.value = false;
   }
 }

@@ -1,5 +1,7 @@
 import '../../../../core/constants/api_constants.dart';
+import '../../../../core/network/api_parser.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/utils/helpers.dart';
 import '../models/customer_models.dart';
 
 // مصدر بيانات العميل عن بُعد
@@ -8,7 +10,6 @@ class CustomerRemoteDataSource {
   CustomerRemoteDataSource(this._dioClient);
 
   /// GET المنتجات مع بحث وفلترة وترقيم صفحات
-  /// [nearExpiryDays] أظهر فقط المنتجات المنتهية خلال X يوم.
   Future<ProductListResult> getProducts({
     int page = 1,
     int pageSize = 20,
@@ -24,27 +25,40 @@ class CustomerRemoteDataSource {
     if (nearExpiryDays != null) params['nearExpiryDays'] = nearExpiryDays;
 
     final response = await _dioClient.get(
-        ApiConstants.customerProducts,
-        queryParameters: params);
-
-    final body = response.data['data'] ?? response.data;
-    if (body is Map) {
-      final List raw = body['data'] ?? [];
-      return ProductListResult(
-        total: body['total'] ?? 0,
-        page: body['page'] ?? page,
-        pageSize: body['pageSize'] ?? pageSize,
-        items: raw.map((e) => ProductModel.fromJson(e)).toList(),
-      );
-    }
-    // fallback: plain list
-    final List raw = body is List ? body : [];
-    return ProductListResult(
-      total: raw.length,
-      page: page,
-      pageSize: pageSize,
-      items: raw.map((e) => ProductModel.fromJson(e)).toList(),
+      ApiConstants.customerProducts,
+      queryParameters: params,
     );
+
+    return parseApi<ProductListResult>(response, (data) {
+      if (data is Map) {
+        final m = Map<String, dynamic>.from(data);
+        final List raw = m['products'] ?? m['data'] ?? m['items'] ?? [];
+        return ProductListResult(
+          total: ((m['totalCount'] ?? m['total'] ?? 0) as num).toInt(),
+          page: (m['page'] as num?)?.toInt() ?? page,
+          pageSize: (m['pageSize'] as num?)?.toInt() ?? pageSize,
+          items: raw
+              .map((e) => ProductModel.fromJson(e as Map<String, dynamic>))
+              .toList(),
+        );
+      }
+      if (data is List) {
+        return ProductListResult(
+          total: data.length,
+          page: page,
+          pageSize: pageSize,
+          items: data
+              .map((e) => ProductModel.fromJson(e as Map<String, dynamic>))
+              .toList(),
+        );
+      }
+      return ProductListResult(
+        total: 0,
+        page: page,
+        pageSize: pageSize,
+        items: const [],
+      );
+    });
   }
 
   /// GET قائمة التصنيفات (?search=)
@@ -55,40 +69,49 @@ class CustomerRemoteDataSource {
       ApiConstants.categories,
       queryParameters: params.isEmpty ? null : params,
     );
-    final body = response.data['data'] ?? response.data;
-    final List raw = body is List ? body : (body['data'] ?? body['items'] ?? []);
-    return raw
-        .map((e) => CategoryModel.fromJson(e as Map<String, dynamic>))
-        .toList();
+    return parseApi<List<CategoryModel>>(response, (data) {
+      if (data == null) return <CategoryModel>[];
+      final List raw = data is List
+          ? data
+          : (data is Map
+              ? (data['data'] ?? data['items'] ?? [])
+              : []);
+      return raw
+          .map((e) => CategoryModel.fromJson(e as Map<String, dynamic>))
+          .toList();
+    });
   }
 
   /// GET الطلبات مع فلتر الحالة
   Future<List<OrderModel>> getMyOrders({String? status}) async {
     final params = <String, dynamic>{};
-    if (status != null) params['status'] = status;
+    final code = InvoiceStatusHelper.statusQueryParam(status);
+    if (code != null) params['status'] = code;
     final response = await _dioClient.get(
-        ApiConstants.customerOrders,
-        queryParameters: params);
-    final List data = response.data['data'] ?? response.data;
-    return data.map((e) => OrderModel.fromJson(e)).toList();
+      ApiConstants.customerOrders,
+      queryParameters: params.isEmpty ? null : params,
+    );
+    return parseApi<List<OrderModel>>(response, (data) {
+      if (data == null) return <OrderModel>[];
+      final List raw = data is List ? data : [];
+      return raw.map((e) => OrderModel.fromJson(e)).toList();
+    });
   }
 
   /// GET تفاصيل طلب
   Future<OrderModel> getOrderDetail(String id) async {
     final response =
         await _dioClient.get(ApiConstants.customerOrderDetail(id));
-    return OrderModel.fromJson(response.data['data'] ?? response.data);
+    return parseApi(response, (data) => OrderModel.fromJson(
+        data is Map ? Map<String, dynamic>.from(data) : const {}));
   }
 
-  /// POST إنشاء طلب — نفس شكل فاتورة العميل على الخادم (جسم مسطح).
-  ///
-  /// يُرسل جسم CreateInvoiceDto؛ الخادم يضبط `customerId` من JWT و`employeeId` = null
-  /// و`invoiceSource` = عميل (0). يمكن إرسال `customerId: 0` — يُتجاهل.
+  /// POST إنشاء طلب — CreateInvoiceDto (لا ترسل customerId — من JWT).
   Future<OrderModel> createOrder({
     required List<Map<String, dynamic>> items,
     String? notes,
     String? promoCode,
-    String? address, // غير مستخدم — مُحتفَظ به للتوافق مع الواجهات القديمة
+    String? address,
     String deliveryScheduleType = 'Immediate',
     DateTime? scheduledDeliveryDate,
   }) async {
@@ -116,11 +139,8 @@ class CustomerRemoteDataSource {
         deliveryScheduleType.toLowerCase() == 'scheduled' ? 1 : 0;
 
     final body = <String, dynamic>{
-      'customerId': 0,
-      'employeeId': null,
-      'invoiceSource': 0,
-      'promoCode': promoCode?.trim() ?? '',
-      'branchId': 0,
+      if (promoCode != null && promoCode.trim().isNotEmpty)
+        'promoCode': promoCode.trim(),
       'deliveryScheduleType': scheduleInt,
       if (scheduleInt == 1 && scheduledDeliveryDate != null)
         'scheduledDeliveryDate':
@@ -133,12 +153,13 @@ class CustomerRemoteDataSource {
       ApiConstants.customerCreateOrder,
       data: body,
     );
-    return OrderModel.fromJson(response.data['data'] ?? response.data);
+    return parseApi(response, (data) => OrderModel.fromJson(
+        data is Map ? Map<String, dynamic>.from(data) : const {}));
   }
 
   /// POST إلغاء طلب (Pending فقط)
   Future<void> cancelOrder(String id) async {
-    await _dioClient.post(ApiConstants.customerCancelOrder(id));
+    parseApiVoid(await _dioClient.post(ApiConstants.customerCancelOrder(id)));
   }
 
   /// GET رابط HTML فاتورة — يُعرض في WebView
@@ -146,8 +167,6 @@ class CustomerRemoteDataSource {
       '${ApiConstants.baseUrl}${ApiConstants.customerOrderInvoice(id)}';
 
   /// GET ملخص الديون مع فلاتر التاريخ/المبلغ والفرز.
-  ///
-  /// [sortBy] = `date` | `amount`. [sortDir] = `asc` | `desc`.
   Future<DebtSummaryModel> getMyDebts({
     DateTime? from,
     DateTime? to,
@@ -168,26 +187,27 @@ class CustomerRemoteDataSource {
       ApiConstants.customerDebts,
       queryParameters: params.isEmpty ? null : params,
     );
-    return DebtSummaryModel.fromJson(
-        response.data['data'] ?? response.data);
+    return parseApi(response, (data) => DebtSummaryModel.fromJson(
+        data is Map ? Map<String, dynamic>.from(data) : const {}));
   }
 
   /// GET إشعارات العميل
   Future<List<NotificationModel>> getNotifications() async {
     final response =
         await _dioClient.get(ApiConstants.customerNotifications);
-    final List data = response.data['data'] ?? response.data;
-    return data.map((e) => NotificationModel.fromJson(e)).toList();
+    return parseApi<List<NotificationModel>>(response, (data) {
+      final List raw = data is List ? data : [];
+      return raw.map((e) => NotificationModel.fromJson(e)).toList();
+    });
   }
 
   /// PATCH تعليم إشعار كمقروء
   Future<void> markNotificationRead(String id) async {
-    await _dioClient.patch(
-        ApiConstants.customerMarkNotificationRead(id));
+    parseApiVoid(await _dioClient.patch(
+        ApiConstants.customerMarkNotificationRead(id)));
   }
 
   /// GET فحص العروض الفعّالة على منتج أو كود ترويجي
-  /// `productId`/`promoCode` كلاهما اختياري — أحدهما على الأقل مطلوب
   Future<List<Map<String, dynamic>>> checkOffers({
     String? productId,
     String? promoCode,
@@ -200,14 +220,15 @@ class CustomerRemoteDataSource {
       ApiConstants.offersCheck,
       queryParameters: params,
     );
-    final raw = response.data['data'] ?? response.data;
-    if (raw is List) {
-      return raw
-          .whereType<Map>()
-          .map((e) => Map<String, dynamic>.from(e))
-          .toList();
-    }
-    return const [];
+    return parseApi<List<Map<String, dynamic>>>(response, (data) {
+      if (data is List) {
+        return data
+            .whereType<Map>()
+            .map((e) => Map<String, dynamic>.from(e))
+            .toList();
+      }
+      return const [];
+    });
   }
 }
 

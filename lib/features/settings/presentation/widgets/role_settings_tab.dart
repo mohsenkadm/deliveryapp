@@ -121,6 +121,16 @@ class RoleSettingsTab extends StatelessWidget {
                 'تبديل الدور (${_roleLabelAr(auth.activeRole)})',
                 () => _showRoleSwitcher(auth),
               ),
+            if (auth.userKind == UserKind.customer) _divider(),
+            if (auth.userKind == UserKind.customer)
+              _tile(
+                Icons.delete_forever_outlined,
+                'حذف الحساب',
+                _confirmDeleteAccount,
+                titleColor: Colors.red,
+                iconColor: Colors.red,
+                iconBgColor: Colors.red.withValues(alpha: 0.10),
+              ),
           ]),
           const SizedBox(height: 16),
 
@@ -264,18 +274,31 @@ class RoleSettingsTab extends StatelessWidget {
         indent: 56,
       );
 
-  Widget _tile(IconData icon, String title, VoidCallback onTap) {
+  Widget _tile(
+    IconData icon,
+    String title,
+    VoidCallback onTap, {
+    Color? titleColor,
+    Color? iconColor,
+    Color? iconBgColor,
+  }) {
     return ListTile(
       leading: Container(
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
-          color: AppColors.primary.withValues(alpha: 0.10),
+          color: iconBgColor ?? AppColors.primary.withValues(alpha: 0.10),
           borderRadius: BorderRadius.circular(10),
         ),
-        child: Icon(icon, color: AppColors.primary, size: 20),
+        child: Icon(icon, color: iconColor ?? AppColors.primary, size: 20),
       ),
-      title: Text(title,
-          style: GoogleFonts.cairo(fontSize: 14, fontWeight: FontWeight.w600)),
+      title: Text(
+        title,
+        style: GoogleFonts.cairo(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: titleColor,
+        ),
+      ),
       trailing: const Icon(Icons.chevron_left, size: 20),
       onTap: onTap,
     );
@@ -404,6 +427,78 @@ class RoleSettingsTab extends StatelessWidget {
                 style: GoogleFonts.cairo(
                     color: Colors.red, fontWeight: FontWeight.w700)),
           ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDeleteAccount() {
+    Get.dialog(
+      AlertDialog(
+        title: Text('حذف الحساب',
+            style: GoogleFonts.cairo(
+                fontWeight: FontWeight.w700, color: Colors.red)),
+        content: Text(
+          'سيتم حذف حسابك نهائياً من النظام. '
+          'لا يمكن التراجع عن هذا الإجراء، وقد يشمل حذف بياناتك المرتبطة بالطلبات والفواتير وفق سياسة الشركة.',
+          style: GoogleFonts.cairo(height: 1.6),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: Text('إلغاء',
+                style: GoogleFonts.cairo(color: AppColors.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () {
+              Get.back();
+              _confirmDeleteAccountFinal();
+            },
+            child: Text('متابعة',
+                style: GoogleFonts.cairo(
+                    color: Colors.red, fontWeight: FontWeight.w700)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _confirmDeleteAccountFinal() {
+    Get.dialog(
+      AlertDialog(
+        title: Text('تأكيد نهائي',
+            style: GoogleFonts.cairo(
+                fontWeight: FontWeight.w700, color: Colors.red)),
+        content: Text(
+          'هل أنت متأكد تماماً من حذف حسابك؟ لا يمكن التراجع بعد التأكيد.',
+          style: GoogleFonts.cairo(height: 1.6),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Get.back(),
+            child: Text('إلغاء',
+                style: GoogleFonts.cairo(color: AppColors.textSecondary)),
+          ),
+          Obx(() {
+            final controller = Get.find<AuthController>();
+            return TextButton(
+              onPressed: controller.isLoading.value
+                  ? null
+                  : () {
+                      Get.back();
+                      controller.deleteMyAccount();
+                    },
+              child: controller.isLoading.value
+                  ? const SizedBox(
+                      width: 18,
+                      height: 18,
+                      child: CircularProgressIndicator(strokeWidth: 2),
+                    )
+                  : Text('حذف نهائي',
+                      style: GoogleFonts.cairo(
+                          color: Colors.red, fontWeight: FontWeight.w700)),
+            );
+          }),
         ],
       ),
     );

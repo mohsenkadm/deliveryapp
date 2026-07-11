@@ -11,6 +11,7 @@ import '../../../settings/presentation/widgets/role_settings_tab.dart';
 import '../controllers/representative_controllers.dart';
 import 'customer_invoices_page.dart';
 import 'rep_debts_page.dart';
+import 'rep_liability_page.dart';
 import 'rep_warehouse_page.dart';
 import 'rep_payments_page.dart';
 
@@ -21,12 +22,14 @@ class RepresentativeMainPage extends GetView<RepresentativeHomeController> {
   Widget build(BuildContext context) {
     final auth = Get.find<AuthService>();
     final showWarehouse = auth.repShowSubWarehouseTab;
+    final showLiability = auth.isIndividualRepresentative;
 
     final pages = <Widget>[
       const _RepHomeTab(),
       const _MyCustomersTab(),
       const CustomerInvoicesPage(),
       const RepDebtsPage(),
+      if (showLiability) const RepLiabilityPage(),
       if (showWarehouse) const RepWarehousePage(),
       const RepPaymentsPage(),
       const RoleSettingsTab(notificationsRoute: AppRoutes.representativeNotifications),
@@ -37,9 +40,11 @@ class RepresentativeMainPage extends GetView<RepresentativeHomeController> {
       const NavigationDestination(icon: Icon(Icons.people_outlined), selectedIcon: Icon(Icons.people_rounded), label: 'عملائي'),
       const NavigationDestination(icon: Icon(Icons.receipt_long_outlined), selectedIcon: Icon(Icons.receipt_long_rounded), label: 'الفواتير'),
       const NavigationDestination(icon: Icon(Icons.money_off_csred_outlined), selectedIcon: Icon(Icons.money_off_csred_rounded), label: 'الديون'),
+      if (showLiability)
+        const NavigationDestination(icon: Icon(Icons.account_balance_wallet_outlined), selectedIcon: Icon(Icons.account_balance_wallet_rounded), label: 'ذمتي'),
       if (showWarehouse)
         const NavigationDestination(icon: Icon(Icons.warehouse_outlined), selectedIcon: Icon(Icons.warehouse_rounded), label: 'المستودع'),
-      const NavigationDestination(icon: Icon(Icons.account_balance_wallet_outlined), selectedIcon: Icon(Icons.account_balance_wallet_rounded), label: 'السجلات'),
+      const NavigationDestination(icon: Icon(Icons.payments_outlined), selectedIcon: Icon(Icons.payments_rounded), label: 'السجلات'),
       const NavigationDestination(icon: Icon(Icons.settings_outlined), selectedIcon: Icon(Icons.settings_rounded), label: 'الإعدادات'),
     ];
 

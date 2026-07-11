@@ -5,12 +5,14 @@ import 'package:get/get.dart';
 import 'package:get_storage/get_storage.dart';
 import 'package:intl/date_symbol_data_local.dart';
 import 'app.dart';
+import 'core/network/ssl_config.dart';
 import 'core/services/branding_service.dart';
 import 'core/services/onesignal_service.dart';
 import 'core/services/storage_service.dart';
  
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await configureTrustedCertificates();
   await GetStorage.init();
 
   // تهيئة بيانات التواريخ للغة العربية

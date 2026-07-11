@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../../core/routes/app_routes.dart';
 import '../../../../core/services/auth_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
@@ -35,6 +36,7 @@ class SalesManagerHomePage extends StatelessWidget {
             return const LoadingIndicator();
           }
           final s = ctrl.salesSummary.value ?? {};
+          final pendingCustomersCount = ctrl.pendingCustomers.length;
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
@@ -119,8 +121,8 @@ class SalesManagerHomePage extends StatelessWidget {
                     index: 3,
                   ),
                   _StatCard(
-                    label: 'عدد العملاء',
-                    value: '${s['totalCustomers'] ?? 0}',
+                    label: 'طلبات عملاء معلّقة',
+                    value: '$pendingCustomersCount',
                     icon: Icons.people_rounded,
                     color: AppColors.secondaryLight,
                     index: 4,
@@ -181,6 +183,25 @@ class SalesManagerHomePage extends StatelessWidget {
                   ),
                 ).animate().fadeIn(delay: 400.ms);
               }),
+
+              const SizedBox(height: 12),
+              Card(
+                child: ListTile(
+                  leading: CircleAvatar(
+                    backgroundColor:
+                        AppColors.primary.withValues(alpha: 0.12),
+                    child:  Icon(Icons.verified_user_outlined,
+                        color: AppColors.primary),
+                  ),
+                  title: Text('تحقق تسليمات المندوبين',
+                      style: GoogleFonts.cairo(fontWeight: FontWeight.w700)),
+                  subtitle: Text('دفعات بانتظار اعتماد المحاسب',
+                      style: GoogleFonts.cairo(fontSize: 12)),
+                  trailing: const Icon(Icons.chevron_left),
+                  onTap: () =>
+                      Get.toNamed(AppRoutes.managerPendingPayments),
+                ),
+              ).animate().fadeIn(delay: 450.ms),
             ],
           );
         }),

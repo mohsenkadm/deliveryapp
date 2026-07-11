@@ -35,7 +35,7 @@ class _CustomerInvoicesPageState extends State<CustomerInvoicesPage> {
     'موافق',
     'تجهيز',
     'في التوصيل',
-    'مُسلّم',
+    'بانتظار التسليم',
     'مكتمل',
     'مرفوض',
     'مؤجل',
@@ -63,6 +63,7 @@ class _CustomerInvoicesPageState extends State<CustomerInvoicesPage> {
         controller.loadCustomerInvoices(_customerId!);
       } else {
         controller.loadInvoices();
+        controller.loadBranchDrivers();
       }
     });
   }
@@ -102,7 +103,12 @@ class _CustomerInvoicesPageState extends State<CustomerInvoicesPage> {
           if (_customer != null) const SizedBox(height: 8),
           FloatingActionButton.extended(
             heroTag: 'rep_new_invoice_${_customerId ?? 'all'}',
-            onPressed: () => Get.toNamed(AppRoutes.repCreateInvoice),
+            onPressed: () => Get.toNamed(
+              AppRoutes.repCreateInvoice,
+              arguments: _customerId != null
+                  ? {'customerId': _customerId}
+                  : null,
+            ),
             icon: const Icon(Icons.add),
             label: Text('فاتورة جديدة',
                 style: GoogleFonts.cairo(fontWeight: FontWeight.w600)),
@@ -161,6 +167,43 @@ class _CustomerInvoicesPageState extends State<CustomerInvoicesPage> {
                     }),
                   ),
                 )),
+          if (_customerId == null)
+            Obx(() {
+              if (controller.branchDrivers.isEmpty) {
+                return const SizedBox.shrink();
+              }
+              final drivers = controller.branchDrivers;
+              final selected = controller.selectedDriverId.value;
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: DropdownButtonFormField<int?>(
+                  value: selected,
+                  decoration: InputDecoration(
+                    labelText: 'فلتر بالسائق',
+                    labelStyle: GoogleFonts.cairo(fontSize: 13),
+                    isDense: true,
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12)),
+                  ),
+                  items: [
+                    DropdownMenuItem<int?>(
+                      value: null,
+                      child: Text('جميع السائقين',
+                          style: GoogleFonts.cairo(fontSize: 13)),
+                    ),
+                    ...drivers.map((d) {
+                      final id = (d['id'] as num?)?.toInt();
+                      return DropdownMenuItem<int?>(
+                        value: id,
+                        child: Text(d['fullName']?.toString() ?? '',
+                            style: GoogleFonts.cairo(fontSize: 13)),
+                      );
+                    }),
+                  ],
+                  onChanged: (v) => controller.loadInvoices(driverId: v ?? 0),
+                ),
+              );
+            }),
 
           Expanded(
             child: Obx(() {
@@ -190,8 +233,10 @@ class _CustomerInvoicesPageState extends State<CustomerInvoicesPage> {
                     final status = InvoiceStatusHelper.parse(
                         inv['statusText'] ?? inv['status'],
                         fallback: '');
-                    final statusColor = InvoiceStatusHelper.color(status);
-                    final statusLabel = InvoiceStatusHelper.label(status);
+                    final statusColor = InvoiceStatusHelper.displayColor(inv);
+                    final statusLabel = InvoiceStatusHelper.displayLabel(inv);
+                    final driverName = invoiceDriverName(inv);
+                    final warehouseName = inv['warehouseName']?.toString();
 
                     return GestureDetector(
                       onTap: () => Get.toNamed(
@@ -236,6 +281,17 @@ class _CustomerInvoicesPageState extends State<CustomerInvoicesPage> {
                                           fontSize: 12,
                                           color: AppColors.textSecondary),
                                     ),
+                                  if (warehouseName != null &&
+                                      warehouseName.isNotEmpty)
+                                    Text('المخزن: $warehouseName',
+                                        style: GoogleFonts.cairo(
+                                            fontSize: 11,
+                                            color: AppColors.textSecondary)),
+                                  if (driverName != null)
+                                    Text('السائق: $driverName',
+                                        style: GoogleFonts.cairo(
+                                            fontSize: 11,
+                                            color: AppColors.textSecondary)),
                                   Text(
                                     inv['createdAt'] != null
                                         ? Formatters.date(

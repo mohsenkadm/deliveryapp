@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../../core/constants/app_constants.dart';
+import '../../../../core/services/branding_service.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_logo.dart';
 
 class AboutAppPage extends StatelessWidget {
   const AboutAppPage({super.key});
@@ -77,7 +81,7 @@ class AboutAppPage extends StatelessWidget {
                   Divider(height: 1, indent: 16, color: AppColors.dividerLight),
                   _InfoRow(label: 'تاريخ الإصدار', value: 'يناير 2025'),
                   Divider(height: 1, indent: 16, color: AppColors.dividerLight),
-                  _InfoRow(label: 'جهة التطوير', value: 'DeliverySystem'),
+                  _InfoRow(label: 'جهة التطوير', value: AppConstants.appName),
                   Divider(height: 1, indent: 16, color: AppColors.dividerLight),
                   _InfoRow(label: 'المنصة', value: 'iOS & Android'),
                 ],
@@ -99,33 +103,14 @@ class AboutAppPage extends StatelessWidget {
   }
 
   Widget _buildAppHeader() {
+    final branding = Get.find<BrandingService>();
     return Column(
       children: [
-        Container(
-          width: 100,
-          height: 100,
-          decoration: BoxDecoration(
-            gradient: const LinearGradient(
-              colors: [Color(0xFF2E7DFF), Color(0xFF7BB8FF)],
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-            ),
-            borderRadius: BorderRadius.circular(28),
-            boxShadow: [
-              BoxShadow(
-                color: const Color(0xFF2E7DFF).withValues(alpha: 0.35),
-                blurRadius: 28,
-                offset: const Offset(0, 10),
-              ),
-            ],
-          ),
-          child: const Icon(Icons.local_shipping_rounded,
-              size: 52, color: Colors.white),
-        ),
+        const AppLogo(size: 100, borderRadius: 28, padding: 12),
         const SizedBox(height: 18),
-        Text('تطبيق التوصيل',
+        Obx(() => Text(branding.appName.value,
             style: GoogleFonts.cairo(
-                fontSize: 24, fontWeight: FontWeight.w800)),
+                fontSize: 24, fontWeight: FontWeight.w800))),
         const SizedBox(height: 8),
         Container(
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 5),

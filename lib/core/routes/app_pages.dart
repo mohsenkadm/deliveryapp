@@ -55,6 +55,7 @@ import '../../features/supervisor/presentation/bindings/supervisor_binding.dart'
 import '../../features/sales_manager/presentation/pages/sales_manager_main_page.dart';
 import '../../features/sales_manager/presentation/pages/sales_manager_rep_detail_page.dart';
 import '../../features/sales_manager/presentation/pages/sales_manager_notifications_page.dart';
+import '../../features/sales_manager/presentation/pages/manager_pending_payments_page.dart';
 import '../../features/sales_manager/presentation/bindings/sales_manager_binding.dart';
 
 // Driver extra
@@ -126,20 +127,20 @@ class AppPages {
 
     // Customer
     GetPage(name: AppRoutes.customer, page: () => const CustomerMainPage(), binding: CustomerBinding()),
-    GetPage(name: AppRoutes.products, page: () => const ProductsPage()),
-    GetPage(name: AppRoutes.productDetails, page: () => const ProductDetailsPage()),
-    GetPage(name: AppRoutes.categories, page: () => const CategoriesPage()),
-    GetPage(name: AppRoutes.cart, page: () => const CartPage()),
-    GetPage(name: AppRoutes.checkout, page: () => const CheckoutPage()),
-    GetPage(name: AppRoutes.myOrders, page: () => const MyOrdersPage()),
-    GetPage(name: AppRoutes.orderDetails, page: () => const OrderDetailsPage()),
-    GetPage(name: AppRoutes.myDebts, page: () => const MyDebtsPage()),
+    GetPage(name: AppRoutes.products, page: () => const ProductsPage(), binding: CustomerBinding()),
+    GetPage(name: AppRoutes.productDetails, page: () => const ProductDetailsPage(), binding: CustomerBinding()),
+    GetPage(name: AppRoutes.categories, page: () => const CategoriesPage(), binding: CustomerBinding()),
+    GetPage(name: AppRoutes.cart, page: () => const CartPage(), binding: CustomerBinding()),
+    GetPage(name: AppRoutes.checkout, page: () => const CheckoutPage(), binding: CustomerBinding()),
+    GetPage(name: AppRoutes.myOrders, page: () => const MyOrdersPage(), binding: CustomerBinding()),
+    GetPage(name: AppRoutes.orderDetails, page: () => const OrderDetailsPage(), binding: CustomerBinding()),
+    GetPage(name: AppRoutes.myDebts, page: () => const MyDebtsPage(), binding: CustomerBinding()),
     GetPage(name: AppRoutes.customerNotifications, page: () => const CustomerNotificationsPage(), binding: CustomerBinding()),
 
     // Driver
     GetPage(name: AppRoutes.driver, page: () => const DriverMainPage(), binding: DriverBinding()),
     GetPage(name: AppRoutes.assignedOrders, page: () => const AssignedOrdersPage(), binding: DriverBinding()),
-    GetPage(name: AppRoutes.orderTracking, page: () => const OrderTrackingPage()),
+    GetPage(name: AppRoutes.orderTracking, page: () => const OrderTrackingPage(), binding: DriverBinding()),
     GetPage(name: AppRoutes.completedDeliveries, page: () => const CompletedDeliveriesPage()),
     GetPage(name: AppRoutes.driverNotifications, page: () => const DriverNotificationsPage()),
 
@@ -156,6 +157,11 @@ class AppPages {
     // Sales Manager
     GetPage(name: AppRoutes.salesManager, page: () => const SalesManagerMainPage(), binding: SalesManagerBinding()),
     GetPage(name: AppRoutes.salesManagerRepDetail, page: () => const SalesManagerRepDetailPage()),
+    GetPage(
+      name: AppRoutes.managerPendingPayments,
+      page: () => const ManagerPendingPaymentsPage(),
+      binding: SalesManagerBinding(),
+    ),
 
     // Driver extra screens
     GetPage(name: AppRoutes.driverSummary, page: () => const DriverSummaryPage()),

@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../../core/services/branding_service.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/widgets/app_logo.dart';
 
 class RoleSelectionPage extends StatelessWidget {
   const RoleSelectionPage({super.key});
@@ -19,6 +21,8 @@ class RoleSelectionPage extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final branding = Get.find<BrandingService>();
+
     return Scaffold(
       body: SafeArea(
         child: SingleChildScrollView(
@@ -26,31 +30,18 @@ class RoleSelectionPage extends StatelessWidget {
           child: Column(
             children: [
               const SizedBox(height: 24),
-              // Logo
-              Container(
-                width: 72,
-                height: 72,
-                decoration: BoxDecoration(
-                  color: AppColors.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Icon(
-                  Icons.local_shipping_rounded,
-                  size: 36,
-                  color: AppColors.primary,
-                ),
-              )
+              const AppLogo(size: 88, borderRadius: 22, padding: 10)
                   .animate()
                   .fadeIn(duration: 500.ms)
                   .scale(begin: const Offset(0.6, 0.6)),
               const SizedBox(height: 20),
-              Text(
-                'تطبيق التوصيل',
+              Obx(() => Text(
+                branding.appName.value,
                 style: GoogleFonts.cairo(
                   fontSize: 28,
                   fontWeight: FontWeight.w700,
                 ),
-              ).animate().fadeIn(delay: 200.ms),
+              )).animate().fadeIn(delay: 200.ms),
               const SizedBox(height: 8),
               Text(
                 'اختر نوع الحساب للمتابعة',

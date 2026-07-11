@@ -21,7 +21,8 @@ class BrandingService extends GetxService {
   static const _kCompanyPhone = 'branding_company_phone';
 
   // ── القيم الافتراضية ──
-  static const String defaultAppName = 'تطبيق التوصيل';
+  static const String defaultAppName = 'كرزات تاج بغداد';
+  static const String defaultLogoPath = 'assets/images/logo.png';
   static const int defaultPrimary = 0xFF2E7DFF;
   static const int defaultSecondary = 0xFFFF7A00;
 
@@ -38,8 +39,17 @@ class BrandingService extends GetxService {
 
   Future<BrandingService> init() async {
     _box = GetStorage();
-    appName.value = _box.read<String>(_kAppName) ?? defaultAppName;
-    logoPath.value = _box.read<String>(_kLogoPath);
+    final storedName = _box.read<String>(_kAppName);
+    if (storedName == null ||
+        storedName.isEmpty ||
+        storedName == 'تطبيق التوصيل' ||
+        storedName.toLowerCase() == 'deliveryapp') {
+      appName.value = defaultAppName;
+      await _box.write(_kAppName, defaultAppName);
+    } else {
+      appName.value = storedName;
+    }
+    logoPath.value = _box.read<String>(_kLogoPath) ?? defaultLogoPath;
     primaryColorValue.value = _box.read<int>(_kPrimary) ?? defaultPrimary;
     secondaryColorValue.value =
         _box.read<int>(_kSecondary) ?? defaultSecondary;
@@ -132,7 +142,7 @@ class BrandingService extends GetxService {
     await _box.remove(_kCompanyAddress);
     await _box.remove(_kCompanyPhone);
     appName.value = defaultAppName;
-    logoPath.value = null;
+    logoPath.value = defaultLogoPath;
     primaryColorValue.value = defaultPrimary;
     secondaryColorValue.value = defaultSecondary;
     companySlogan.value = '';

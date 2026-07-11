@@ -236,10 +236,12 @@ class _RepWarehousePageState extends State<RepWarehousePage>
                 ),
                 onTap: () {
                   Navigator.pop(ctx);
-                  Get.toNamed(
-                    AppRoutes.repTransferPicker,
-                    arguments: const RepTransferPickerArgs(isReturn: false),
-                  );
+                  ctrl.loadTransferWarehouses().then((_) {
+                    Get.toNamed(
+                      AppRoutes.repTransferPicker,
+                      arguments: const RepTransferPickerArgs(isReturn: false),
+                    );
+                  });
                 },
               ),
               const SizedBox(height: 8),
@@ -263,10 +265,12 @@ class _RepWarehousePageState extends State<RepWarehousePage>
                 ),
                 onTap: () {
                   Navigator.pop(ctx);
-                  Get.toNamed(
-                    AppRoutes.repTransferPicker,
-                    arguments: const RepTransferPickerArgs(isReturn: true),
-                  );
+                  ctrl.loadTransferWarehouses().then((_) {
+                    Get.toNamed(
+                      AppRoutes.repTransferPicker,
+                      arguments: const RepTransferPickerArgs(isReturn: true),
+                    );
+                  });
                 },
               ),
             ],

@@ -7,25 +7,84 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/utils/helpers.dart';
+import '../../../../core/utils/snackbar_helper.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/customer_location_map.dart';
+import '../../../../core/widgets/loading_indicator.dart';
 import '../../domain/entities/driver_entities.dart';
 import '../controllers/driver_controllers.dart';
 
-class OrderTrackingPage extends StatelessWidget {
+class OrderTrackingPage extends StatefulWidget {
   const OrderTrackingPage({super.key});
 
   @override
+  State<OrderTrackingPage> createState() => _OrderTrackingPageState();
+}
+
+class _OrderTrackingPageState extends State<OrderTrackingPage> {
+  final _ctrl = Get.find<DriverHomeController>();
+  DeliveryOrder? _order;
+  bool _loading = true;
+
+  @override
+  void initState() {
+    super.initState();
+    final args = Get.arguments;
+    final orderId = args is Map
+        ? (args['orderId'] ?? args['id'])?.toString()
+        : null;
+    if (orderId == null || orderId.isEmpty) {
+      _loading = false;
+      return;
+    }
+    _load(orderId);
+  }
+
+  Future<void> _load(String orderId) async {
+    setState(() => _loading = true);
+    try {
+      final detail = await _ctrl.fetchOrderDetail(orderId);
+      if (mounted) setState(() => _order = detail);
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشل تحميل تفاصيل الطلب');
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final order = Get.arguments['order'] as DeliveryOrder;
-    final controller = Get.find<DriverHomeController>();
+    if (_loading) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('تفاصيل الطلب')),
+        body: const LoadingIndicator(),
+      );
+    }
+    final order = _order;
+    if (order == null) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('تفاصيل الطلب')),
+        body: Center(
+          child: Text('تعذر تحميل الطلب',
+              style: GoogleFonts.cairo(color: AppColors.textSecondary)),
+        ),
+      );
+    }
+
     final statusColor = InvoiceStatusHelper.color(order.status);
+    final statusLabel = order.statusText?.isNotEmpty == true
+        ? order.statusText!
+        : InvoiceStatusHelper.label(order.status);
 
     return Scaffold(
       backgroundColor: Theme.of(context).scaffoldBackgroundColor,
       appBar: AppBar(
         title: Text('طلب #${order.orderNumber}'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.refresh),
+            onPressed: () => _load(order.id),
+          ),
           Container(
             margin: const EdgeInsets.only(left: 16, right: 8),
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
@@ -34,7 +93,7 @@ class OrderTrackingPage extends StatelessWidget {
               borderRadius: BorderRadius.circular(20),
             ),
             child: Text(
-              InvoiceStatusHelper.label(order.status),
+              statusLabel,
               style: GoogleFonts.cairo(
                   fontSize: 12,
                   fontWeight: FontWeight.w700,
@@ -128,6 +187,13 @@ class OrderTrackingPage extends StatelessWidget {
                     label: 'رقم الفاتورة',
                     value: '#${order.orderNumber}',
                   ),
+                  if (order.warehouseName != null &&
+                      order.warehouseName!.isNotEmpty)
+                    _InfoRow(
+                      icon: Icons.warehouse_outlined,
+                      label: 'المستودع',
+                      value: order.warehouseName!,
+                    ),
                   _InfoRow(
                     icon: Icons.calendar_today_outlined,
                     label: 'التاريخ',
@@ -172,6 +238,19 @@ class OrderTrackingPage extends StatelessWidget {
             ).animate().fadeIn(delay: 100.ms).slideY(begin: 0.05),
 
             // ── قائمة المنتجات ──
+            if (order.items.isEmpty &&
+                (order.itemCount ?? 0) > 0) ...[
+              const SizedBox(height: 14),
+              _SectionCard(
+                title: 'المنتجات',
+                icon: Icons.inventory_2_outlined,
+                child: Text(
+                  '${order.itemCount} صنف — اسحب للتحديث إن لم تظهر التفاصيل',
+                  style: GoogleFonts.cairo(
+                      fontSize: 13, color: AppColors.textSecondary),
+                ),
+              ),
+            ],
             if (order.items.isNotEmpty) ...[
               const SizedBox(height: 14),
               _SectionCard(
@@ -250,7 +329,10 @@ class OrderTrackingPage extends StatelessWidget {
             const SizedBox(height: 24),
 
             // ── أزرار الإجراءات ──
-            _ActionSection(order: order, ctrl: controller)
+            _ActionSection(
+                order: order,
+                ctrl: _ctrl,
+                onActionDone: () => _load(order.id))
                 .animate()
                 .fadeIn(delay: 200.ms),
 
@@ -271,16 +353,14 @@ class OrderTrackingPage extends StatelessWidget {
   }
 
   String _paymentLabel(String s) {
-    switch (s) {
-      case 'Paid':
-        return 'مدفوعة';
-      case 'Partial':
-        return 'دفعة جزئية';
-      case 'Unpaid':
-        return 'غير مدفوعة';
-      default:
-        return s;
+    if (s.contains('كامل') || s == 'FullPaid' || s == 'Paid') {
+      return 'مدفوعة بالكامل';
     }
+    if (s.contains('جزئ') || s == 'PartialPaid' || s == 'Partial') {
+      return 'مدفوعة جزئياً';
+    }
+    if (s.contains('غير') || s == 'Unpaid') return 'غير مدفوعة';
+    return s;
   }
 
   Color _paymentColor(String s) {
@@ -303,8 +383,13 @@ class OrderTrackingPage extends StatelessWidget {
 class _ActionSection extends StatelessWidget {
   final DeliveryOrder order;
   final DriverHomeController ctrl;
+  final VoidCallback? onActionDone;
 
-  const _ActionSection({required this.order, required this.ctrl});
+  const _ActionSection({
+    required this.order,
+    required this.ctrl,
+    this.onActionDone,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -318,8 +403,10 @@ class _ActionSection extends StatelessWidget {
                 text: 'تأكيد الاستلام من المستودع',
                 icon: Icons.inventory_2_rounded,
                 isLoading: ctrl.isActing.value,
-                onPressed: () =>
-                    ctrl.confirmPickup(order.id),
+                onPressed: () async {
+                  await ctrl.confirmPickup(order.id);
+                  onActionDone?.call();
+                },
               )),
 
         // بدء التوصيل — حالات ما قبل «قيد التجهيز» قد تظهر للسائق؛ يُترك للخادم رفض PATCH إن لم يُسمح
@@ -328,8 +415,10 @@ class _ActionSection extends StatelessWidget {
                 text: 'بدء التوصيل',
                 icon: Icons.local_shipping_rounded,
                 isLoading: ctrl.isActing.value,
-                onPressed: () =>
-                    ctrl.updateStatus(order.id, 'AwaitingDelivery'),
+                onPressed: () async {
+                  await ctrl.updateStatus(order.id, 'AwaitingDelivery');
+                  onActionDone?.call();
+                },
               )),
 
         // تم التسليم — POST /deliver
@@ -411,7 +500,7 @@ class _ActionSection extends StatelessWidget {
         orderNumber: order.orderNumber.toString(),
         remainingAmount: order.remainingAmount,
       );
-      if (ctx.mounted) Get.back();
+      onActionDone?.call();
     }
   }
 
@@ -435,7 +524,7 @@ class _ActionSection extends StatelessWidget {
     );
     if (ok == true) {
       await ctrl.updateStatus(order.id, status);
-      Get.back();
+      onActionDone?.call();
     }
   }
 }

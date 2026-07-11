@@ -189,6 +189,22 @@ class DriverHomePage extends GetView<DriverHomeController> {
                             ),
                           )),
                         ],
+                        const SizedBox(height: 8),
+                        SizedBox(
+                          width: double.infinity,
+                          child: OutlinedButton.icon(
+                            onPressed: () =>
+                                controller.openOrderDetail(order),
+                            icon: const Icon(Icons.visibility_outlined,
+                                size: 18),
+                            label: Text(
+                              'عرض التفاصيل الكاملة',
+                              style: GoogleFonts.cairo(
+                                  fontSize: 13,
+                                  fontWeight: FontWeight.w600),
+                            ),
+                          ),
+                        ),
                         if ((order.status == 'AwaitingDelivery' ||
                                 order.status == 'Delivered') &&
                             order.remainingAmount > 0) ...[

@@ -151,7 +151,7 @@ class TechnicalSupportPage extends StatelessWidget {
 
   Future<void> _openEmail() async {
     final uri = Uri(scheme: 'mailto', path: _emailAddress, queryParameters: {
-      'subject': 'طلب دعم فني - تطبيق التوصيل',
+      'subject': 'طلب دعم فني - كرزات تاج بغداد',
     });
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);

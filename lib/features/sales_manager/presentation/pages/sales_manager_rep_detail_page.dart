@@ -29,8 +29,11 @@ class _SalesManagerRepDetailPageState
     super.initState();
     _rep = Get.arguments as Map<String, dynamic>;
     _ctrl = Get.find<SalesManagerController>();
-    WidgetsBinding.instance.addPostFrameCallback((_) =>
-        _ctrl.loadRepInvoices(_rep['id'].toString()));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final repId = _rep['id'].toString();
+      _ctrl.loadRepInvoices(repId);
+      _ctrl.loadRepLiability(repId);
+    });
   }
 
   @override
@@ -118,6 +121,47 @@ class _SalesManagerRepDetailPageState
             ),
           ),
           const SizedBox(height: 8),
+
+          // ── ذمة المندوب ──
+          Obx(() {
+            final l = _ctrl.repLiability.value;
+            if (l == null) return const SizedBox();
+            final pending =
+                ((l['pendingLiability'] as num?) ?? 0).toDouble();
+            final collected =
+                ((l['collectedFromCustomers'] as num?) ?? 0).toDouble();
+            final submitted =
+                ((l['submittedToCompany'] as num?) ?? 0).toDouble();
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF3949AB).withValues(alpha: 0.06),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                      color: const Color(0xFF3949AB).withValues(alpha: 0.2)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceAround,
+                  children: [
+                    _MiniStat(
+                        label: 'محصّل',
+                        value: Formatters.currency(collected),
+                        color: AppColors.successLight),
+                    _MiniStat(
+                        label: 'مُسلّم',
+                        value: Formatters.currency(submitted),
+                        color: AppColors.primaryLight),
+                    _MiniStat(
+                        label: 'ذمة معلّقة',
+                        value: Formatters.currency(pending),
+                        color: AppColors.warningLight),
+                  ],
+                ),
+              ),
+            );
+          }),
 
           // ── قائمة الفواتير ──
           Expanded(

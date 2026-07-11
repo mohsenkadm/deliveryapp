@@ -6,6 +6,7 @@ import '../controllers/driver_controllers.dart';
 import 'assigned_orders_page.dart';
 import 'completed_deliveries_page.dart';
 import 'driver_home_page.dart';
+import 'driver_payments_page.dart';
 import 'driver_summary_page.dart';
 
 class DriverMainPage extends StatefulWidget {
@@ -24,6 +25,7 @@ class _DriverMainPageState extends State<DriverMainPage> {
       const DriverHomePage(),
       const AssignedOrdersPage(),
       const CompletedDeliveriesPage(),
+      const DriverPaymentsPage(),
       const DriverSummaryPage(),
       const RoleSettingsTab(notificationsRoute: AppRoutes.driverNotifications),
     ];
@@ -51,6 +53,11 @@ class _DriverMainPageState extends State<DriverMainPage> {
                 Get.find<DriverHomeController>().loadCompletedDeliveries();
               } catch (_) {}
             }
+            if (i == 3) {
+              try {
+                Get.find<DriverHomeController>().loadDriverPayments();
+              } catch (_) {}
+            }
           },
           labelBehavior: NavigationDestinationLabelBehavior.alwaysShow,
           destinations: const [
@@ -66,6 +73,10 @@ class _DriverMainPageState extends State<DriverMainPage> {
                 icon: Icon(Icons.check_circle_outlined),
                 selectedIcon: Icon(Icons.check_circle_rounded),
                 label: 'المكتملة'),
+            NavigationDestination(
+                icon: Icon(Icons.payments_outlined),
+                selectedIcon: Icon(Icons.payments_rounded),
+                label: 'المدفوعات'),
             NavigationDestination(
                 icon: Icon(Icons.bar_chart_rounded),
                 selectedIcon: Icon(Icons.bar_chart_rounded),

@@ -1,6 +1,7 @@
 // متحكمات العميل — المنتجات، السلة، الطلبات، الديون، الإشعارات
 import 'package:get/get.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/services/signalr_service.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/utils/snackbar_helper.dart';
 import '../../data/datasources/customer_remote_datasource.dart';
@@ -97,6 +98,10 @@ class ProductsController extends GetxController {
     super.onInit();
     _repository =
         CustomerRepository(CustomerRemoteDataSource(Get.find<DioClient>()));
+    final args = Get.arguments;
+    if (args is Map && args['categoryId'] != null) {
+      selectedCategoryId.value = args['categoryId'].toString();
+    }
     loadProducts(reset: true);
     _loadCategories();
   }
@@ -180,16 +185,36 @@ class CartController extends GetxController {
         CustomerRepository(CustomerRemoteDataSource(Get.find<DioClient>()));
   }
 
-  void addToCart(Product product) {
+  void addToCart(Product product, {bool showMessage = true}) {
     final index =
         cartItems.indexWhere((item) => item.product.id == product.id);
     if (index != -1) {
-      cartItems[index].quantity++;
+      final next = cartItems[index].quantity + 1;
+      if (product.stockQuantity > 0 && next > product.stockQuantity) {
+        SnackbarHelper.showError(
+            'الكمية المتاحة: ${product.stockQuantity}');
+        return;
+      }
+      cartItems[index].quantity = next;
       cartItems.refresh();
     } else {
       cartItems.add(CartItem(product: product));
     }
-    SnackbarHelper.showSuccess('تمت الإضافة إلى السلة');
+    if (showMessage) SnackbarHelper.showSuccess('تمت الإضافة إلى السلة');
+  }
+
+  int quantityOf(String productId) {
+    final index =
+        cartItems.indexWhere((item) => item.product.id == productId);
+    return index == -1 ? 0 : cartItems[index].quantity;
+  }
+
+  void incrementProduct(Product product) {
+    addToCart(product, showMessage: false);
+  }
+
+  void decrementProduct(String productId) {
+    updateQuantity(productId, quantityOf(productId) - 1);
   }
 
   void removeFromCart(String productId) {
@@ -219,6 +244,16 @@ class CartController extends GetxController {
     DateTime? scheduledDeliveryDate,
   }) async {
     if (cartItems.isEmpty) return;
+
+    final invalid = cartItems.where((c) {
+      final price = c.product.discountPrice ?? c.product.price;
+      return price <= 0;
+    }).toList();
+    if (invalid.isNotEmpty) {
+      SnackbarHelper.showError('سعر أحد المنتجات غير صالح');
+      return;
+    }
+
     isSubmitting.value = true;
 
     final items = cartItems
@@ -273,12 +308,21 @@ class OrdersController extends GetxController {
     {'label': 'مرفوض', 'value': 'Rejected'},
   ];
 
+  Future<void> _refreshOnNotification() async => loadOrders();
+
   @override
   void onInit() {
     super.onInit();
     _repository =
         CustomerRepository(CustomerRemoteDataSource(Get.find<DioClient>()));
+    SignalRService.to.registerRefresh(_refreshOnNotification);
     loadOrders();
+  }
+
+  @override
+  void onClose() {
+    SignalRService.to.unregisterRefresh(_refreshOnNotification);
+    super.onClose();
   }
 
   Future<void> loadOrders({String? status}) async {
@@ -293,7 +337,11 @@ class OrdersController extends GetxController {
     isLoading.value = false;
   }
 
-  Future<void> cancelOrder(String orderId) async {
+  Future<void> cancelOrder(String orderId, {String? currentStatus}) async {
+    if (currentStatus != null && currentStatus != 'Pending') {
+      SnackbarHelper.showError('لا يمكن إلغاء الطلب إلا وهو معلّق');
+      return;
+    }
     isCancelling.value = true;
     final result = await _repository.cancelOrder(orderId);
     isCancelling.value = false;

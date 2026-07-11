@@ -1,12 +1,19 @@
 // خدمة OneSignal — الإشعارات الفورية وربط المستخدم
+import 'package:flutter/foundation.dart';
 import 'package:get/get.dart';
 import 'package:onesignal_flutter/onesignal_flutter.dart';
 import '../constants/api_constants.dart';
+import '../constants/storage_keys.dart';
 import '../routes/app_routes.dart';
+import 'storage_service.dart';
 
 class OneSignalService extends GetxService {
   /// تهيئة OneSignal وطلب إذن الإشعارات
   Future<OneSignalService> init() async {
+    if (kDebugMode) {
+      OneSignal.Debug.setLogLevel(OSLogLevel.verbose);
+    }
+
     OneSignal.initialize(ApiConstants.oneSignalAppId);
     OneSignal.Notifications.requestPermission(true);
 
@@ -17,14 +24,29 @@ class OneSignalService extends GetxService {
       }
     });
 
+    OneSignal.Notifications.addForegroundWillDisplayListener((event) {
+      event.notification.display();
+    });
+
+    OneSignal.User.pushSubscription.addObserver((state) {
+      final playerId = state.current.id;
+      if (playerId != null && playerId.isNotEmpty) {
+        Get.find<StorageService>().write(StorageKeys.oneSignalPlayerId, playerId);
+      }
+    });
+
     return this;
   }
 
-  void setExternalUserId(String userId) {
+  void setExternalUserId(String userId, {String? role}) {
     OneSignal.login(userId);
+    if (role != null && role.isNotEmpty) {
+      OneSignal.User.addTagWithKey('role', role);
+    }
   }
 
   void removeExternalUserId() {
+    OneSignal.User.removeTag('role');
     OneSignal.logout();
   }
 

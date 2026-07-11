@@ -303,6 +303,7 @@ class _AdminDrawer extends StatelessWidget {
           _drawerTile(Icons.money_off_rounded, 'الديون والتسويات', () { Get.back(); Get.toNamed('/admin/debts'); }),
           const Divider(),
           _drawerTile(Icons.pending_actions_rounded, 'طلبات الموافقة', () { Get.back(); Get.toNamed(AppRoutes.pendingApprovals); }),
+          _drawerTile(Icons.verified_user_outlined, 'تحقق تسليمات المندوب', () { Get.back(); Get.toNamed(AppRoutes.managerPendingPayments); }),
           _drawerTile(Icons.analytics_rounded, 'التحليلات', () { Get.back(); Get.toNamed(AppRoutes.analytics); }),
           _drawerTile(Icons.tune_rounded, 'إعدادات النظام', () { Get.back(); Get.toNamed(AppRoutes.systemSettings); }),
           _drawerTile(Icons.admin_panel_settings_rounded, 'صلاحيات المسؤولين', () { Get.back(); Get.toNamed(AppRoutes.adminPermissions); }),

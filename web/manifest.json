@@ -1,11 +1,11 @@
 {
-    "name": "deliveryapp",
-    "short_name": "deliveryapp",
+    "name": "كرزات تاج بغداد",
+    "short_name": "كرزات تاج بغداد",
     "start_url": ".",
     "display": "standalone",
-    "background_color": "#0175C2",
-    "theme_color": "#0175C2",
-    "description": "A new Flutter project.",
+    "background_color": "#FFFFFF",
+    "theme_color": "#C62828",
+    "description": "كرزات تاج بغداد - تطبيق التسوق والتوصيل",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

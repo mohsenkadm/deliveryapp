@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/routes/app_routes.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/validators.dart';
+import '../../../../core/widgets/app_logo.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/custom_text_field.dart';
 import '../controllers/auth_controller.dart';
@@ -72,16 +73,7 @@ class _LoginPageState extends State<LoginPage>
       padding: const EdgeInsets.fromLTRB(24, 24, 24, 8),
       child: Column(
         children: [
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 350),
-            width: 68,
-            height: 68,
-            decoration: BoxDecoration(
-              color: _activeColor.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(20),
-            ),
-            child: Icon(Icons.local_shipping_rounded, size: 34, color: _activeColor),
-          )
+          const AppLogo(size: 68, borderRadius: 20, padding: 8)
               .animate()
               .fadeIn()
               .scale(begin: const Offset(0.6, 0.6), end: const Offset(1.0, 1.0)),

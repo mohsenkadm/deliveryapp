@@ -4,6 +4,9 @@ class DeliveryOrder extends Equatable {
   final String id;
   final String orderNumber;
   final String status;
+  final String? statusText;
+  final String? warehouseName;
+  final int? itemCount;
   final String customerName;
   final String customerPhone;
   final String customerAddress;
@@ -24,6 +27,9 @@ class DeliveryOrder extends Equatable {
     required this.id,
     required this.orderNumber,
     required this.status,
+    this.statusText,
+    this.warehouseName,
+    this.itemCount,
     required this.customerName,
     required this.customerPhone,
     required this.customerAddress,

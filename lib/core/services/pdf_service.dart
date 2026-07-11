@@ -1,14 +1,9 @@
-// خدمة توليد ملفات PDF — للفواتير والتقارير
+// خدمة توليد ملفات PDF — فواتير وتقارير بطباعة حرارية 80mm
 //
-// ميزات:
-//   - دعم اللغة العربية (خط Cairo من Google Fonts)
-//   - توليد فاتورة مع QR Code وشعار الشركة
-//   - تصدير تقارير المبيعات/التحصيل/الديون كجدول
-//   - مشاركة وطباعة الملف الناتج
-//
-// تستخدم: pdf, printing, qr_flutter (للـ QR في الواجهة), share_plus
+// كل المخرجات مخصّصة لعرض إيصال بعرض 80mm (طابعات POS الحرارية).
 import 'dart:io';
 import 'dart:typed_data';
+
 import 'package:flutter/services.dart' show rootBundle;
 import 'package:get/get.dart';
 import 'package:path_provider/path_provider.dart';
@@ -23,7 +18,13 @@ class PdfService {
   PdfService._();
   static final PdfService instance = PdfService._();
 
-  // ── أصول الخطوط (تُحمّل عند الحاجة) ──
+  /// عرض ورق الطابعة الحرارية: 80mm مع هوامش ضيقة للمحتوى الفعلي.
+  static const PdfPageFormat receipt80 = PdfPageFormat(
+    80 * PdfPageFormat.mm,
+    double.infinity,
+    marginAll: 3 * PdfPageFormat.mm,
+  );
+
   pw.Font? _arabicRegular;
   pw.Font? _arabicBold;
 
@@ -33,7 +34,6 @@ class PdfService {
       _arabicRegular = await PdfGoogleFonts.cairoRegular();
       _arabicBold = await PdfGoogleFonts.cairoBold();
     } catch (_) {
-      // fallback لخط افتراضي إن فشل التحميل (بدون انترنت مثلاً)
       _arabicRegular = pw.Font.helvetica();
       _arabicBold = pw.Font.helveticaBold();
     }
@@ -47,11 +47,8 @@ class PdfService {
   BrandingService get _branding => Get.find<BrandingService>();
 
   // ════════════════════════════════════════
-  //  فاتورة مبيعات / تجهيز
+  //  فاتورة — إيصال 80mm
   // ════════════════════════════════════════
-  /// [invoice] خريطة بحقول: id, invoiceNumber, date, customerName, storeName,
-  /// phone, address, items (قائمة: name, quantity, unit, price, total),
-  /// subtotal, discount, total, paid, remaining, notes
   Future<Uint8List> buildInvoicePdf(Map<String, dynamic> invoice) async {
     await _ensureFonts();
     final doc = pw.Document(theme: _theme);
@@ -59,39 +56,93 @@ class PdfService {
     final logoBytes = await _loadLogoBytes();
     final qrData =
         'INV:${invoice['id'] ?? invoice['invoiceNumber'] ?? ''}|${invoice['total'] ?? 0}';
-
     final items = (invoice['items'] as List?) ?? const [];
 
     doc.addPage(
-      pw.MultiPage(
+      pw.Page(
         textDirection: pw.TextDirection.rtl,
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(28),
-        build: (ctx) => [
-          _header(brandName, logoBytes, qrData, invoice),
-          pw.SizedBox(height: 14),
-          _customerBlock(invoice),
-          pw.SizedBox(height: 14),
-          _itemsTable(items),
-          pw.SizedBox(height: 14),
-          _totalsBlock(invoice),
-          if ((invoice['notes'] ?? '').toString().isNotEmpty) ...[
-            pw.SizedBox(height: 12),
-            _notesBlock(invoice['notes'].toString()),
+        pageFormat: receipt80,
+        build: (ctx) => pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+          children: [
+            _receiptHeader(brandName, logoBytes),
+            pw.SizedBox(height: 6),
+            _dashedLine(),
+            pw.SizedBox(height: 6),
+            pw.Center(
+              child: pw.Text(
+                'فاتورة مبيعات',
+                style: pw.TextStyle(
+                  fontSize: 11,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+            ),
+            pw.SizedBox(height: 6),
+            _receiptMeta(invoice),
+            pw.SizedBox(height: 6),
+            _dashedLine(),
+            pw.SizedBox(height: 4),
+            _receiptItems(items),
+            pw.SizedBox(height: 4),
+            _dashedLine(),
+            pw.SizedBox(height: 4),
+            _receiptTotals(invoice),
+            if ((invoice['notes'] ?? '').toString().trim().isNotEmpty) ...[
+              pw.SizedBox(height: 6),
+              _receiptNotes(invoice['notes'].toString()),
+            ],
+            pw.SizedBox(height: 8),
+            pw.Center(
+              child: pw.BarcodeWidget(
+                barcode: pw.Barcode.qrCode(),
+                data: qrData,
+                width: 64,
+                height: 64,
+              ),
+            ),
+            pw.SizedBox(height: 8),
+            _dashedLine(),
+            pw.SizedBox(height: 4),
+            pw.Center(
+              child: pw.Text(
+                'شكراً لتعاملكم معنا',
+                style: pw.TextStyle(
+                  fontSize: 8,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+            ),
+            pw.SizedBox(height: 2),
+            pw.Center(
+              child: pw.Text(
+                brandName,
+                style: const pw.TextStyle(
+                  fontSize: 7,
+                  color: PdfColors.grey700,
+                ),
+              ),
+            ),
+            pw.SizedBox(height: 2),
+            pw.Center(
+              child: pw.Text(
+                _nowStamp(),
+                style: const pw.TextStyle(
+                  fontSize: 6.5,
+                  color: PdfColors.grey600,
+                ),
+              ),
+            ),
           ],
-          pw.SizedBox(height: 24),
-          _footer(brandName),
-        ],
+        ),
       ),
     );
     return doc.save();
   }
 
   // ════════════════════════════════════════
-  //  تقرير عام (مبيعات/تحصيل/ديون)
+  //  تقرير — إيصال 80mm
   // ════════════════════════════════════════
-  /// [headers] رؤوس الأعمدة، [rows] الصفوف، [title] عنوان التقرير،
-  /// [subtitle] فترة/فلاتر، [summary] خريطة ملخص (label -> value)
   Future<Uint8List> buildReportPdf({
     required String title,
     String? subtitle,
@@ -104,45 +155,66 @@ class PdfService {
     final brandName = _branding.appName.value;
     final logoBytes = await _loadLogoBytes();
 
+    // صفحات متعددة بعرض 80mm وارتفاع عملي للتقارير الطويلة
+    final pageFormat = PdfPageFormat(
+      80 * PdfPageFormat.mm,
+      297 * PdfPageFormat.mm,
+      marginAll: 3 * PdfPageFormat.mm,
+    );
+
     doc.addPage(
       pw.MultiPage(
         textDirection: pw.TextDirection.rtl,
-        pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(28),
-        header: (ctx) => pw.Padding(
-          padding: const pw.EdgeInsets.only(bottom: 8),
-          child: _reportHeader(brandName, logoBytes, title, subtitle),
+        pageFormat: pageFormat,
+        header: (ctx) => pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+          children: [
+            _receiptHeader(brandName, logoBytes, compact: true),
+            pw.SizedBox(height: 4),
+            pw.Center(
+              child: pw.Text(
+                title,
+                style: pw.TextStyle(
+                  fontSize: 10,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+            ),
+            if (subtitle != null && subtitle.isNotEmpty)
+              pw.Center(
+                child: pw.Text(
+                  subtitle,
+                  style: const pw.TextStyle(
+                    fontSize: 7.5,
+                    color: PdfColors.grey700,
+                  ),
+                ),
+              ),
+            pw.SizedBox(height: 4),
+            _dashedLine(),
+            pw.SizedBox(height: 4),
+          ],
         ),
-        footer: (ctx) => pw.Container(
-          alignment: pw.Alignment.centerLeft,
-          child: pw.Text(
-            'صفحة ${ctx.pageNumber} من ${ctx.pagesCount}',
-            style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey600),
+        footer: (ctx) => pw.Padding(
+          padding: const pw.EdgeInsets.only(top: 4),
+          child: pw.Center(
+            child: pw.Text(
+              'صفحة ${ctx.pageNumber}/${ctx.pagesCount}',
+              style: const pw.TextStyle(
+                fontSize: 6.5,
+                color: PdfColors.grey600,
+              ),
+            ),
           ),
         ),
         build: (ctx) => [
           if (summary != null && summary.isNotEmpty) ...[
-            _summaryBox(summary),
-            pw.SizedBox(height: 12),
+            _receiptSummary(summary),
+            pw.SizedBox(height: 6),
+            _dashedLine(),
+            pw.SizedBox(height: 4),
           ],
-          pw.Table.fromTextArray(
-            headers: headers,
-            data: rows,
-            cellAlignment: pw.Alignment.center,
-            headerAlignment: pw.Alignment.center,
-            headerStyle: pw.TextStyle(
-              fontWeight: pw.FontWeight.bold,
-              color: PdfColors.white,
-              fontSize: 10,
-            ),
-            headerDecoration: pw.BoxDecoration(
-              color: PdfColor.fromInt(_branding.primaryColorValue.value),
-            ),
-            cellStyle: const pw.TextStyle(fontSize: 9.5),
-            border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
-            cellPadding: const pw.EdgeInsets.symmetric(
-                horizontal: 4, vertical: 6),
-          ),
+          ..._reportRows(headers, rows),
         ],
       ),
     );
@@ -150,95 +222,347 @@ class PdfService {
   }
 
   // ════════════════════════════════════════
-  //  حفظ / مشاركة / طباعة
+  //  طباعة / مشاركة
   // ════════════════════════════════════════
-  /// يفتح حوار الطباعة/المعاينة (يعمل أيضاً كحفظ PDF)
   Future<void> printOrPreview(Uint8List bytes, {String? name}) async {
     await Printing.layoutPdf(
       onLayout: (_) async => bytes,
-      name: name ?? 'document.pdf',
+      name: name ?? 'receipt.pdf',
+      format: receipt80,
     );
   }
 
-  /// يحفظ الملف ويفتح حوار المشاركة
   Future<void> shareBytes(Uint8List bytes, {String? name}) async {
     final dir = await getTemporaryDirectory();
-    final filename = (name ?? 'document') + '.pdf';
+    final filename = '${name ?? 'receipt'}.pdf';
     final file = File('${dir.path}/$filename');
     await file.writeAsBytes(bytes, flush: true);
     await Share.shareXFiles([XFile(file.path)], subject: name);
   }
 
   // ════════════════════════════════════════
-  //  أقسام مساعدة لبناء الفاتورة
+  //  مكوّنات الإيصال 80mm
   // ════════════════════════════════════════
-  pw.Widget _header(String brand, Uint8List? logo, String qrData,
-      Map<String, dynamic> inv) {
-    final accent = PdfColor.fromInt(_branding.primaryColorValue.value);
-    return pw.Container(
-      padding: const pw.EdgeInsets.all(12),
-      decoration: pw.BoxDecoration(
-        color: accent,
-        borderRadius: pw.BorderRadius.circular(8),
-      ),
-      child: pw.Row(
-        crossAxisAlignment: pw.CrossAxisAlignment.center,
-        children: [
-          if (logo != null)
-            pw.ClipRRect(
-              horizontalRadius: 6,
-              verticalRadius: 6,
-              child: pw.Image(pw.MemoryImage(logo), width: 56, height: 56,
-                  fit: pw.BoxFit.cover),
-            )
-          else
-            pw.Container(
-              width: 56,
-              height: 56,
-              alignment: pw.Alignment.center,
-              decoration: pw.BoxDecoration(
-                color: PdfColors.white,
-                borderRadius: pw.BorderRadius.circular(6),
-              ),
-              child: pw.Text('Logo',
-                  style: const pw.TextStyle(color: PdfColors.grey600)),
+  pw.Widget _receiptHeader(
+    String brand,
+    Uint8List? logo, {
+    bool compact = false,
+  }) {
+    final logoSize = compact ? 28.0 : 36.0;
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.center,
+      children: [
+        if (logo != null)
+          pw.ClipRRect(
+            horizontalRadius: 4,
+            verticalRadius: 4,
+            child: pw.Image(
+              pw.MemoryImage(logo),
+              width: logoSize,
+              height: logoSize,
+              fit: pw.BoxFit.cover,
             ),
-          pw.SizedBox(width: 12),
+          )
+        else
+          pw.SizedBox(height: 2),
+        pw.SizedBox(height: 4),
+        pw.Text(
+          brand,
+          textAlign: pw.TextAlign.center,
+          style: pw.TextStyle(
+            fontSize: compact ? 10 : 12,
+            fontWeight: pw.FontWeight.bold,
+          ),
+        ),
+        if (_branding.companySlogan.value.isNotEmpty)
+          pw.Text(
+            _branding.companySlogan.value,
+            textAlign: pw.TextAlign.center,
+            style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey700),
+          ),
+        if (_branding.companyAddress.value.isNotEmpty)
+          pw.Text(
+            _branding.companyAddress.value,
+            textAlign: pw.TextAlign.center,
+            style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey700),
+          ),
+        if (_branding.companyPhone.value.isNotEmpty)
+          pw.Text(
+            'هاتف: ${_branding.companyPhone.value}',
+            textAlign: pw.TextAlign.center,
+            style: const pw.TextStyle(fontSize: 7, color: PdfColors.grey700),
+          ),
+      ],
+    );
+  }
+
+  pw.Widget _receiptMeta(Map<String, dynamic> inv) {
+    final invNum = inv['invoiceNumber'] ?? inv['id'] ?? '';
+    final date = inv['date'] ?? inv['createdAt'] ?? '';
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+      children: [
+        _line('رقم الفاتورة', '#$invNum'),
+        _line('التاريخ', date.toString()),
+        if ((inv['status'] ?? '').toString().isNotEmpty)
+          _line('الحالة', inv['status'].toString()),
+        pw.SizedBox(height: 4),
+        _line('العميل', inv['customerName']?.toString() ?? '-'),
+        if ((inv['storeName'] ?? '').toString().isNotEmpty)
+          _line('المتجر', inv['storeName'].toString()),
+        if ((inv['phone'] ?? '').toString().isNotEmpty)
+          _line('الهاتف', inv['phone'].toString()),
+        if ((inv['address'] ?? '').toString().isNotEmpty)
+          _line('العنوان', inv['address'].toString()),
+      ],
+    );
+  }
+
+  pw.Widget _receiptItems(List items) {
+    if (items.isEmpty) {
+      return pw.Center(
+        child: pw.Text(
+          'لا توجد أصناف',
+          style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+        ),
+      );
+    }
+
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+      children: [
+        // رأس الأعمدة
+        pw.Row(
+          children: [
+            pw.Expanded(
+              flex: 5,
+              child: pw.Text(
+                'الصنف',
+                style: pw.TextStyle(
+                  fontSize: 7.5,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+            ),
+            pw.SizedBox(
+              width: 28,
+              child: pw.Text(
+                'كمية',
+                textAlign: pw.TextAlign.center,
+                style: pw.TextStyle(
+                  fontSize: 7.5,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+            ),
+            pw.SizedBox(
+              width: 42,
+              child: pw.Text(
+                'السعر',
+                textAlign: pw.TextAlign.left,
+                style: pw.TextStyle(
+                  fontSize: 7.5,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+            ),
+            pw.SizedBox(
+              width: 48,
+              child: pw.Text(
+                'المجموع',
+                textAlign: pw.TextAlign.left,
+                style: pw.TextStyle(
+                  fontSize: 7.5,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+        pw.SizedBox(height: 2),
+        _dashedLine(),
+        pw.SizedBox(height: 2),
+        for (var i = 0; i < items.length; i++) ...[
+          _itemRow(i + 1, items[i] as Map),
+          if (i < items.length - 1) pw.SizedBox(height: 3),
+        ],
+      ],
+    );
+  }
+
+  pw.Widget _itemRow(int index, Map it) {
+    final name = (it['name'] ?? it['productName'] ?? '').toString();
+    final qty = _fmtNum(it['quantity'] ?? 0);
+    final unit = (it['unit'] ?? '').toString();
+    final price = _fmtNum(it['price'] ?? it['unitPrice'] ?? 0);
+    final total = _fmtNum(it['total'] ?? it['lineTotal'] ?? 0);
+    final qtyLabel = unit.isEmpty ? qty : '$qty $unit';
+
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+      children: [
+        pw.Text(
+          '$index. $name',
+          style: pw.TextStyle(fontSize: 8, fontWeight: pw.FontWeight.bold),
+          maxLines: 2,
+        ),
+        pw.SizedBox(height: 1),
+        pw.Row(
+          children: [
+            pw.Expanded(
+              flex: 5,
+              child: pw.SizedBox(),
+            ),
+            pw.SizedBox(
+              width: 28,
+              child: pw.Text(
+                qtyLabel,
+                textAlign: pw.TextAlign.center,
+                style: const pw.TextStyle(fontSize: 7.5),
+              ),
+            ),
+            pw.SizedBox(
+              width: 42,
+              child: pw.Text(
+                price,
+                textAlign: pw.TextAlign.left,
+                style: const pw.TextStyle(fontSize: 7.5),
+              ),
+            ),
+            pw.SizedBox(
+              width: 48,
+              child: pw.Text(
+                total,
+                textAlign: pw.TextAlign.left,
+                style: pw.TextStyle(
+                  fontSize: 7.5,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  pw.Widget _receiptTotals(Map<String, dynamic> inv) {
+    final subtotal = _fmtNum(inv['subtotal'] ?? inv['totalAmount'] ?? 0);
+    final discount = _fmtNum(inv['discount'] ?? 0);
+    final total = _fmtNum(inv['total'] ?? inv['totalAmount'] ?? 0);
+    final paid = _fmtNum(inv['paid'] ?? inv['paidAmount'] ?? 0);
+    final remainingRaw = inv['remaining'];
+    final remaining = remainingRaw == null || remainingRaw.toString().isEmpty
+        ? ''
+        : _fmtNum(remainingRaw);
+
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+      children: [
+        _line('المجموع الجزئي', subtotal),
+        _line('الخصم', discount),
+        pw.SizedBox(height: 2),
+        _line('الإجمالي', total, bold: true, size: 10),
+        _line('المدفوع', paid),
+        if (remaining.isNotEmpty)
+          _line('المتبقي', remaining, bold: true),
+      ],
+    );
+  }
+
+  pw.Widget _receiptNotes(String notes) => pw.Container(
+        padding: const pw.EdgeInsets.all(4),
+        decoration: pw.BoxDecoration(
+          border: pw.Border.all(color: PdfColors.grey400, width: 0.4),
+        ),
+        child: pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Text(
+              'ملاحظات',
+              style: pw.TextStyle(fontSize: 7.5, fontWeight: pw.FontWeight.bold),
+            ),
+            pw.SizedBox(height: 2),
+            pw.Text(notes, style: const pw.TextStyle(fontSize: 7.5)),
+          ],
+        ),
+      );
+
+  pw.Widget _receiptSummary(Map<String, String> summary) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+      children: summary.entries
+          .map((e) => _line(e.key, e.value, bold: true))
+          .toList(),
+    );
+  }
+
+  List<pw.Widget> _reportRows(List<String> headers, List<List<String>> rows) {
+    final widgets = <pw.Widget>[];
+    for (var i = 0; i < rows.length; i++) {
+      final row = rows[i];
+      widgets.add(
+        pw.Container(
+          margin: const pw.EdgeInsets.only(bottom: 4),
+          padding: const pw.EdgeInsets.all(4),
+          decoration: pw.BoxDecoration(
+            border: pw.Border.all(color: PdfColors.grey400, width: 0.4),
+          ),
+          child: pw.Column(
+            crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+            children: [
+              for (var c = 0; c < headers.length; c++)
+                if (c < row.length)
+                  _line(headers[c], row[c], size: 7.5),
+            ],
+          ),
+        ),
+      );
+    }
+    if (widgets.isEmpty) {
+      widgets.add(
+        pw.Center(
+          child: pw.Text(
+            'لا توجد بيانات',
+            style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+          ),
+        ),
+      );
+    }
+    return widgets;
+  }
+
+  pw.Widget _line(
+    String label,
+    String value, {
+    bool bold = false,
+    double size = 8,
+  }) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 1),
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
           pw.Expanded(
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Text(brand,
-                    style: pw.TextStyle(
-                        color: PdfColors.white,
-                        fontSize: 16,
-                        fontWeight: pw.FontWeight.bold)),
-                if (_branding.companySlogan.value.isNotEmpty)
-                  pw.Text(_branding.companySlogan.value,
-                      style: const pw.TextStyle(
-                          color: PdfColors.white, fontSize: 9)),
-                if (_branding.companyAddress.value.isNotEmpty)
-                  pw.Text(_branding.companyAddress.value,
-                      style: const pw.TextStyle(
-                          color: PdfColors.white, fontSize: 9)),
-                if (_branding.companyPhone.value.isNotEmpty)
-                  pw.Text('هاتف: ${_branding.companyPhone.value}',
-                      style: const pw.TextStyle(
-                          color: PdfColors.white, fontSize: 9)),
-              ],
+            flex: 4,
+            child: pw.Text(
+              label,
+              style: pw.TextStyle(
+                fontSize: size,
+                fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
+              ),
             ),
           ),
-          pw.Container(
-            padding: const pw.EdgeInsets.all(4),
-            decoration: pw.BoxDecoration(
-              color: PdfColors.white,
-              borderRadius: pw.BorderRadius.circular(4),
-            ),
-            child: pw.BarcodeWidget(
-              barcode: pw.Barcode.qrCode(),
-              data: qrData,
-              width: 56,
-              height: 56,
+          pw.SizedBox(width: 4),
+          pw.Expanded(
+            flex: 6,
+            child: pw.Text(
+              value,
+              textAlign: pw.TextAlign.left,
+              style: pw.TextStyle(
+                fontSize: size,
+                fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
+              ),
             ),
           ),
         ],
@@ -246,264 +570,42 @@ class PdfService {
     );
   }
 
-  pw.Widget _customerBlock(Map<String, dynamic> inv) {
-    final invNum = inv['invoiceNumber'] ?? inv['id'] ?? '';
-    final date = inv['date'] ?? inv['createdAt'] ?? '';
-    return pw.Row(
-      crossAxisAlignment: pw.CrossAxisAlignment.start,
-      children: [
-        pw.Expanded(
-          child: pw.Container(
-            padding: const pw.EdgeInsets.all(8),
-            decoration: pw.BoxDecoration(
-              border: pw.Border.all(color: PdfColors.grey400, width: 0.5),
-              borderRadius: pw.BorderRadius.circular(6),
-            ),
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.start,
-              children: [
-                pw.Text('بيانات العميل',
-                    style: pw.TextStyle(
-                        fontSize: 11, fontWeight: pw.FontWeight.bold)),
-                pw.SizedBox(height: 4),
-                _kv('الاسم', inv['customerName']?.toString() ?? '-'),
-                if ((inv['storeName'] ?? '').toString().isNotEmpty)
-                  _kv('المتجر', inv['storeName'].toString()),
-                if ((inv['phone'] ?? '').toString().isNotEmpty)
-                  _kv('الهاتف', inv['phone'].toString()),
-                if ((inv['address'] ?? '').toString().isNotEmpty)
-                  _kv('العنوان', inv['address'].toString()),
-              ],
-            ),
-          ),
-        ),
-        pw.SizedBox(width: 8),
-        pw.Container(
-          padding: const pw.EdgeInsets.all(8),
-          decoration: pw.BoxDecoration(
-            border: pw.Border.all(color: PdfColors.grey400, width: 0.5),
-            borderRadius: pw.BorderRadius.circular(6),
-          ),
-          child: pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.end,
-            children: [
-              pw.Text('بيانات الفاتورة',
-                  style: pw.TextStyle(
-                      fontSize: 11, fontWeight: pw.FontWeight.bold)),
-              pw.SizedBox(height: 4),
-              _kv('رقم الفاتورة', '#$invNum'),
-              _kv('التاريخ', date.toString()),
-              if ((inv['status'] ?? '').toString().isNotEmpty)
-                _kv('الحالة', inv['status'].toString()),
-            ],
-          ),
-        ),
-      ],
-    );
-  }
-
-  pw.Widget _kv(String k, String v) => pw.Padding(
-        padding: const pw.EdgeInsets.symmetric(vertical: 1.5),
-        child: pw.Row(
-          children: [
-            pw.Text('$k: ',
-                style: pw.TextStyle(
-                    fontSize: 9, fontWeight: pw.FontWeight.bold)),
-            pw.Expanded(
-              child: pw.Text(v, style: const pw.TextStyle(fontSize: 9)),
-            ),
-          ],
-        ),
-      );
-
-  pw.Widget _itemsTable(List items) {
-    final accent = PdfColor.fromInt(_branding.primaryColorValue.value);
-    final rows = <List<String>>[];
-    for (var i = 0; i < items.length; i++) {
-      final it = items[i] as Map<String, dynamic>;
-      final qty = (it['quantity'] ?? 0).toString();
-      final unit = (it['unit'] ?? '').toString();
-      final price = (it['price'] ?? it['unitPrice'] ?? 0).toString();
-      final total = (it['total'] ?? it['lineTotal'] ?? 0).toString();
-      rows.add([
-        '${i + 1}',
-        (it['name'] ?? it['productName'] ?? '').toString(),
-        qty,
-        unit,
-        price,
-        total,
-      ]);
-    }
-    return pw.Table.fromTextArray(
-      headers: const ['#', 'الصنف', 'الكمية', 'الوحدة', 'السعر', 'المجموع'],
-      data: rows,
-      cellAlignment: pw.Alignment.center,
-      headerStyle: pw.TextStyle(
-          color: PdfColors.white, fontWeight: pw.FontWeight.bold, fontSize: 10),
-      headerDecoration: pw.BoxDecoration(color: accent),
-      cellStyle: const pw.TextStyle(fontSize: 9.5),
-      border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
-      columnWidths: const {
-        0: pw.FixedColumnWidth(28),
-        1: pw.FlexColumnWidth(3),
-        2: pw.FixedColumnWidth(45),
-        3: pw.FixedColumnWidth(50),
-        4: pw.FixedColumnWidth(60),
-        5: pw.FixedColumnWidth(70),
-      },
-      cellPadding:
-          const pw.EdgeInsets.symmetric(horizontal: 4, vertical: 5),
-    );
-  }
-
-  pw.Widget _totalsBlock(Map<String, dynamic> inv) {
-    final accent = PdfColor.fromInt(_branding.primaryColorValue.value);
-    final subtotal = (inv['subtotal'] ?? inv['totalAmount'] ?? 0).toString();
-    final discount = (inv['discount'] ?? 0).toString();
-    final total = (inv['total'] ?? inv['totalAmount'] ?? 0).toString();
-    final paid = (inv['paid'] ?? inv['paidAmount'] ?? 0).toString();
-    final remaining = (inv['remaining'] ?? '').toString();
-
-    pw.Widget row(String k, String v, {bool bold = false, PdfColor? color}) =>
-        pw.Padding(
-          padding: const pw.EdgeInsets.symmetric(vertical: 2),
-          child: pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
-            children: [
-              pw.Text(k,
-                  style: pw.TextStyle(
-                      fontSize: 10,
-                      fontWeight:
-                          bold ? pw.FontWeight.bold : pw.FontWeight.normal,
-                      color: color)),
-              pw.Text(v,
-                  style: pw.TextStyle(
-                      fontSize: 10,
-                      fontWeight:
-                          bold ? pw.FontWeight.bold : pw.FontWeight.normal,
-                      color: color)),
-            ],
-          ),
-        );
-
-    return pw.Align(
-      alignment: pw.Alignment.centerLeft,
-      child: pw.Container(
-        width: 240,
-        padding: const pw.EdgeInsets.all(8),
-        decoration: pw.BoxDecoration(
-          border: pw.Border.all(color: PdfColors.grey400, width: 0.5),
-          borderRadius: pw.BorderRadius.circular(6),
-        ),
-        child: pw.Column(
-          children: [
-            row('المجموع الجزئي', subtotal),
-            row('الخصم', discount),
-            pw.Divider(thickness: 0.5),
-            row('الإجمالي', total, bold: true, color: accent),
-            row('المدفوع', paid),
-            if (remaining.isNotEmpty)
-              row('المتبقي', remaining,
-                  bold: true, color: PdfColors.red700),
-          ],
-        ),
-      ),
-    );
-  }
-
-  pw.Widget _notesBlock(String notes) => pw.Container(
-        padding: const pw.EdgeInsets.all(8),
-        decoration: pw.BoxDecoration(
-          color: PdfColors.amber50,
-          border: pw.Border.all(color: PdfColors.amber200, width: 0.5),
-          borderRadius: pw.BorderRadius.circular(6),
-        ),
-        child: pw.Row(
-          crossAxisAlignment: pw.CrossAxisAlignment.start,
-          children: [
-            pw.Text('ملاحظات: ',
-                style: pw.TextStyle(
-                    fontSize: 9.5, fontWeight: pw.FontWeight.bold)),
-            pw.Expanded(
-              child: pw.Text(notes, style: const pw.TextStyle(fontSize: 9.5)),
-            ),
-          ],
-        ),
-      );
-
-  pw.Widget _footer(String brand) => pw.Center(
+  /// فاصل نصي أوضح وأكثر ثباتاً على الطابعات الحرارية من الخطوط PDF.
+  pw.Widget _dashedLine() => pw.Center(
         child: pw.Text(
-          'تم الإنشاء بواسطة $brand • ${DateTime.now().toIso8601String().substring(0, 16).replaceAll('T', ' ')}',
-          style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+          '- - - - - - - - - - - - - - - - - -',
+          style: const pw.TextStyle(
+            fontSize: 7,
+            color: PdfColors.grey600,
+            letterSpacing: 0.5,
+          ),
         ),
       );
 
-  // ── أقسام مساعدة للتقرير ──
-  pw.Widget _reportHeader(
-      String brand, Uint8List? logo, String title, String? subtitle) {
-    final accent = PdfColor.fromInt(_branding.primaryColorValue.value);
-    return pw.Row(
-      crossAxisAlignment: pw.CrossAxisAlignment.center,
-      children: [
-        if (logo != null)
-          pw.Image(pw.MemoryImage(logo), width: 36, height: 36),
-        if (logo != null) pw.SizedBox(width: 8),
-        pw.Expanded(
-          child: pw.Column(
-            crossAxisAlignment: pw.CrossAxisAlignment.start,
-            children: [
-              pw.Text(brand,
-                  style: pw.TextStyle(
-                      fontSize: 12,
-                      fontWeight: pw.FontWeight.bold,
-                      color: accent)),
-              pw.Text(title,
-                  style: pw.TextStyle(
-                      fontSize: 14, fontWeight: pw.FontWeight.bold)),
-              if (subtitle != null && subtitle.isNotEmpty)
-                pw.Text(subtitle,
-                    style: const pw.TextStyle(
-                        fontSize: 9, color: PdfColors.grey700)),
-            ],
-          ),
-        ),
-        pw.Text(
-          DateTime.now().toIso8601String().substring(0, 10),
-          style: const pw.TextStyle(fontSize: 9, color: PdfColors.grey700),
-        ),
-      ],
-    );
+  String _fmtNum(dynamic value) {
+    if (value == null) return '0';
+    if (value is num) {
+      if (value == value.roundToDouble()) {
+        return value.toInt().toString();
+      }
+      return value.toStringAsFixed(2);
+    }
+    final parsed = num.tryParse(value.toString());
+    if (parsed == null) return value.toString();
+    if (parsed == parsed.roundToDouble()) {
+      return parsed.toInt().toString();
+    }
+    return parsed.toStringAsFixed(2);
   }
 
-  pw.Widget _summaryBox(Map<String, String> summary) {
-    final accent = PdfColor.fromInt(_branding.primaryColorValue.value);
-    return pw.Container(
-      padding: const pw.EdgeInsets.all(8),
-      decoration: pw.BoxDecoration(
-        color: PdfColor.fromInt(
-            _branding.primaryColorValue.value & 0x00FFFFFF | 0x14000000),
-        border: pw.Border.all(color: accent, width: 0.5),
-        borderRadius: pw.BorderRadius.circular(6),
-      ),
-      child: pw.Wrap(
-        spacing: 16,
-        runSpacing: 6,
-        children: summary.entries
-            .map((e) => pw.Row(
-                  mainAxisSize: pw.MainAxisSize.min,
-                  children: [
-                    pw.Text('${e.key}: ',
-                        style: pw.TextStyle(
-                            fontSize: 10,
-                            fontWeight: pw.FontWeight.bold,
-                            color: accent)),
-                    pw.Text(e.value,
-                        style: const pw.TextStyle(fontSize: 10)),
-                  ],
-                ))
-            .toList(),
-      ),
-    );
+  String _nowStamp() {
+    final n = DateTime.now();
+    final y = n.year.toString().padLeft(4, '0');
+    final m = n.month.toString().padLeft(2, '0');
+    final d = n.day.toString().padLeft(2, '0');
+    final h = n.hour.toString().padLeft(2, '0');
+    final min = n.minute.toString().padLeft(2, '0');
+    return '$y-$m-$d $h:$min';
   }
 
   Future<Uint8List?> _loadLogoBytes() async {

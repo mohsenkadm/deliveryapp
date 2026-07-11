@@ -9,6 +9,7 @@ import '../../../../core/utils/snackbar_helper.dart';
 import '../../../../core/widgets/custom_button.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../../../../core/widgets/loading_indicator.dart';
+import '../../../../core/widgets/product_quantity_stepper.dart';
 import '../controllers/representative_controllers.dart';
 
 class RepCreateInvoicePage extends GetView<RepresentativeHomeController> {
@@ -49,6 +50,11 @@ class RepCreateInvoicePage extends GetView<RepresentativeHomeController> {
 
     // تحميل المنتجات: جملة من المستودعات الرئيسية، مفرد من المستودع الفرعي.
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      final args = Get.arguments;
+      if (args is Map && args['customerId'] != null) {
+        controller.selectedInvoiceCustomerId.value =
+            args['customerId'].toString();
+      }
       if (controller.preferWholesaleUnitPrices) {
         if (!controller.isLoadingMainProducts.value &&
             controller.mainWarehouses.isEmpty &&
@@ -233,29 +239,35 @@ class RepCreateInvoicePage extends GetView<RepresentativeHomeController> {
                   final stock = _stock(item);
                   final price = _price(item);
 
-                  return _ProductRow(
-                    productId: productId,
-                    name: name,
-                    stock: stock,
-                    price: price,
-                    onAdd: () {
-                      if (productId.isEmpty) {
-                        SnackbarHelper.showError('معرف المنتج غير صالح');
-                        return;
-                      }
-                      if (stock <= 0) {
-                        SnackbarHelper.showError('المنتج غير متوفر في المخزون');
-                        return;
-                      }
-                      controller.addProductToCart(
-                        productId: productId,
-                        productName: name,
-                        price: price,
-                        maxStock: stock,
-                      );
-                      SnackbarHelper.showSuccess('تمت الإضافة إلى السلة');
-                    },
-                  );
+                  return Obx(() {
+                    final qty = controller.cartQuantityFor(productId);
+                    return _ProductRow(
+                      productId: productId,
+                      name: name,
+                      stock: stock,
+                      price: price,
+                      quantity: qty,
+                      onIncrement: () {
+                        if (productId.isEmpty) {
+                          SnackbarHelper.showError('معرف المنتج غير صالح');
+                          return;
+                        }
+                        if (stock <= 0) {
+                          SnackbarHelper.showError(
+                              'المنتج غير متوفر في المخزون');
+                          return;
+                        }
+                        controller.addProductToCart(
+                          productId: productId,
+                          productName: name,
+                          price: price,
+                          maxStock: stock,
+                        );
+                      },
+                      onDecrement: () => controller.updateCartQuantity(
+                          productId, qty - 1),
+                    );
+                  });
                 },
               );
             }),
@@ -329,14 +341,18 @@ class _ProductRow extends StatelessWidget {
   final String name;
   final int stock;
   final double price;
-  final VoidCallback onAdd;
+  final int quantity;
+  final VoidCallback onIncrement;
+  final VoidCallback onDecrement;
 
   const _ProductRow({
     required this.productId,
     required this.name,
     required this.stock,
     required this.price,
-    required this.onAdd,
+    required this.quantity,
+    required this.onIncrement,
+    required this.onDecrement,
   });
 
   @override
@@ -388,10 +404,13 @@ class _ProductRow extends StatelessWidget {
               ],
             ),
           ),
-          IconButton.filled(
-            onPressed: available ? onAdd : null,
-            icon: const Icon(Icons.add),
-            tooltip: 'إضافة',
+          ProductQuantityStepper(
+            quantity: quantity,
+            enabled: available,
+            maxQuantity: stock > 0 ? stock : null,
+            onAdd: onIncrement,
+            onIncrement: onIncrement,
+            onDecrement: onDecrement,
           ),
         ],
       ),
@@ -439,30 +458,51 @@ class _CartSheet extends StatelessWidget {
               style: GoogleFonts.cairo(
                   fontSize: 14, fontWeight: FontWeight.w700)),
           const SizedBox(height: 6),
-          Obx(() => DropdownButtonFormField<String>(
-                value: controller.selectedInvoiceCustomerId.value,
-                isExpanded: true,
-                decoration: InputDecoration(
-                  hintText: 'اختر العميل',
-                  prefixIcon: const Icon(Icons.person_outline),
-                  border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 14, vertical: 10),
-                ),
-                items: controller.customers.map((c) {
-                  return DropdownMenuItem(
-                    value: c['id']?.toString(),
-                    child: Text(
-                      (c['fullName'] ?? c['storeName'] ?? '').toString(),
-                      style: GoogleFonts.cairo(),
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  );
-                }).toList(),
-                onChanged: (v) =>
-                    controller.selectedInvoiceCustomerId.value = v,
-              )),
+          Obx(() {
+            final approved = controller.customers
+                .where((c) =>
+                    c['isApproved'] != false &&
+                    c['id'] != null &&
+                    c['id'].toString().isNotEmpty)
+                .toList();
+            var selected = controller.selectedInvoiceCustomerId.value;
+            if (selected != null &&
+                !approved.any((c) => c['id']?.toString() == selected)) {
+              selected = null;
+            }
+            if (approved.isEmpty) {
+              return Text(
+                'لا يوجد عملاء معتمدون — أضف عميلاً وانتظر موافقة الإدارة',
+                style: GoogleFonts.cairo(
+                    fontSize: 13, color: AppColors.textSecondary),
+              );
+            }
+            return DropdownButtonFormField<String>(
+              value: selected,
+              isExpanded: true,
+              decoration: InputDecoration(
+                hintText: 'اختر العميل',
+                prefixIcon: const Icon(Icons.person_outline),
+                border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12)),
+                contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 14, vertical: 10),
+              ),
+              items: approved.map((c) {
+                final id = c['id']!.toString();
+                return DropdownMenuItem(
+                  value: id,
+                  child: Text(
+                    (c['fullName'] ?? c['storeName'] ?? '').toString(),
+                    style: GoogleFonts.cairo(),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                );
+              }).toList(),
+              onChanged: (v) =>
+                  controller.selectedInvoiceCustomerId.value = v,
+            );
+          }),
 
           const SizedBox(height: 12),
 

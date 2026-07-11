@@ -1,6 +1,7 @@
 // متحكم مدير المبيعات
 import 'package:get/get.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/services/signalr_service.dart';
 import '../../../../core/utils/snackbar_helper.dart';
 import '../../data/datasources/sales_manager_remote_datasource.dart';
 
@@ -13,16 +14,33 @@ class SalesManagerController extends GetxController {
   final pendingInvoices = <Map<String, dynamic>>[].obs;
   final debtsReport = <Map<String, dynamic>>[].obs;
   final paymentsReport = <Map<String, dynamic>>[].obs;
+  final pendingPaymentsVerify = <Map<String, dynamic>>[].obs;
   final salesSummary = Rxn<Map<String, dynamic>>();
+  final repLiability = Rxn<Map<String, dynamic>>();
 
   final isLoading = true.obs;
   final isActing = false.obs;
+
+  Future<void> _refreshOnNotification() async {
+    await Future.wait([
+      loadPendingPaymentsVerify(),
+      loadPendingInvoices(),
+      loadPendingCustomers(),
+    ]);
+  }
 
   @override
   void onInit() {
     super.onInit();
     _ds = SalesManagerRemoteDataSource(Get.find<DioClient>());
+    SignalRService.to.registerRefresh(_refreshOnNotification);
     _loadInitialData();
+  }
+
+  @override
+  void onClose() {
+    SignalRService.to.unregisterRefresh(_refreshOnNotification);
+    super.onClose();
   }
 
   void _loadInitialData() {
@@ -73,10 +91,19 @@ class SalesManagerController extends GetxController {
     isActing.value = false;
   }
 
-  Future<void> rejectCustomer(String id) async {
+  Future<void> loadRepLiability(String repId) async {
+    try {
+      repLiability.value = await _ds.getRepLiability(repId);
+    } catch (e) {
+      repLiability.value = null;
+      SnackbarHelper.handleApiError(e, 'فشل تحميل ذمة المندوب');
+    }
+  }
+
+  Future<void> rejectCustomer(String id, {String? reason}) async {
     isActing.value = true;
     try {
-      await _ds.rejectCustomer(id);
+      await _ds.rejectCustomer(id, reason: reason);
       SnackbarHelper.showSuccess('تم رفض العميل');
       await loadPendingCustomers();
     } catch (e) {
@@ -147,5 +174,27 @@ class SalesManagerController extends GetxController {
       SnackbarHelper.handleApiError(e, 'فشل تحميل تقرير المدفوعات');
     }
     isLoading.value = false;
+  }
+
+  Future<void> loadPendingPaymentsVerify() async {
+    isLoading.value = true;
+    try {
+      pendingPaymentsVerify.value = await _ds.getPendingPayments();
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشل تحميل الدفعات المعلّقة');
+    }
+    isLoading.value = false;
+  }
+
+  Future<void> verifyPayment(String id) async {
+    isActing.value = true;
+    try {
+      await _ds.verifyPayment(id);
+      SnackbarHelper.showSuccess('تم التحقق والاعتماد');
+      await loadPendingPaymentsVerify();
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشل التحقق');
+    }
+    isActing.value = false;
   }
 }
