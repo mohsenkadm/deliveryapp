@@ -24,16 +24,20 @@ class ProductModel extends Product {
   });
 
   factory ProductModel.fromJson(Map<String, dynamic> json) {
-    final retailPrice = (json['retailPrice'] ?? json['price'] ?? 0).toDouble();
+    final unitPrice = (json['unitPrice'] ??
+            json['retailPrice'] ??
+            json['price'] ??
+            0)
+        .toDouble();
     final discount = (json['discountPercentage'] ?? 0).toDouble();
     final discountPrice =
-        discount > 0 ? retailPrice * (1 - discount / 100) : null;
+        discount > 0 ? unitPrice * (1 - discount / 100) : null;
 
     return ProductModel(
       id: json['id']?.toString() ?? '',
       name: json['name'] ?? '',
       description: json['description'],
-      price: retailPrice,
+      price: unitPrice,
       discountPrice: discountPrice,
       imageUrl: json['imagePath'] ?? json['imageUrl'] ?? json['image'],
       categoryId: json['categoryId']?.toString() ?? '',

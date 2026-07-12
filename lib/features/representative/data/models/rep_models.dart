@@ -1,3 +1,40 @@
+/// تقدّم هدف المندوب — RepGoalProgressDto
+class RepGoalProgressDto {
+  final double targetAmount;
+  final double achievedAmount;
+  final double progressPercent;
+  final int year;
+  final int month;
+  final String? notes;
+
+  const RepGoalProgressDto({
+    required this.targetAmount,
+    required this.achievedAmount,
+    required this.progressPercent,
+    required this.year,
+    required this.month,
+    this.notes,
+  });
+
+  factory RepGoalProgressDto.fromJson(Map<String, dynamic> json) {
+    double d(dynamic v) =>
+        v is num ? v.toDouble() : double.tryParse(v?.toString() ?? '') ?? 0;
+    int i(dynamic v) =>
+        v is int ? v : int.tryParse(v?.toString() ?? '') ?? 0;
+    return RepGoalProgressDto(
+      targetAmount: d(json['targetAmount']),
+      achievedAmount: d(json['achievedAmount']),
+      progressPercent: d(json['progressPercent']),
+      year: i(json['year']),
+      month: i(json['month']),
+      notes: json['notes']?.toString(),
+    );
+  }
+
+  double get remainingAmount =>
+      (targetAmount - achievedAmount).clamp(0, double.infinity);
+}
+
 /// عميل المندوب — RepCustomerDto
 class RepCustomerDto {
   final int id;

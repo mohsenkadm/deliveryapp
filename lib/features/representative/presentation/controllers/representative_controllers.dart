@@ -6,6 +6,7 @@ import '../../../../core/routes/app_routes.dart';
 import '../../../../core/services/auth_service.dart';
 import '../../../../core/services/signalr_service.dart';
 import '../../../../core/utils/snackbar_helper.dart';
+import '../../../../core/utils/unit_price_resolver.dart';
 import '../../data/datasources/representative_remote_datasource.dart';
 import '../../data/models/rep_models.dart';
 
@@ -86,6 +87,7 @@ class RepresentativeHomeController extends GetxController {
   final mainWarehouseProducts = <Map<String, dynamic>>[].obs;
   final selectedMainWarehouseIdForInvoice = Rxn<String>();
   final isLoadingMainProducts = false.obs;
+  final isSearchingInvoiceProducts = false.obs;
 
   double get invoiceCartTotal =>
       invoiceCart.fold(0.0, (s, i) => s + i.quantity * i.price);
@@ -105,6 +107,15 @@ class RepresentativeHomeController extends GetxController {
 
   /// نوع العميل: Retail (مفرد) أو Wholesale (جملة)
   final clientType = 'Retail'.obs;
+
+  // ── أهداف المندوب (قراءة فقط) ──
+  final selectedGoalYear = DateTime.now().year.obs;
+  final selectedGoalMonth = DateTime.now().month.obs;
+  final historyFrom = Rxn<DateTime>();
+  final historyTo = Rxn<DateTime>();
+  final currentGoal = Rxn<RepGoalProgressDto>();
+  final goalsHistory = <RepGoalProgressDto>[].obs;
+  final isLoadingGoals = false.obs;
 
   Future<void> _refreshOnNotification() async {
     await loadInvoices();
@@ -166,7 +177,6 @@ class RepresentativeHomeController extends GetxController {
       addressController.clear();
       regionController.clear();
       Get.back();
-      // بعد إغلاق الصفحة يُعاد بناء الـ overlay — إظهار النجاح في الإطار السابق
       WidgetsBinding.instance.addPostFrameCallback((_) {
         SnackbarHelper.showSuccess(
             'تم حفظ بيانات العميل بنجاح. سيتم تفعيل الحساب بعد موافقة الإدارة.');
@@ -177,6 +187,109 @@ class RepresentativeHomeController extends GetxController {
     } finally {
       isActing.value = false;
     }
+  }
+
+  Future<void> addCustomerWithPhoto({
+    required String fullName,
+    required String phone,
+    required String address,
+    required String region,
+    required String clientType,
+    required double latitude,
+    required double longitude,
+    required String photoPath,
+    String? storeName,
+  }) async {
+    await _ds.addCustomerWithPhoto(
+      fullName: fullName,
+      phone: phone,
+      address: address,
+      region: region,
+      clientType: clientType,
+      latitude: latitude,
+      longitude: longitude,
+      photoPath: photoPath,
+      storeName: storeName,
+    );
+  }
+
+  // ── أهداف المندوب ──
+
+  static const List<String> _monthNames = [
+    'يناير',
+    'فبراير',
+    'مارس',
+    'أبريل',
+    'مايو',
+    'يونيو',
+    'يوليو',
+    'أغسطس',
+    'سبتمبر',
+    'أكتوبر',
+    'نوفمبر',
+    'ديسمبر',
+  ];
+
+  String monthLabel(int month) =>
+      month >= 1 && month <= 12 ? _monthNames[month - 1] : '$month';
+
+  List<int> get goalYearOptions {
+    final now = DateTime.now().year;
+    return List.generate(5, (i) => now - i);
+  }
+
+  Future<void> loadRepGoals() async {
+    isLoadingGoals.value = true;
+    try {
+      currentGoal.value = await _ds.getCurrentGoal(
+        year: selectedGoalYear.value,
+        month: selectedGoalMonth.value,
+      );
+      final history = await _ds.getGoalsHistory(
+        year: selectedGoalYear.value,
+        month: selectedGoalMonth.value,
+        from: historyFrom.value,
+        to: historyTo.value,
+      );
+      goalsHistory.value = _filterGoalsHistory(history);
+    } catch (e) {
+      currentGoal.value = null;
+      goalsHistory.clear();
+      SnackbarHelper.handleApiError(e, 'فشل تحميل الأهداف');
+    }
+    isLoadingGoals.value = false;
+  }
+
+  List<RepGoalProgressDto> _filterGoalsHistory(List<RepGoalProgressDto> raw) {
+    final from = historyFrom.value;
+    final to = historyTo.value;
+    if (from == null && to == null) return raw;
+    return raw.where((g) {
+      final d = DateTime(g.year, g.month);
+      if (from != null && d.isBefore(DateTime(from.year, from.month))) {
+        return false;
+      }
+      if (to != null && d.isAfter(DateTime(to.year, to.month))) {
+        return false;
+      }
+      return true;
+    }).toList();
+  }
+
+  void setGoalYear(int year) {
+    selectedGoalYear.value = year;
+    loadRepGoals();
+  }
+
+  void setGoalMonth(int month) {
+    selectedGoalMonth.value = month;
+    loadRepGoals();
+  }
+
+  void setGoalsHistoryRange(DateTime? from, DateTime? to) {
+    historyFrom.value = from;
+    historyTo.value = to;
+    loadRepGoals();
   }
 
   // ── الفواتير ──
@@ -421,6 +534,75 @@ class RepresentativeHomeController extends GetxController {
       mainWarehouseProducts.clear();
     }
     isLoadingMainProducts.value = false;
+  }
+
+  /// بحث منتجات لإضافتها للفاتورة — debounce من الواجهة.
+  Future<List<Map<String, dynamic>>> searchProductsForInvoice(
+      String query) async {
+    final q = query.trim();
+    if (q.isEmpty) return const [];
+
+    isSearchingInvoiceProducts.value = true;
+    try {
+      if (preferWholesaleUnitPrices) {
+        final results = await _ds.getMainWarehouseProducts(
+          search: q,
+          warehouseId: selectedMainWarehouseIdForInvoice.value,
+        );
+        mainWarehouseProducts.value = results;
+        return results;
+      }
+
+      if (warehouseItems.isEmpty && !isLoadingWarehouse.value) {
+        await loadWarehouse();
+      }
+      final lower = q.toLowerCase();
+      return warehouseItems.where((it) {
+        final name =
+            (it['productName'] ?? it['name'] ?? '').toString().toLowerCase();
+        final code = (it['productCode'] ?? it['code'] ?? '')
+            .toString()
+            .toLowerCase();
+        return name.contains(lower) || code.contains(lower);
+      }).toList();
+    } catch (e) {
+      SnackbarHelper.handleApiError(e, 'فشل البحث عن المنتجات');
+      return const [];
+    } finally {
+      isSearchingInvoiceProducts.value = false;
+    }
+  }
+
+  /// إضافة منتج من نتيجة البحث إلى السلة.
+  void addSearchedProductToCart(Map<String, dynamic> item) {
+    final productId =
+        (item['productId'] ?? item['id'] ?? '').toString();
+    final name =
+        (item['productName'] ?? item['name'] ?? '').toString();
+    final stockRaw = item['quantity'] ??
+        item['mainWarehouseStock'] ??
+        item['stockQuantity'] ??
+        0;
+    final stock = stockRaw is num
+        ? stockRaw.toInt()
+        : int.tryParse(stockRaw.toString()) ?? 0;
+    final price = resolveUnitPrice(item);
+
+    if (productId.isEmpty) {
+      SnackbarHelper.showError('معرف المنتج غير صالح');
+      return;
+    }
+    if (stock <= 0) {
+      SnackbarHelper.showError('المنتج غير متوفر في المخزون');
+      return;
+    }
+    addProductToCart(
+      productId: productId,
+      productName: name,
+      price: price,
+      maxStock: stock,
+    );
+    SnackbarHelper.showSuccess('تمت إضافة $name للسلة');
   }
 
   /// إنشاء الفاتورة من السلة بعد اختيار العميل.

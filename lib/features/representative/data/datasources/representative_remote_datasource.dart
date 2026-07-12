@@ -1,3 +1,4 @@
+import 'package:dio/dio.dart';
 import '../../../../core/constants/api_constants.dart';
 import '../../../../core/network/api_parser.dart';
 import '../../../../core/network/dio_client.dart';
@@ -24,6 +25,82 @@ class RepresentativeRemoteDataSource {
   Future<void> addCustomer(Map<String, dynamic> data) async {
     parseApiVoid(
         await _dioClient.post(ApiConstants.repAddCustomer, data: data));
+  }
+
+  Future<void> addCustomerWithPhoto({
+    required String fullName,
+    required String phone,
+    required String address,
+    required String region,
+    required String clientType,
+    required double latitude,
+    required double longitude,
+    required String photoPath,
+    String? storeName,
+  }) async {
+    final formData = FormData.fromMap({
+      'fullName': fullName,
+      'phone': phone,
+      'address': address,
+      'region': region,
+      'clientType': clientType,
+      'latitude': latitude,
+      'longitude': longitude,
+      if (storeName != null && storeName.isNotEmpty) 'storeName': storeName,
+      'photo': await MultipartFile.fromFile(photoPath),
+    });
+    parseApiVoid(await _dioClient.raw.post(
+      ApiConstants.repAddCustomerWithPhoto,
+      data: formData,
+    ));
+  }
+
+  Future<RepGoalProgressDto?> getCurrentGoal({
+    required int year,
+    required int month,
+  }) async {
+    final response = await _dioClient.get(
+      ApiConstants.repGoalsCurrent,
+      queryParameters: {'year': year, 'month': month},
+    );
+    return parseApi<RepGoalProgressDto?>(response, (data) {
+      if (data == null) return null;
+      if (data is Map) {
+        return RepGoalProgressDto.fromJson(Map<String, dynamic>.from(data));
+      }
+      return null;
+    });
+  }
+
+  Future<List<RepGoalProgressDto>> getGoalsHistory({
+    required int year,
+    required int month,
+    DateTime? from,
+    DateTime? to,
+  }) async {
+    final params = <String, dynamic>{'year': year, 'month': month};
+    if (from != null) params['from'] = from.toUtc().toIso8601String();
+    if (to != null) params['to'] = to.toUtc().toIso8601String();
+
+    final response = await _dioClient.get(
+      ApiConstants.repGoals,
+      queryParameters: params,
+    );
+    return parseApi<List<RepGoalProgressDto>>(response, (data) {
+      List raw;
+      if (data is List) {
+        raw = data;
+      } else if (data is Map) {
+        raw = data['goals'] ?? data['items'] ?? data['data'] ?? [];
+      } else {
+        return const [];
+      }
+      return raw
+          .whereType<Map>()
+          .map((e) =>
+              RepGoalProgressDto.fromJson(Map<String, dynamic>.from(e)))
+          .toList();
+    });
   }
 
   Future<List<Map<String, dynamic>>> getInvoices({

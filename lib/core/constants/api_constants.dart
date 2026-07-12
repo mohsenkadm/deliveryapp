@@ -185,6 +185,16 @@ class ApiConstants {
   /// GET ذمة المندوب المفرد
   static const String repLiability = '/api/mobile/rep/liability';
 
+  /// GET الهدف الحالي ?year=&month=
+  static const String repGoalsCurrent = '/api/mobile/rep/goals/current';
+
+  /// GET سجل الأهداف ?year=&month=
+  static const String repGoals = '/api/mobile/rep/goals';
+
+  /// POST إضافة عميل مع صورة وموقع
+  static const String repAddCustomerWithPhoto =
+      '/api/mobile/rep/customers/with-photo';
+
   /// GET فواتير بانتظار تسليم المحاسب (Delivered)
   static const String repInvoicesPendingSettlement =
       '/api/mobile/rep/invoices/pending-settlement';

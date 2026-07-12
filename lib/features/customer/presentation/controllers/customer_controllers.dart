@@ -245,10 +245,7 @@ class CartController extends GetxController {
   }) async {
     if (cartItems.isEmpty) return;
 
-    final invalid = cartItems.where((c) {
-      final price = c.product.discountPrice ?? c.product.price;
-      return price <= 0;
-    }).toList();
+    final invalid = cartItems.where((c) => c.product.unitPrice <= 0).toList();
     if (invalid.isNotEmpty) {
       SnackbarHelper.showError('سعر أحد المنتجات غير صالح');
       return;
@@ -260,7 +257,7 @@ class CartController extends GetxController {
         .map((c) => {
               'productId': c.product.id,
               'quantity': c.quantity,
-              'unitPrice': c.product.discountPrice ?? c.product.price,
+              'unitPrice': c.product.unitPrice,
             })
         .toList();
 
@@ -278,7 +275,7 @@ class CartController extends GetxController {
       (f) => SnackbarHelper.showError(f.message),
       (order) {
         clearCart();
-        SnackbarHelper.showSuccess('تم إرسال الطلب بنجاح');
+        SnackbarHelper.showSuccess('تم إرسال الطلب — بانتظار موافقة المحاسب');
         Get.offAllNamed(AppRoutes.myOrders);
       },
     );
