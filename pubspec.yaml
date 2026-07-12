@@ -64,10 +64,9 @@ dependencies:
   # QR code
   qr_flutter: ^4.1.0
 
-  # Maps (GPS for driver)
+  # Maps (GPS for driver) — OpenStreetMap عبر flutter_map (مجاني)
   flutter_map: ^6.1.0
   latlong2: ^0.9.0
-  google_maps_flutter: ^2.5.3
 
 dev_dependencies:
   flutter_test:

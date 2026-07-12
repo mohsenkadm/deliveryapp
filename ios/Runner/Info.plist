@@ -72,8 +72,6 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
-	<key>GMSApiKey</key>
-	<string></string>
 	<key>NSCameraUsageDescription</key>
 	<string>لالتقاط صورة المتجر عند تسجيل عميل جديد</string>
 	<key>NSPhotoLibraryUsageDescription</key>

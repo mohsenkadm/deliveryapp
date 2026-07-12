@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:latlong2/latlong.dart';
 
 import '../theme/app_colors.dart';
 
-/// خريطة تفاعلية لتحديد موقع المتجر — google_maps_flutter.
+/// خريطة تفاعلية لتحديد موقع المتجر — flutter_map + OpenStreetMap (مجاني).
 class LocationPickerMap extends StatefulWidget {
   final double? initialLatitude;
   final double? initialLongitude;
@@ -26,7 +27,7 @@ class LocationPickerMap extends StatefulWidget {
 class _LocationPickerMapState extends State<LocationPickerMap> {
   static const _defaultCenter = LatLng(33.3152, 44.3661); // بغداد
 
-  GoogleMapController? _mapController;
+  final _mapController = MapController();
   late LatLng _position;
 
   @override
@@ -52,7 +53,7 @@ class _LocationPickerMapState extends State<LocationPickerMap> {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Text(
-          'حدّد موقع المتجر على الخريطة',
+          'حدّد موقع المتجر على الخريطة (انقر لوضع الدبوس)',
           style: GoogleFonts.cairo(fontSize: 13, fontWeight: FontWeight.w600),
         ),
         const SizedBox(height: 8),
@@ -60,26 +61,39 @@ class _LocationPickerMapState extends State<LocationPickerMap> {
           borderRadius: BorderRadius.circular(16),
           child: SizedBox(
             height: widget.height,
-            child: GoogleMap(
-              initialCameraPosition: CameraPosition(
-                target: _position,
-                zoom: 15,
-              ),
-              onMapCreated: (c) => _mapController = c,
-              onTap: _updatePosition,
-              markers: {
-                Marker(
-                  markerId: const MarkerId('store'),
-                  position: _position,
-                  draggable: true,
-                  onDragEnd: _updatePosition,
-                  icon: BitmapDescriptor.defaultMarkerWithHue(
-                    BitmapDescriptor.hueRose,
-                  ),
+            child: FlutterMap(
+              mapController: _mapController,
+              options: MapOptions(
+                initialCenter: _position,
+                initialZoom: 15,
+                onTap: (_, point) => _updatePosition(point),
+                interactionOptions: const InteractionOptions(
+                  flags: InteractiveFlag.pinchZoom |
+                      InteractiveFlag.drag |
+                      InteractiveFlag.doubleTapZoom,
                 ),
-              },
-              myLocationButtonEnabled: false,
-              zoomControlsEnabled: true,
+              ),
+              children: [
+                TileLayer(
+                  urlTemplate:
+                      'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                  userAgentPackageName: 'com.alaman.deliveryapp',
+                ),
+                MarkerLayer(
+                  markers: [
+                    Marker(
+                      point: _position,
+                      width: 44,
+                      height: 44,
+                      child: Icon(
+                        Icons.location_on,
+                        color: AppColors.primary,
+                        size: 44,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ),
