@@ -72,5 +72,9 @@
 		<string>UIInterfaceOrientationLandscapeLeft</string>
 		<string>UIInterfaceOrientationLandscapeRight</string>
 	</array>
+	<key>NSCameraUsageDescription</key>
+	<string>لالتقاط صورة المتجر عند تسجيل عميل جديد</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>لاختيار صورة المتجر من المعرض</string>
 </dict>
 </plist>

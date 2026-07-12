@@ -161,6 +161,19 @@ class _RepHomeTab extends GetView<RepresentativeHomeController> {
                   ),
                 ],
               ).animate().fadeIn(delay: 200.ms),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    child: _ActionCard(
+                      icon: Icons.flag_rounded,
+                      label: 'أهدافي',
+                      color: const Color(0xFF7C3AED),
+                      onTap: () => Get.toNamed(AppRoutes.repGoals),
+                    ),
+                  ),
+                ],
+              ).animate().fadeIn(delay: 280.ms),
               const SizedBox(height: 24),
 
               // ── Recent Customers ──

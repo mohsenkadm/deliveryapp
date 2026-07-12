@@ -41,6 +41,9 @@ class Product extends Equatable {
     this.isNearExpiry = false,
   });
 
+  /// سعر الوحدة الفعلي — يفضّل الخصم إن وُجد.
+  double get unitPrice => discountPrice ?? price;
+
   @override
   List<Object?> get props => [id];
 }
@@ -68,7 +71,7 @@ class CartItem {
 
   CartItem({required this.product, this.quantity = 1});
 
-  double get total => (product.discountPrice ?? product.price) * quantity;
+  double get total => product.unitPrice * quantity;
 }
 
 class Order extends Equatable {

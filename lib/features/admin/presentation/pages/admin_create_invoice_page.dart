@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:get/get.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/network/dio_client.dart';
+import '../../../../core/utils/unit_price_resolver.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/utils/snackbar_helper.dart';
@@ -404,13 +405,12 @@ class _LineItemRow extends StatelessWidget {
                 .toList(),
             onChanged: (v) {
               line.productId = v;
-              // Auto-fill price from product (retailPrice)
               final product =
                   products.firstWhere((p) => p['id']?.toString() == v,
                       orElse: () => const {});
-              final price = product['retailPrice'] ?? product['price'] ?? 0;
-              if (price is num && line.priceCtrl.text == '0') {
-                line.unitPrice = price.toDouble();
+              final price = resolveUnitPrice(product);
+              if (price > 0 && line.priceCtrl.text == '0') {
+                line.unitPrice = price;
                 line.priceCtrl.text = price.toString();
               }
               onChanged();

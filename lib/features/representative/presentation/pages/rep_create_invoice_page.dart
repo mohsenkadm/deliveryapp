@@ -6,7 +6,9 @@ import 'package:google_fonts/google_fonts.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
 import '../../../../core/utils/snackbar_helper.dart';
+import '../../../../core/utils/unit_price_resolver.dart';
 import '../../../../core/widgets/custom_button.dart';
+import '../../../../core/widgets/debounced_product_autocomplete.dart';
 import '../../../../core/widgets/empty_state.dart';
 import '../../../../core/widgets/loading_indicator.dart';
 import '../../../../core/widgets/product_quantity_stepper.dart';
@@ -15,25 +17,8 @@ import '../controllers/representative_controllers.dart';
 class RepCreateInvoicePage extends GetView<RepresentativeHomeController> {
   const RepCreateInvoicePage({super.key});
 
-  // قراءة آمنة للسعر/الكمية من بيانات صنف المستودع.
-  double _price(Map<String, dynamic> item) {
-    if (controller.preferWholesaleUnitPrices) {
-      final w = item['wholesalePrice'] ??
-          item['bulkPrice'] ??
-          item['tradePrice'] ??
-          item['wholesaleUnitPrice'];
-      if (w != null) {
-        final d = (w is num) ? w.toDouble() : double.tryParse(w.toString());
-        if (d != null && d > 0) return d;
-      }
-    }
-    final p = item['retailPrice'] ??
-        item['price'] ??
-        item['unitPrice'] ??
-        item['salePrice'] ??
-        0;
-    return (p is num) ? p.toDouble() : double.tryParse(p.toString()) ?? 0;
-  }
+  // قراءة سعر الوحدة من بيانات صنف المستودع.
+  double _price(Map<String, dynamic> item) => resolveUnitPrice(item);
 
   int _stock(Map<String, dynamic> item) {
     final q = item['quantity'] ??
@@ -46,8 +31,6 @@ class RepCreateInvoicePage extends GetView<RepresentativeHomeController> {
 
   @override
   Widget build(BuildContext context) {
-    final search = ''.obs;
-
     // تحميل المنتجات: جملة من المستودعات الرئيسية، مفرد من المستودع الفرعي.
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final args = Get.arguments;
@@ -172,27 +155,18 @@ class RepCreateInvoicePage extends GetView<RepresentativeHomeController> {
               ),
             );
           }),
-          // ── شريط البحث ──
+          // ── بحث المنتجات (إكمال تلقائي + debounce 300ms) ──
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
-            child: TextField(
-              decoration: InputDecoration(
-                hintText: 'ابحث عن منتج...',
-                prefixIcon: const Icon(Icons.search),
-                filled: true,
-                fillColor: Theme.of(context).cardTheme.color,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(12),
-                  borderSide: BorderSide.none,
-                ),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-              ),
-              onChanged: (v) => search.value = v.trim(),
-            ),
+            child: Obx(() => DebouncedProductAutocomplete(
+                  hintText: 'ابحث عن منتج لإضافته للسلة...',
+                  isLoading: controller.isSearchingInvoiceProducts.value,
+                  onSearch: controller.searchProductsForInvoice,
+                  onSelected: controller.addSearchedProductToCart,
+                )),
           ),
 
-          // ── قائمة المنتجات ──
+          // ── قائمة المنتجات (عند عدم البحث) ──
           Expanded(
             child: Obx(() {
               final wholesale = controller.preferWholesaleUnitPrices;
@@ -202,19 +176,10 @@ class RepCreateInvoicePage extends GetView<RepresentativeHomeController> {
               if (loading) {
                 return const LoadingIndicator();
               }
-              final q = search.value.toLowerCase();
               final source = wholesale
                   ? controller.mainWarehouseProducts
                   : controller.warehouseItems;
-              final items = source.where((it) {
-                if (q.isEmpty) return true;
-                final name =
-                    (it['productName'] ?? '').toString().toLowerCase();
-                final code = (it['productCode'] ?? it['code'] ?? '')
-                    .toString()
-                    .toLowerCase();
-                return name.contains(q) || code.contains(q);
-              }).toList();
+              final items = source;
 
               if (items.isEmpty) {
                 return EmptyState(
@@ -593,8 +558,6 @@ class _CartSheet extends StatelessWidget {
                     onDec: () => controller.updateCartQuantity(
                         item.productId, item.quantity - 1),
                     onRemove: () => controller.removeFromCart(item.productId),
-                    onPriceChanged: (v) =>
-                        controller.updateCartPrice(item.productId, v),
                   );
                 },
               );
@@ -652,20 +615,16 @@ class _CartItemRow extends StatelessWidget {
   final VoidCallback onInc;
   final VoidCallback onDec;
   final VoidCallback onRemove;
-  final ValueChanged<double> onPriceChanged;
 
   const _CartItemRow({
     required this.item,
     required this.onInc,
     required this.onDec,
     required this.onRemove,
-    required this.onPriceChanged,
   });
 
   @override
   Widget build(BuildContext context) {
-    final priceCtrl =
-        TextEditingController(text: item.price.toStringAsFixed(2));
     return Row(
       crossAxisAlignment: CrossAxisAlignment.center,
       children: [
@@ -680,26 +639,12 @@ class _CartItemRow extends StatelessWidget {
                   maxLines: 2,
                   overflow: TextOverflow.ellipsis),
               const SizedBox(height: 4),
-              SizedBox(
-                width: 110,
-                height: 36,
-                child: TextField(
-                  controller: priceCtrl,
-                  keyboardType:
-                      const TextInputType.numberWithOptions(decimal: true),
-                  decoration: InputDecoration(
-                    isDense: true,
-                    labelText: 'السعر',
-                    labelStyle: GoogleFonts.cairo(fontSize: 11),
-                    border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(8)),
-                    contentPadding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 6),
-                  ),
-                  onSubmitted: (v) =>
-                      onPriceChanged(double.tryParse(v) ?? item.price),
-                  onEditingComplete: () => onPriceChanged(
-                      double.tryParse(priceCtrl.text) ?? item.price),
+              Text(
+                Formatters.currency(item.price),
+                style: GoogleFonts.cairo(
+                  fontSize: 12,
+                  color: AppColors.textSecondary,
+                  fontWeight: FontWeight.w600,
                 ),
               ),
             ],

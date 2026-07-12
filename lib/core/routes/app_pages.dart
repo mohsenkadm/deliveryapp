@@ -41,6 +41,7 @@ import '../../features/driver/presentation/bindings/driver_binding.dart';
 // Representative
 import '../../features/representative/presentation/pages/representative_main_page.dart';
 import '../../features/representative/presentation/pages/register_customer_page.dart';
+import '../../features/representative/presentation/pages/rep_goals_screen.dart';
 import '../../features/representative/presentation/pages/customer_invoices_page.dart';
 import '../../features/representative/presentation/pages/collect_payment_page.dart';
 import '../../features/representative/presentation/bindings/representative_binding.dart';
@@ -176,6 +177,7 @@ class AppPages {
     GetPage(name: AppRoutes.repTransferPicker, page: () => const RepTransferProductPickerPage()),
     GetPage(name: AppRoutes.repDebts, page: () => const RepDebtsPage()),
     GetPage(name: AppRoutes.repInvoiceDetail, page: () => const RepInvoiceDetailPage()),
+    GetPage(name: AppRoutes.repGoals, page: () => const RepGoalsScreen()),
 
     // Admin
     GetPage(name: AppRoutes.representativeNotifications, page: () => const RepresentativeNotificationsPage()),
