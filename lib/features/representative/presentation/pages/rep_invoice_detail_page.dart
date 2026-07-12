@@ -358,44 +358,80 @@ class RepInvoiceDetailPage extends GetView<RepresentativeHomeController> {
       return;
     }
     try {
+      final auth = Get.find<AuthService>();
+      final totalAmount = (inv['totalAmount'] as num?)?.toDouble() ?? 0;
+      final paidAmount = (inv['paidAmount'] as num?)?.toDouble() ?? 0;
+      final discount = (inv['discount'] as num?)?.toDouble() ?? 0;
+      final customerName = (inv['customerName'] ??
+              inv['customer']?['fullName'] ??
+              '')
+          .toString()
+          .trim();
+      final storeName = (inv['storeName'] ??
+              inv['customer']?['storeName'] ??
+              '')
+          .toString()
+          .trim();
+      final customerLabel = [
+        if (storeName.isNotEmpty) storeName,
+        if (customerName.isNotEmpty) customerName,
+      ].join(' ');
+
+      final previousBalance = (inv['previousBalance'] ??
+              inv['customerPreviousBalance'] ??
+              inv['customer']?['balance'] ??
+              0)
+          .toDouble();
+      final grandTotal = previousBalance + totalAmount - discount;
+      final currentBalance = grandTotal - paidAmount;
+      final paymentType =
+          paidAmount >= totalAmount && totalAmount > 0 ? 'نقداً' : 'آجل';
+
       final items = (((inv['details'] ?? inv['items']) as List?) ?? const [])
           .map<Map<String, dynamic>>((e) {
         final m = e as Map<String, dynamic>;
         final qty = (m['quantity'] as num?)?.toDouble() ?? 0;
         final price = (m['unitPrice'] ?? m['price'] ?? 0).toDouble();
-        final discount = (m['discount'] as num?)?.toDouble() ?? 0;
+        final itemDiscount = (m['discount'] as num?)?.toDouble() ?? 0;
         final total = (m['subTotal'] ??
                 m['subtotal'] ??
                 m['total'] ??
-                (qty * price - discount))
+                m['lineTotal'] ??
+                (qty * price - itemDiscount))
             .toDouble();
         return {
           'name': m['productName'] ?? m['product']?['name'] ?? '',
           'quantity': qty,
-          'unit': m['unit'] ?? '',
           'price': price,
           'total': total,
         };
       }).toList();
+
+      final createdAt = inv['createdAt']?.toString() ?? '';
       final pdf = await PdfService.instance.buildInvoicePdf({
+        'layout': 'rep_sales',
         'id': inv['id'] ?? invoiceId,
         'invoiceNumber': inv['id'] ?? invoiceId,
-        'date': inv['createdAt']?.toString().substring(0, 10) ?? '',
-        'customerName': inv['customerName'] ?? inv['customer']?['fullName'] ?? '',
-        'storeName': inv['storeName'] ?? inv['customer']?['storeName'] ?? '',
-        'phone': inv['customerPhone'] ?? inv['customer']?['phone'] ?? '',
-        'address': inv['address'] ?? inv['customer']?['address'] ?? '',
-        'status': InvoiceStatusHelper.label(InvoiceStatusHelper.parse(
-            inv['statusText'] ?? inv['status'],
-            fallback: '')),
+        'date': createdAt.length >= 10 ? createdAt.substring(0, 10) : createdAt,
+        'createdAt': createdAt,
+        'customerName': customerLabel.isNotEmpty ? customerLabel : customerName,
+        'repName': inv['employeeName'] ??
+            inv['salesRepresentativeName'] ??
+            auth.userName,
+        'repPhone': inv['employeePhone'] ??
+            inv['representativePhone'] ??
+            inv['repPhone'] ??
+            '',
+        'paymentType': paymentType,
         'items': items,
-        'subtotal': inv['totalAmount'] ?? 0,
-        'discount': inv['discount'] ?? 0,
-        'total': inv['totalAmount'] ?? 0,
-        'paid': inv['paidAmount'] ?? 0,
-        'remaining':
-            ((inv['totalAmount'] as num?)?.toDouble() ?? 0) -
-                ((inv['paidAmount'] as num?)?.toDouble() ?? 0),
+        'previousBalance': previousBalance,
+        'total': totalAmount,
+        'totalAmount': totalAmount,
+        'discount': discount,
+        'grandTotal': grandTotal,
+        'paid': paidAmount,
+        'paidAmount': paidAmount,
+        'currentBalance': currentBalance,
         'notes': inv['notes'] ?? '',
       });
       await PdfService.instance.printOrPreview(pdf, name: 'invoice_$invoiceId');

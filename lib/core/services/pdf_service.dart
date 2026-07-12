@@ -51,6 +51,14 @@ class PdfService {
   // ════════════════════════════════════════
   Future<Uint8List> buildInvoicePdf(Map<String, dynamic> invoice) async {
     await _ensureFonts();
+    if (invoice['layout'] == 'rep_sales') {
+      return _buildRepSalesInvoicePdf(invoice);
+    }
+    return _buildStandardInvoicePdf(invoice);
+  }
+
+  Future<Uint8List> _buildStandardInvoicePdf(
+      Map<String, dynamic> invoice) async {
     final doc = pw.Document(theme: _theme);
     final brandName = _branding.appName.value;
     final logoBytes = await _loadLogoBytes();
@@ -138,6 +146,313 @@ class PdfService {
       ),
     );
     return doc.save();
+  }
+
+  /// إيصال مندوب — ترتيب فاتورة مبيعات حرارية (مثل إيصال حضارة لارسا).
+  Future<Uint8List> _buildRepSalesInvoicePdf(
+      Map<String, dynamic> invoice) async {
+    final doc = pw.Document(theme: _theme);
+    final brandAr = _branding.appName.value;
+    final brandEn =
+        (invoice['companyNameEn'] ?? _branding.companySlogan.value).toString();
+    final logoBytes = await _loadLogoBytes();
+    final items = (invoice['items'] as List?) ?? const [];
+
+    doc.addPage(
+      pw.Page(
+        textDirection: pw.TextDirection.rtl,
+        pageFormat: receipt80,
+        build: (ctx) => pw.Column(
+          crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+          children: [
+            _repSalesHeader(
+              logoBytes: logoBytes,
+              brandEn: brandEn.isNotEmpty ? brandEn : brandAr,
+              brandAr: brandAr,
+              addressPhone: _repAddressPhoneLine(invoice),
+              repLine: _repRepresentativeLine(invoice),
+            ),
+            pw.SizedBox(height: 6),
+            pw.Center(
+              child: pw.Text(
+                'فاتورة مبيعات - ${invoice['paymentType'] ?? 'نقداً'}',
+                style: pw.TextStyle(
+                  fontSize: 10,
+                  fontWeight: pw.FontWeight.bold,
+                ),
+              ),
+            ),
+            pw.SizedBox(height: 6),
+            _repSalesMetaTable(invoice),
+            pw.SizedBox(height: 6),
+            _repSalesItemsTable(items),
+            pw.SizedBox(height: 6),
+            _repSalesSummaryTable(invoice),
+            pw.SizedBox(height: 6),
+            if ((invoice['notes'] ?? '').toString().trim().isNotEmpty)
+              _receiptNotes(invoice['notes'].toString()),
+          ],
+        ),
+      ),
+    );
+    return doc.save();
+  }
+
+  String _repAddressPhoneLine(Map<String, dynamic> invoice) {
+    final addr = (invoice['companyAddress'] ??
+            _branding.companyAddress.value)
+        .toString()
+        .trim();
+    final phone = (invoice['companyPhone'] ?? _branding.companyPhone.value)
+        .toString()
+        .trim();
+    if (addr.isNotEmpty && phone.isNotEmpty) return '$addr $phone';
+    if (addr.isNotEmpty) return addr;
+    if (phone.isNotEmpty) return phone;
+    return '';
+  }
+
+  String _repRepresentativeLine(Map<String, dynamic> invoice) {
+    final name = (invoice['repName'] ?? '').toString().trim();
+    final phone = (invoice['repPhone'] ?? '').toString().trim();
+    if (name.isEmpty && phone.isEmpty) return '';
+    if (phone.isEmpty) return 'المندوب $name';
+    if (name.isEmpty) return 'المندوب $phone';
+    return 'المندوب $name $phone';
+  }
+
+  pw.Widget _repSalesHeader({
+    required Uint8List? logoBytes,
+    required String brandEn,
+    required String brandAr,
+    required String addressPhone,
+    required String repLine,
+  }) {
+    return pw.Column(
+      crossAxisAlignment: pw.CrossAxisAlignment.center,
+      children: [
+        if (logoBytes != null)
+          pw.ClipRRect(
+            horizontalRadius: 4,
+            verticalRadius: 4,
+            child: pw.Image(
+              pw.MemoryImage(logoBytes),
+              width: 40,
+              height: 40,
+              fit: pw.BoxFit.cover,
+            ),
+          ),
+        if (logoBytes != null) pw.SizedBox(height: 4),
+        if (brandEn.isNotEmpty)
+          pw.Text(
+            brandEn.toUpperCase(),
+            textAlign: pw.TextAlign.center,
+            style: pw.TextStyle(
+              fontSize: 11,
+              fontWeight: pw.FontWeight.bold,
+              letterSpacing: 0.5,
+            ),
+          ),
+        pw.Text(
+          brandAr,
+          textAlign: pw.TextAlign.center,
+          style: pw.TextStyle(fontSize: 11, fontWeight: pw.FontWeight.bold),
+        ),
+        if (addressPhone.isNotEmpty)
+          pw.Text(
+            addressPhone,
+            textAlign: pw.TextAlign.center,
+            style: const pw.TextStyle(fontSize: 7.5, color: PdfColors.grey800),
+          ),
+        if (repLine.isNotEmpty)
+          pw.Text(
+            repLine,
+            textAlign: pw.TextAlign.center,
+            style: const pw.TextStyle(fontSize: 7.5, color: PdfColors.grey800),
+          ),
+      ],
+    );
+  }
+
+  pw.Widget _repSalesMetaTable(Map<String, dynamic> inv) {
+    final invNum = inv['invoiceNumber'] ?? inv['id'] ?? '';
+    final date = _formatInvoiceDate(inv['date'] ?? inv['createdAt'] ?? '');
+    final customer = inv['customerName']?.toString() ?? '-';
+    return _borderedKeyValueTable([
+      ('الرقم', invNum.toString()),
+      ('التاريخ', date),
+      ('العميل', customer),
+    ]);
+  }
+
+  pw.Widget _repSalesItemsTable(List items) {
+    if (items.isEmpty) {
+      return pw.Center(
+        child: pw.Text(
+          'لا توجد أصناف',
+          style: const pw.TextStyle(fontSize: 8, color: PdfColors.grey600),
+        ),
+      );
+    }
+
+    var totalQty = 0;
+    var totalAmount = 0.0;
+    final rows = <pw.TableRow>[];
+
+    rows.add(
+      pw.TableRow(
+        decoration: const pw.BoxDecoration(color: PdfColors.grey200),
+        children: [
+          _repCell('الاجمالي', bold: true, align: pw.TextAlign.center),
+          _repCell('السعر', bold: true, align: pw.TextAlign.center),
+          _repCell('الكمية', bold: true, align: pw.TextAlign.center),
+          _repCell('الصنف', bold: true),
+          _repCell('#', bold: true, align: pw.TextAlign.center),
+        ],
+      ),
+    );
+
+    for (var i = 0; i < items.length; i++) {
+      final it = items[i] as Map;
+      final name = (it['name'] ?? it['productName'] ?? '').toString();
+      final qty = _asNum(it['quantity'] ?? 0).round();
+      final price = _asNum(it['price'] ?? it['unitPrice'] ?? 0);
+      final lineTotal = _asNum(
+        it['total'] ?? it['lineTotal'] ?? (qty * price),
+      );
+      totalQty += qty;
+      totalAmount += lineTotal;
+
+      rows.add(
+        pw.TableRow(
+          children: [
+            _repCell(_fmtMoney(lineTotal),
+                align: pw.TextAlign.center, bold: true),
+            _repCell(_fmtMoney(price), align: pw.TextAlign.center),
+            _repCell('$qty', align: pw.TextAlign.center),
+            _repCell(name, maxLines: 2),
+            _repCell('${i + 1}', align: pw.TextAlign.center),
+          ],
+        ),
+      );
+    }
+
+    rows.add(
+      pw.TableRow(
+        decoration: const pw.BoxDecoration(color: PdfColors.grey100),
+        children: [
+          _repCell(_fmtMoney(totalAmount),
+              bold: true, align: pw.TextAlign.center),
+          _repCell('', align: pw.TextAlign.center),
+          _repCell('$totalQty', bold: true, align: pw.TextAlign.center),
+          _repCell('', ),
+          _repCell('', align: pw.TextAlign.center),
+        ],
+      ),
+    );
+
+    return pw.Table(
+      border: pw.TableBorder.all(color: PdfColors.grey700, width: 0.5),
+      columnWidths: {
+        0: const pw.FlexColumnWidth(2),
+        1: const pw.FlexColumnWidth(2),
+        2: const pw.FlexColumnWidth(2),
+        3: const pw.FlexColumnWidth(4),
+        4: const pw.FlexColumnWidth(1),
+      },
+      children: rows,
+    );
+  }
+
+  pw.Widget _repSalesSummaryTable(Map<String, dynamic> inv) {
+    final previous = _asNum(
+      inv['previousBalance'] ?? inv['customerPreviousBalance'] ?? 0,
+    );
+    final invoiceTotal = _asNum(inv['total'] ?? inv['totalAmount'] ?? 0);
+    final discount = _asNum(inv['discount'] ?? 0);
+    final grandTotal = _asNum(
+      inv['grandTotal'] ?? (previous + invoiceTotal - discount),
+    );
+    final paid = _asNum(inv['paid'] ?? inv['paidAmount'] ?? 0);
+    final current = _asNum(
+      inv['currentBalance'] ?? (grandTotal - paid),
+    );
+
+    return _borderedKeyValueTable([
+      ('الحساب السابق (عليكم)', _fmtMoney(previous)),
+      ('إجمالي الفاتورة', _fmtMoney(invoiceTotal)),
+      ('الاجمالي', _fmtMoney(grandTotal)),
+      ('المدفوع', _fmtMoney(paid)),
+      ('الحساب الحالي', _fmtMoney(current)),
+    ], valueBoldLast: true);
+  }
+
+  pw.Widget _borderedKeyValueTable(
+    List<(String, String)> rows, {
+    bool valueBoldLast = false,
+  }) {
+    return pw.Table(
+      border: pw.TableBorder.all(color: PdfColors.grey700, width: 0.5),
+      columnWidths: {
+        0: const pw.FlexColumnWidth(5),
+        1: const pw.FlexColumnWidth(4),
+      },
+      children: rows.asMap().entries.map((entry) {
+        final i = entry.key;
+        final (label, value) = entry.value;
+        final isLast = valueBoldLast && i == rows.length - 1;
+        return pw.TableRow(
+          children: [
+            _repCell(label, bold: true),
+            _repCell(value, bold: isLast, align: pw.TextAlign.center),
+          ],
+        );
+      }).toList(),
+    );
+  }
+
+  pw.Widget _repCell(
+    String text, {
+    bool bold = false,
+    pw.TextAlign align = pw.TextAlign.right,
+    int maxLines = 1,
+  }) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(horizontal: 3, vertical: 3),
+      child: pw.Text(
+        text,
+        textAlign: align,
+        maxLines: maxLines,
+        style: pw.TextStyle(
+          fontSize: 7.5,
+          fontWeight: bold ? pw.FontWeight.bold : pw.FontWeight.normal,
+        ),
+      ),
+    );
+  }
+
+  String _formatInvoiceDate(dynamic raw) {
+    final s = raw?.toString() ?? '';
+    if (s.length >= 10) return s.substring(0, 10);
+    return s.isEmpty ? '-' : s;
+  }
+
+  num _asNum(dynamic value) {
+    if (value == null) return 0;
+    if (value is num) return value;
+    return num.tryParse(value.toString()) ?? 0;
+  }
+
+  String _fmtMoney(dynamic value) {
+    final n = _asNum(value);
+    final intVal = n.round();
+    final negative = intVal < 0;
+    final abs = negative ? -intVal : intVal;
+    final formatted = abs.toString().replaceAllMapped(
+          RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'),
+          (m) => '${m[1]},',
+        );
+    return negative ? '-$formatted' : formatted;
   }
 
   // ════════════════════════════════════════
