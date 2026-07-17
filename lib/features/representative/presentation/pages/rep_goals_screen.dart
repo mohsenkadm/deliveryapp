@@ -314,7 +314,7 @@ class _GoalPieChartState extends State<_GoalPieChart> {
 
     if (achieved > 0) {
       sections.add(PieChartSectionData(
-        value: achieved,
+        value: achieved.toDouble(),
         color: AppColors.successLight,
         title: '${(achieved / g.targetAmount * 100).toStringAsFixed(0)}%',
         radius: _touchedIndex == 0 ? 58 : 52,
