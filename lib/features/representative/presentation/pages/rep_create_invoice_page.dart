@@ -17,8 +17,11 @@ import '../controllers/representative_controllers.dart';
 class RepCreateInvoicePage extends GetView<RepresentativeHomeController> {
   const RepCreateInvoicePage({super.key});
 
-  // قراءة سعر الوحدة من بيانات صنف المستودع.
-  double _price(Map<String, dynamic> item) => resolveUnitPrice(item);
+  // قراءة سعر الوحدة من بيانات صنف المستودع (جملة أو مفرد حسب نوع المندوب).
+  double _price(Map<String, dynamic> item) => resolveUnitPrice(
+        item,
+        preferWholesale: controller.preferWholesaleUnitPrices,
+      );
 
   int _stock(Map<String, dynamic> item) {
     final q = item['quantity'] ??
@@ -161,6 +164,7 @@ class RepCreateInvoicePage extends GetView<RepresentativeHomeController> {
             child: Obx(() => DebouncedProductAutocomplete(
                   hintText: 'ابحث عن منتج لإضافته للسلة...',
                   isLoading: controller.isSearchingInvoiceProducts.value,
+                  preferWholesale: controller.preferWholesaleUnitPrices,
                   onSearch: controller.searchProductsForInvoice,
                   onSelected: controller.addSearchedProductToCart,
                 )),

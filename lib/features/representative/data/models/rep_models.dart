@@ -46,6 +46,7 @@ class RepCustomerDto {
   final String clientType;
   final bool isApproved;
   final double balance;
+  final String? storeImagePath;
 
   const RepCustomerDto({
     required this.id,
@@ -57,6 +58,7 @@ class RepCustomerDto {
     required this.clientType,
     required this.isApproved,
     required this.balance,
+    this.storeImagePath,
   });
 
   factory RepCustomerDto.fromJson(Map<String, dynamic> json) {
@@ -64,6 +66,10 @@ class RepCustomerDto {
         v is num ? v.toDouble() : double.tryParse(v?.toString() ?? '') ?? 0;
     int i(dynamic v) =>
         v is int ? v : int.tryParse(v?.toString() ?? '') ?? 0;
+    final image = json['storeImagePath'] ??
+        json['storeImage'] ??
+        json['imagePath'] ??
+        json['imageUrl'];
     return RepCustomerDto(
       id: i(json['id']),
       fullName: (json['fullName'] ?? '').toString(),
@@ -74,6 +80,7 @@ class RepCustomerDto {
       clientType: (json['clientType'] ?? 'Individual').toString(),
       isApproved: json['isApproved'] != false,
       balance: d(json['balance']),
+      storeImagePath: image?.toString(),
     );
   }
 }

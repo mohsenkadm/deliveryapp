@@ -160,6 +160,10 @@ class RepresentativeHomeController extends GetxController {
   }
 
   Future<void> addCustomer() async {
+    if (!Get.find<AuthService>().canAddCustomersEffective) {
+      SnackbarHelper.showError('غير مصرح لك بإضافة عملاء');
+      return;
+    }
     if (!registerFormKey.currentState!.validate()) return;
     isActing.value = true;
     try {
@@ -200,6 +204,10 @@ class RepresentativeHomeController extends GetxController {
     required String photoPath,
     String? storeName,
   }) async {
+    if (!Get.find<AuthService>().canAddCustomersEffective) {
+      SnackbarHelper.showError('غير مصرح لك بإضافة عملاء');
+      return;
+    }
     await _ds.addCustomerWithPhoto(
       fullName: fullName,
       phone: phone,
@@ -301,10 +309,16 @@ class RepresentativeHomeController extends GetxController {
   final invoiceDetail = Rxn<Map<String, dynamic>>();
   final isLoadingDetail = false.obs;
 
-  Future<void> loadCustomerInvoices(String customerId) async {
+  Future<void> loadCustomerInvoices(String customerId, {String? status}) async {
     isLoadingInvoices.value = true;
+    if (status != null) {
+      selectedInvoiceStatus.value = status.isEmpty ? null : status;
+    }
     try {
-      final data = await _ds.getInvoices(customerId: customerId);
+      final data = await _ds.getInvoices(
+        customerId: customerId,
+        status: selectedInvoiceStatus.value,
+      );
       customerInvoices.value = data;
     } catch (e) {
       customerInvoices.clear();
@@ -586,7 +600,10 @@ class RepresentativeHomeController extends GetxController {
     final stock = stockRaw is num
         ? stockRaw.toInt()
         : int.tryParse(stockRaw.toString()) ?? 0;
-    final price = resolveUnitPrice(item);
+    final price = resolveUnitPrice(
+      item,
+      preferWholesale: preferWholesaleUnitPrices,
+    );
 
     if (productId.isEmpty) {
       SnackbarHelper.showError('معرف المنتج غير صالح');

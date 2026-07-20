@@ -21,6 +21,28 @@ class Formatters {
     return DateFormat('dd/MM/yyyy', 'ar').format(date);
   }
 
+  /// تاريخ فاتورة للطباعة — yyyy/MM/dd أو yyyy/MM/dd HH:mm
+  static String invoicePrintDate(DateTime date, {bool withTime = false}) {
+    if (withTime) {
+      return DateFormat('yyyy/MM/dd HH:mm').format(date);
+    }
+    return DateFormat('yyyy/MM/dd').format(date);
+  }
+
+  /// يحاول قراءة orderDate ثم createdAt ويعيد نص طباعة واضح.
+  static String invoicePrintDateFromRaw(dynamic orderDate, dynamic createdAt) {
+    final raw = orderDate ?? createdAt;
+    if (raw == null) return '-';
+    final parsed = DateTime.tryParse(raw.toString());
+    if (parsed == null) {
+      final s = raw.toString();
+      return s.length >= 10 ? s.substring(0, 10).replaceAll('-', '/') : s;
+    }
+    final hasTime = raw.toString().contains('T') ||
+        RegExp(r'\d{2}:\d{2}').hasMatch(raw.toString());
+    return invoicePrintDate(parsed, withTime: hasTime);
+  }
+
   static String dateTime(DateTime date) {
     return DateFormat('dd/MM/yyyy hh:mm a', 'ar').format(date);
   }

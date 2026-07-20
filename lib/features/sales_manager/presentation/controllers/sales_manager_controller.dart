@@ -132,6 +132,8 @@ class SalesManagerController extends GetxController {
     isActing.value = false;
   }
 
+  /// رفض فاتورة معلّقة — إرجاع المخزون يتم على السيرفر (مندوب مفرد).
+  /// لا تعديل كميات محلية؛ قائمة الفواتير تُحدَّث من الـ API بعد الرفض.
   Future<void> rejectInvoice(String id, {String? reason}) async {
     isActing.value = true;
     try {

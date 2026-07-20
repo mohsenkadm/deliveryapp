@@ -87,4 +87,20 @@ class StorageService extends GetxService {
   String? get userName => _box.read(StorageKeys.userName);
   Future<void> saveUserName(String name) =>
       _box.write(StorageKeys.userName, name);
+
+  /// صلاحية إضافة عملاء — `null` إن لم تُرجع من السيرفر.
+  bool? get canAddCustomers {
+    final raw = _box.read(StorageKeys.canAddCustomers);
+    if (raw == null) return null;
+    if (raw is bool) return raw;
+    return null;
+  }
+
+  Future<void> saveCanAddCustomers(bool? value) async {
+    if (value == null) {
+      await _box.remove(StorageKeys.canAddCustomers);
+    } else {
+      await _box.write(StorageKeys.canAddCustomers, value);
+    }
+  }
 }
