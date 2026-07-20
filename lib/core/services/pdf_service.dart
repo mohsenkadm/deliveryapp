@@ -276,13 +276,15 @@ class PdfService {
 
   pw.Widget _repSalesMetaTable(Map<String, dynamic> inv) {
     final invNum = inv['invoiceNumber'] ?? inv['id'] ?? '';
-    final date = _formatInvoiceDate(inv['date'] ?? inv['createdAt'] ?? '');
+    final date = _formatInvoiceDate(
+      inv['orderDate'] ?? inv['date'] ?? inv['createdAt'] ?? '',
+    );
     final customer = inv['customerName']?.toString() ?? '-';
     return _borderedKeyValueTable([
       ('الرقم', invNum.toString()),
       ('التاريخ', date),
       ('العميل', customer),
-    ]);
+    ], customerMaxLines: 4);
   }
 
   pw.Widget _repSalesItemsTable(List items) {
@@ -390,6 +392,7 @@ class PdfService {
   pw.Widget _borderedKeyValueTable(
     List<(String, String)> rows, {
     bool valueBoldLast = false,
+    int customerMaxLines = 1,
   }) {
     return pw.Table(
       border: pw.TableBorder.all(color: PdfColors.grey700, width: 0.5),
@@ -401,10 +404,16 @@ class PdfService {
         final i = entry.key;
         final (label, value) = entry.value;
         final isLast = valueBoldLast && i == rows.length - 1;
+        final isCustomer = label == 'العميل';
         return pw.TableRow(
           children: [
             _repCell(label, bold: true),
-            _repCell(value, bold: isLast, align: pw.TextAlign.center),
+            _repCell(
+              value,
+              bold: isLast,
+              align: pw.TextAlign.center,
+              maxLines: isCustomer ? customerMaxLines : 1,
+            ),
           ],
         );
       }).toList(),
@@ -433,8 +442,24 @@ class PdfService {
 
   String _formatInvoiceDate(dynamic raw) {
     final s = raw?.toString() ?? '';
-    if (s.length >= 10) return s.substring(0, 10);
-    return s.isEmpty ? '-' : s;
+    if (s.isEmpty) return '-';
+    final parsed = DateTime.tryParse(s);
+    if (parsed != null) {
+      final hasTime = s.contains('T') || RegExp(r'\d{2}:\d{2}').hasMatch(s);
+      final y = parsed.year.toString().padLeft(4, '0');
+      final m = parsed.month.toString().padLeft(2, '0');
+      final d = parsed.day.toString().padLeft(2, '0');
+      if (hasTime) {
+        final hh = parsed.hour.toString().padLeft(2, '0');
+        final mm = parsed.minute.toString().padLeft(2, '0');
+        return '$y/$m/$d $hh:$mm';
+      }
+      return '$y/$m/$d';
+    }
+    if (s.length >= 10) {
+      return s.substring(0, 10).replaceAll('-', '/');
+    }
+    return s;
   }
 
   num _asNum(dynamic value) {
@@ -613,12 +638,14 @@ class PdfService {
 
   pw.Widget _receiptMeta(Map<String, dynamic> inv) {
     final invNum = inv['invoiceNumber'] ?? inv['id'] ?? '';
-    final date = inv['date'] ?? inv['createdAt'] ?? '';
+    final date = _formatInvoiceDate(
+      inv['orderDate'] ?? inv['date'] ?? inv['createdAt'] ?? '',
+    );
     return pw.Column(
       crossAxisAlignment: pw.CrossAxisAlignment.stretch,
       children: [
         _line('رقم الفاتورة', '#$invNum'),
-        _line('التاريخ', date.toString()),
+        _line('التاريخ', date),
         if ((inv['status'] ?? '').toString().isNotEmpty)
           _line('الحالة', inv['status'].toString()),
         pw.SizedBox(height: 4),

@@ -26,6 +26,9 @@ class StorageKeys {
   /// نوع المستخدم: customer | employee | admin
   static const String userKind = 'user_kind';
 
+  /// صلاحية إضافة عملاء للمندوب (من تسجيل الدخول) — null = غير محددة (مسموح)
+  static const String canAddCustomers = 'can_add_customers';
+
   // ── إعدادات التطبيق ──
   static const String isFirstTime = 'is_first_time';
   static const String isDarkMode = 'is_dark_mode';

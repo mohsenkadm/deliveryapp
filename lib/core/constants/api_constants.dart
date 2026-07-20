@@ -151,6 +151,10 @@ class ApiConstants {
   /// GET تفاصيل فاتورة
   static String repInvoiceDetail(String id) => '/api/mobile/rep/invoices/$id';
 
+  /// GET فاتورة HTML للطباعة/العرض في WebView
+  static String repInvoiceHtml(String id) =>
+      '/api/mobile/rep/invoices/$id/invoice';
+
   /// POST تحصيل دفعة من عميل
   static const String repCollectPayment = '/api/mobile/rep/payments/collect';
 

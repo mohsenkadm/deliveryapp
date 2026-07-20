@@ -96,6 +96,7 @@ class AuthRepositoryImpl implements AuthRepository {
         userName: user.fullName,
         kind: kind,
         activeRole: RoleNormalizer.pickActiveRole(normalized, user.role),
+        canAddCustomers: kind == UserKind.employee ? user.canAddCustomers : null,
       );
       return Right(user);
     } on UnauthorizedException {

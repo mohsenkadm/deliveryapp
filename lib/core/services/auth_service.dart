@@ -42,6 +42,13 @@ class AuthService extends GetxService {
   final _userKind = Rx<UserKind>(UserKind.unknown);
   UserKind get userKind => _userKind.value;
 
+  /// صلاحية إضافة عملاء من استجابة تسجيل الدخول (`null` = غير محددة → مسموح).
+  final _canAddCustomers = Rxn<bool>();
+  bool? get canAddCustomers => _canAddCustomers.value;
+
+  /// فعّالة إن كانت `true` أو `null` (توافق خلفي). تُخفى الإضافة عند `false` فقط.
+  bool get canAddCustomersEffective => _canAddCustomers.value != false;
+
   Map<String, String>? get currentUser => isLoggedIn
       ? {
           'fullName': userName,
@@ -106,6 +113,7 @@ class AuthService extends GetxService {
         _storageService.activeRole ?? _userRole.value;
     _userName.value = _storageService.userName ?? '';
     _userId.value = _storageService.userId ?? '';
+    _canAddCustomers.value = _storageService.canAddCustomers;
     await _coerceEmployeeActiveRoleIfNeeded();
   }
 
@@ -132,6 +140,7 @@ class AuthService extends GetxService {
     required String userName,
     required UserKind kind,
     String? activeRole,
+    bool? canAddCustomers,
   }) async {
     var selected =
         (activeRole != null && activeRole.isNotEmpty) ? activeRole : role;
@@ -149,6 +158,7 @@ class AuthService extends GetxService {
     await _storageService.saveUserId(userId);
     await _storageService.saveUserName(userName);
     await _storageService.saveUserKind(_kindToString(kind));
+    await _storageService.saveCanAddCustomers(canAddCustomers);
 
     _isLoggedIn.value = true;
     _userRole.value = role;
@@ -157,6 +167,7 @@ class AuthService extends GetxService {
     _userId.value = userId;
     _userName.value = userName;
     _userKind.value = kind;
+    _canAddCustomers.value = canAddCustomers;
   }
 
   /// تبديل الـ workspace النشط (للموظفين متعددي الأدوار).
@@ -176,6 +187,7 @@ class AuthService extends GetxService {
     await _storageService.remove(StorageKeys.userKind);
     await _storageService.remove(StorageKeys.userId);
     await _storageService.remove(StorageKeys.userName);
+    await _storageService.remove(StorageKeys.canAddCustomers);
     _isLoggedIn.value = false;
     _userRole.value = '';
     _userRoles.clear();
@@ -183,6 +195,7 @@ class AuthService extends GetxService {
     _userId.value = '';
     _userName.value = '';
     _userKind.value = UserKind.unknown;
+    _canAddCustomers.value = null;
   }
 
   /// مسار الشاشة الرئيسية اعتماداً على الدور النشط.

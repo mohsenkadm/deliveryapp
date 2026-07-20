@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:latlong2/latlong.dart';
 
+import '../../../../core/services/auth_service.dart';
 import '../../../../core/utils/snackbar_helper.dart';
 import '../../../../core/utils/validators.dart';
 import '../../../../core/widgets/custom_button.dart';
@@ -22,11 +23,23 @@ class RegisterCustomerPage extends StatefulWidget {
 
 class _RegisterCustomerPageState extends State<RegisterCustomerPage> {
   final _picker = ImagePicker();
+  final _mapKey = GlobalKey<LocationPickerMapState>();
   RepresentativeHomeController get controller =>
       Get.find<RepresentativeHomeController>();
 
   XFile? _photo;
   LatLng? _location;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!Get.find<AuthService>().canAddCustomersEffective) {
+        SnackbarHelper.showError('غير مصرح لك بإضافة عملاء');
+        Get.back();
+      }
+    });
+  }
 
   Future<void> _pickPhoto(ImageSource source) async {
     try {
@@ -42,18 +55,32 @@ class _RegisterCustomerPageState extends State<RegisterCustomerPage> {
   }
 
   Future<void> _submit() async {
+    if (!Get.find<AuthService>().canAddCustomersEffective) {
+      SnackbarHelper.showError('غير مصرح لك بإضافة عملاء');
+      return;
+    }
     if (!controller.registerFormKey.currentState!.validate()) return;
     if (_photo == null) {
       SnackbarHelper.showError('يرجى التقاط صورة المتجر');
       return;
     }
-    if (_location == null) {
-      SnackbarHelper.showError('يرجى تحديد موقع المتجر على الخريطة');
-      return;
-    }
 
     controller.isActing.value = true;
     try {
+      // التقاط GPS الحالي لحظة الحفظ — لا نعتمد على إحداثيات قديمة في الذاكرة.
+      final mapState = _mapKey.currentState;
+      LatLng? point = await mapState?.locateMe(showErrors: true);
+      point ??= (_location != null && (mapState?.hasUserLocation ?? false))
+          ? _location
+          : null;
+      if (point == null) {
+        SnackbarHelper.showError(
+          'يلزم تحديد موقعك الحالي قبل الحفظ. اضغط «تحديد موقعي الآن» أو أعد المحاولة.',
+        );
+        return;
+      }
+      setState(() => _location = point);
+
       await controller.addCustomerWithPhoto(
         fullName: controller.nameController.text.trim(),
         storeName: controller.storeNameController.text.trim(),
@@ -61,8 +88,8 @@ class _RegisterCustomerPageState extends State<RegisterCustomerPage> {
         address: controller.addressController.text.trim(),
         region: controller.regionController.text.trim(),
         clientType: controller.clientType.value,
-        latitude: _location!.latitude,
-        longitude: _location!.longitude,
+        latitude: point.latitude,
+        longitude: point.longitude,
         photoPath: _photo!.path,
       );
       controller.nameController.clear();
@@ -217,6 +244,7 @@ class _RegisterCustomerPageState extends State<RegisterCustomerPage> {
               ),
               const SizedBox(height: 20),
               LocationPickerMap(
+                key: _mapKey,
                 initialLatitude: _location?.latitude,
                 initialLongitude: _location?.longitude,
                 onLocationChanged: (p) => setState(() => _location = p),

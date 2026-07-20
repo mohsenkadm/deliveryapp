@@ -17,6 +17,9 @@ class User extends Equatable {
   final bool isApproved;
   final String? profileImage;
 
+  /// صلاحية إضافة عملاء (من استجابة الموظف فقط) — `null` إن لم تُرجع.
+  final bool? canAddCustomers;
+
   const User({
     required this.id,
     required this.fullName,
@@ -27,6 +30,7 @@ class User extends Equatable {
     this.address,
     this.isApproved = true,
     this.profileImage,
+    this.canAddCustomers,
   });
 
   /// هل يحمل المستخدم الدور المحدّد (بغضّ النظر عن باقي الأدوار)
@@ -37,5 +41,5 @@ class User extends Equatable {
   bool get isMultiRole => roles.length > 1;
 
   @override
-  List<Object?> get props => [id, email, role, roles];
+  List<Object?> get props => [id, email, role, roles, canAddCustomers];
 }

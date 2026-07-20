@@ -71,6 +71,7 @@ import '../../features/representative/presentation/pages/rep_warehouse_page.dart
 import '../../features/representative/presentation/pages/rep_create_invoice_page.dart';
 import '../../features/representative/presentation/pages/rep_debts_page.dart';
 import '../../features/representative/presentation/pages/rep_invoice_detail_page.dart';
+import '../../features/representative/presentation/pages/rep_invoice_html_page.dart';
 import '../../features/representative/presentation/pages/rep_transfer_product_picker_page.dart';
 
 // Representative extra (notifications)
@@ -177,6 +178,7 @@ class AppPages {
     GetPage(name: AppRoutes.repTransferPicker, page: () => const RepTransferProductPickerPage()),
     GetPage(name: AppRoutes.repDebts, page: () => const RepDebtsPage()),
     GetPage(name: AppRoutes.repInvoiceDetail, page: () => const RepInvoiceDetailPage()),
+    GetPage(name: AppRoutes.repInvoiceHtml, page: () => const RepInvoiceHtmlPage()),
     GetPage(name: AppRoutes.repGoals, page: () => const RepGoalsScreen()),
 
     // Admin

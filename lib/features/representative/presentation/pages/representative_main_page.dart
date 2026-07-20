@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:get/get.dart';
@@ -6,6 +7,7 @@ import '../../../../core/routes/app_routes.dart';
 import '../../../../core/services/auth_service.dart';
 import '../../../../core/theme/app_colors.dart';
 import '../../../../core/utils/formatters.dart';
+import '../../../../core/utils/media_url.dart';
 import '../../../../core/widgets/loading_indicator.dart';
 import '../../../settings/presentation/widgets/role_settings_tab.dart';
 import '../controllers/representative_controllers.dart';
@@ -142,15 +144,17 @@ class _RepHomeTab extends GetView<RepresentativeHomeController> {
               const SizedBox(height: 12),
               Row(
                 children: [
-                  Expanded(
-                    child: _ActionCard(
-                      icon: Icons.person_add_rounded,
-                      label: 'إضافة عميل',
-                      color: AppColors.primaryLight,
-                      onTap: () => Get.toNamed(AppRoutes.registerCustomer),
+                  if (authService.canAddCustomersEffective) ...[
+                    Expanded(
+                      child: _ActionCard(
+                        icon: Icons.person_add_rounded,
+                        label: 'إضافة عميل',
+                        color: AppColors.primaryLight,
+                        onTap: () => Get.toNamed(AppRoutes.registerCustomer),
+                      ),
                     ),
-                  ),
-                  const SizedBox(width: 12),
+                    const SizedBox(width: 12),
+                  ],
                   Expanded(
                     child: _ActionCard(
                       icon: Icons.payment_rounded,
@@ -253,14 +257,16 @@ class _MyCustomersTabState extends State<_MyCustomersTab> {
           ),
         ),
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Get.toNamed(AppRoutes.registerCustomer),
-        icon: const Icon(Icons.person_add_rounded),
-        label: Text('إضافة عميل',
-            style: GoogleFonts.cairo(fontWeight: FontWeight.w600)),
-        backgroundColor: AppColors.primaryLight,
-        foregroundColor: Colors.white,
-      ),
+      floatingActionButton: Get.find<AuthService>().canAddCustomersEffective
+          ? FloatingActionButton.extended(
+              onPressed: () => Get.toNamed(AppRoutes.registerCustomer),
+              icon: const Icon(Icons.person_add_rounded),
+              label: Text('إضافة عميل',
+                  style: GoogleFonts.cairo(fontWeight: FontWeight.w600)),
+              backgroundColor: AppColors.primaryLight,
+              foregroundColor: Colors.white,
+            )
+          : null,
       body: Obx(() {
         if (ctrl.isLoadingCustomers.value) return const LoadingIndicator();
 
@@ -387,14 +393,7 @@ class _CustomerListItem extends StatelessWidget {
         contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
         tileColor: Theme.of(context).cardTheme.color ?? AppColors.surface,
-        leading: CircleAvatar(
-          backgroundColor: AppColors.primaryLight.withValues(alpha: 0.1),
-          child: Text(
-            '${customer['fullName']?[0] ?? '?'}',
-            style: GoogleFonts.cairo(
-                fontWeight: FontWeight.w700, color: AppColors.primaryLight),
-          ),
-        ),
+        leading: _CustomerAvatar(customer: customer),
         title: Text(customer['fullName'] ?? '',
             style: GoogleFonts.cairo(fontWeight: FontWeight.w600)),
         subtitle: Column(
@@ -445,6 +444,46 @@ class _CustomerListItem extends StatelessWidget {
         ),
         onTap: () =>
             Get.toNamed(AppRoutes.customerInvoices, arguments: customer),
+      ),
+    );
+  }
+}
+
+class _CustomerAvatar extends StatelessWidget {
+  final Map<String, dynamic> customer;
+  const _CustomerAvatar({required this.customer});
+
+  @override
+  Widget build(BuildContext context) {
+    final name = (customer['fullName'] ?? '?').toString();
+    final initial = name.isNotEmpty ? name[0] : '?';
+    final url = resolveMediaUrl(
+      (customer['storeImagePath'] ??
+              customer['storeImage'] ??
+              customer['imagePath'] ??
+              customer['imageUrl'])
+          ?.toString(),
+    );
+
+    Widget placeholder() => CircleAvatar(
+          backgroundColor: AppColors.primaryLight.withValues(alpha: 0.1),
+          child: Text(
+            initial,
+            style: GoogleFonts.cairo(
+                fontWeight: FontWeight.w700, color: AppColors.primaryLight),
+          ),
+        );
+
+    if (url == null) return placeholder();
+
+    return ClipOval(
+      child: CachedNetworkImage(
+        imageUrl: url,
+        width: 40,
+        height: 40,
+        fit: BoxFit.cover,
+        placeholder: (_, __) => placeholder(),
+        errorWidget: (_, __, ___) => placeholder(),
       ),
     );
   }

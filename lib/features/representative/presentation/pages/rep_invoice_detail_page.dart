@@ -43,8 +43,16 @@ class RepInvoiceDetailPage extends GetView<RepresentativeHomeController> {
             onPressed: () => _showQr(invoiceId),
           ),
           IconButton(
+            icon: const Icon(Icons.receipt_long_outlined),
+            tooltip: 'عرض HTML للطباعة',
+            onPressed: () => Get.toNamed(
+              AppRoutes.repInvoiceHtml,
+              arguments: {'id': invoiceId},
+            ),
+          ),
+          IconButton(
             icon: const Icon(Icons.print_outlined),
-            tooltip: 'طباعة / مشاركة PDF',
+            tooltip: 'طباعة حرارية / PDF',
             onPressed: () => _printPdf(controller, invoiceId),
           ),
           IconButton(
@@ -408,11 +416,14 @@ class RepInvoiceDetailPage extends GetView<RepresentativeHomeController> {
       }).toList();
 
       final createdAt = inv['createdAt']?.toString() ?? '';
+      final orderDate = inv['orderDate'];
+      final printDate = Formatters.invoicePrintDateFromRaw(orderDate, createdAt);
       final pdf = await PdfService.instance.buildInvoicePdf({
         'layout': 'rep_sales',
         'id': inv['id'] ?? invoiceId,
         'invoiceNumber': inv['id'] ?? invoiceId,
-        'date': createdAt.length >= 10 ? createdAt.substring(0, 10) : createdAt,
+        'date': printDate,
+        'orderDate': orderDate ?? createdAt,
         'createdAt': createdAt,
         'customerName': customerLabel.isNotEmpty ? customerLabel : customerName,
         'repName': inv['employeeName'] ??

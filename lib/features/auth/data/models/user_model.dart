@@ -4,6 +4,7 @@
 // - الموظف الواحد قد يحمل عدة أدوار في نفس الوقت (Roles: "Driver,Representative").
 // - استجابة `AuthResponseDto` تحتوي على:
 //     userId, username, fullName, role (الدور الأساسي), roles[] (الكامل), token
+//     وللموظفين اختيارياً: canAddCustomers
 import '../../domain/entities/user.dart';
 
 class UserModel extends User {
@@ -17,6 +18,7 @@ class UserModel extends User {
     super.address,
     super.isApproved,
     super.profileImage,
+    super.canAddCustomers,
   });
 
   factory UserModel.fromJson(Map<String, dynamic> json) {
@@ -32,6 +34,21 @@ class UserModel extends User {
         .toString();
     if (roles.isEmpty && primaryRole.isNotEmpty) roles.add(primaryRole);
 
+    bool? canAdd;
+    if (json.containsKey('canAddCustomers')) {
+      final raw = json['canAddCustomers'];
+      if (raw is bool) {
+        canAdd = raw;
+      } else if (raw != null) {
+        final s = raw.toString().toLowerCase();
+        if (s == 'true' || s == '1') {
+          canAdd = true;
+        } else if (s == 'false' || s == '0') {
+          canAdd = false;
+        }
+      }
+    }
+
     return UserModel(
       id: (json['id'] ?? json['userId'])?.toString() ?? '',
       fullName: json['fullName'] ?? json['name'] ?? '',
@@ -42,6 +59,7 @@ class UserModel extends User {
       address: json['address'],
       isApproved: json['isApproved'] ?? true,
       profileImage: json['profileImage'] ?? json['imageUrl'],
+      canAddCustomers: canAdd,
     );
   }
 
@@ -55,13 +73,14 @@ class UserModel extends User {
         'address': address,
         'isApproved': isApproved,
         'profileImage': profileImage,
+        if (canAddCustomers != null) 'canAddCustomers': canAddCustomers,
       };
 }
 
 /// استجابة `AuthResponseDto` كما يُرجعها الخادم.
 ///
 /// شكل الاستجابة:
-/// { userId, username, fullName, role, roles:[...], token }
+/// { userId, username, fullName, role, roles:[...], token, canAddCustomers? }
 /// لا يوجد `refreshToken` في هذه الواجهة — التوكن صالح 7 أيام.
 class AuthResponse {
   final String accessToken;

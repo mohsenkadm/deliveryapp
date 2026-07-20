@@ -76,6 +76,14 @@ class _CustomerInvoicesPageState extends State<CustomerInvoicesPage> {
     }
   }
 
+  void _onStatusSelected(String status) {
+    if (_customerId != null) {
+      controller.loadCustomerInvoices(_customerId!, status: status);
+    } else {
+      controller.loadInvoices(status: status);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final wholesale = Get.find<AuthService>().isWholesaleRepresentative;
@@ -144,29 +152,27 @@ class _CustomerInvoicesPageState extends State<CustomerInvoicesPage> {
                 ),
               ),
             ),
-          if (_customerId == null)
-            Obx(() => SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                  child: Row(
-                    children: List.generate(_statuses.length, (i) {
-                      final selected =
-                          (controller.selectedInvoiceStatus.value ?? '') ==
-                              _statuses[i];
-                      return Padding(
-                        padding: const EdgeInsetsDirectional.only(end: 8),
-                        child: FilterChip(
-                          label: Text(_statusLabels[i],
-                              style: GoogleFonts.cairo(fontSize: 12)),
-                          selected: selected,
-                          onSelected: (_) =>
-                              controller.loadInvoices(status: _statuses[i]),
-                        ),
-                      );
-                    }),
-                  ),
-                )),
+          Obx(() => SingleChildScrollView(
+                scrollDirection: Axis.horizontal,
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: List.generate(_statuses.length, (i) {
+                    final selected =
+                        (controller.selectedInvoiceStatus.value ?? '') ==
+                            _statuses[i];
+                    return Padding(
+                      padding: const EdgeInsetsDirectional.only(end: 8),
+                      child: FilterChip(
+                        label: Text(_statusLabels[i],
+                            style: GoogleFonts.cairo(fontSize: 12)),
+                        selected: selected,
+                        onSelected: (_) => _onStatusSelected(_statuses[i]),
+                      ),
+                    );
+                  }),
+                ),
+              )),
           if (_customerId == null)
             Obx(() {
               if (controller.branchDrivers.isEmpty) {
@@ -230,9 +236,6 @@ class _CustomerInvoicesPageState extends State<CustomerInvoicesPage> {
                   separatorBuilder: (_, __) => const SizedBox(height: 10),
                   itemBuilder: (_, i) {
                     final inv = invoices[i];
-                    final status = InvoiceStatusHelper.parse(
-                        inv['statusText'] ?? inv['status'],
-                        fallback: '');
                     final statusColor = InvoiceStatusHelper.displayColor(inv);
                     final statusLabel = InvoiceStatusHelper.displayLabel(inv);
                     final driverName = invoiceDriverName(inv);

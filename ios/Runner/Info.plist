@@ -76,5 +76,7 @@
 	<string>لالتقاط صورة المتجر عند تسجيل عميل جديد</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>لاختيار صورة المتجر من المعرض</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>لتحديد موقع المتجر الحالي عند تسجيل عميل جديد</string>
 </dict>
 </plist>

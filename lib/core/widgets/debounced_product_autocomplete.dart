@@ -12,6 +12,8 @@ class DebouncedProductAutocomplete extends StatefulWidget {
   final void Function(Map<String, dynamic> product) onSelected;
   final String hintText;
   final bool isLoading;
+  /// عند true يُفضَّل سعر الجملة في تسمية نتائج البحث.
+  final bool preferWholesale;
 
   const DebouncedProductAutocomplete({
     super.key,
@@ -19,6 +21,7 @@ class DebouncedProductAutocomplete extends StatefulWidget {
     required this.onSelected,
     this.hintText = 'ابحث عن منتج...',
     this.isLoading = false,
+    this.preferWholesale = false,
   });
 
   @override
@@ -68,7 +71,7 @@ class _DebouncedProductAutocompleteState
   String _label(Map<String, dynamic> item) {
     final name = (item['productName'] ?? item['name'] ?? '').toString();
     final code = (item['productCode'] ?? item['code'] ?? '').toString();
-    final price = resolveUnitPrice(item);
+    final price = resolveUnitPrice(item, preferWholesale: widget.preferWholesale);
     final stock = item['quantity'] ?? item['mainWarehouseStock'] ?? item['stockQuantity'] ?? 0;
     final stockStr = stock is num ? stock.toInt().toString() : stock.toString();
     if (code.isNotEmpty) {

@@ -1,10 +1,13 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import '../../../../core/theme/app_colors.dart';
+import '../../../../core/utils/media_url.dart';
 
 class CustomerTile extends StatelessWidget {
   final String name;
   final String phone;
   final String? email;
+  final String? storeImagePath;
   final double? totalDebt;
   final VoidCallback? onTap;
   final VoidCallback? onCollectPayment;
@@ -14,6 +17,7 @@ class CustomerTile extends StatelessWidget {
     required this.name,
     required this.phone,
     this.email,
+    this.storeImagePath,
     this.totalDebt,
     this.onTap,
     this.onCollectPayment,
@@ -21,6 +25,20 @@ class CustomerTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final url = resolveMediaUrl(storeImagePath);
+    final initial = name.isNotEmpty ? name[0] : '?';
+
+    Widget avatarPlaceholder() => CircleAvatar(
+          backgroundColor: AppColors.primary.withValues(alpha: 0.1),
+          child: Text(
+            initial,
+            style: TextStyle(
+              color: AppColors.primary,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+        );
+
     return Card(
       margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
       child: InkWell(
@@ -33,16 +51,19 @@ class CustomerTile extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  CircleAvatar(
-                    backgroundColor: AppColors.primary.withValues(alpha: 0.1),
-                    child: Text(
-                      name.isNotEmpty ? name[0] : '?',
-                      style: TextStyle(
-                        color: AppColors.primary,
-                        fontWeight: FontWeight.bold,
+                  if (url != null)
+                    ClipOval(
+                      child: CachedNetworkImage(
+                        imageUrl: url,
+                        width: 40,
+                        height: 40,
+                        fit: BoxFit.cover,
+                        placeholder: (_, __) => avatarPlaceholder(),
+                        errorWidget: (_, __, ___) => avatarPlaceholder(),
                       ),
-                    ),
-                  ),
+                    )
+                  else
+                    avatarPlaceholder(),
                   const SizedBox(width: 12),
                   Expanded(
                     child: Column(
